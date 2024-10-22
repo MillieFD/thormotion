@@ -10,7 +10,7 @@ Notes:
 */
 
 use rusb::{Context, UsbContext};
-use std::fs::DirEntry;
+use std::fs::{DirEntry, ReadDir};
 use std::{fs, io};
 
 static BAUD_RATE: u32 = 115200;
@@ -29,6 +29,28 @@ fn is_device_connected(serial_number: &str) -> Result<bool, rusb::Error> {
     Err(rusb::Error::NotFound)
 }
 
+fn check_device_connection(serial_number: &str) -> Result<(), io::Error> {
+    if !is_device_connected(serial_number).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::Other,
+            format!(
+                "RUSB error whilst searching for device with serial number {}: {}",
+                serial_number, e
+            ),
+        )
+    })? {
+        Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "Device with serial number {} is not connected",
+                serial_number
+            ),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn is_device_path(path: &DirEntry, serial_number: &str) -> Result<bool, io::Error> {
     let file_name = path.file_name().into_string().map_err(|e| {
         io::Error::new(
@@ -39,33 +61,20 @@ fn is_device_path(path: &DirEntry, serial_number: &str) -> Result<bool, io::Erro
     Ok(file_name.contains(serial_number))
 }
 
-fn find_device_path_by_serial_number(serial_number: &str) -> Result<String, io::Error> {
-    if !is_device_connected(serial_number).map_err(|e| {
-        io::Error::new(
-            io::ErrorKind::Other,
-            format!(
-                "RUSB error whilst searching for device with serial number {}: {}",
-                serial_number, e
-            ),
-        )
-    })? {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!(
-                "Device with serial number {} is not connected",
-                serial_number
-            ),
-        ));
-    }
-
-    let paths = fs::read_dir("/dev/serial/by-id/")?;
-    let target_device_paths: Vec<DirEntry> = paths
+fn filter_paths(serial_number: &str, paths: ReadDir) -> Vec<DirEntry> {
+    let paths_to_device: Vec<DirEntry> = paths
         .filter_map(Result::ok)
         .filter(|path| is_device_path(path, serial_number).unwrap_or(false))
         .collect();
+    paths_to_device
+}
 
-    match target_device_paths.len() {
-        1 => Ok(target_device_paths
+fn find_device_path_by_serial_number(serial_number: &str) -> Result<String, io::Error> {
+    check_device_connection(serial_number)?;
+    let paths = fs::read_dir("/dev/serial/by-id/")?;
+    let paths_to_device = filter_paths(serial_number, paths);
+    match paths_to_device.len() {
+        1 => Ok(paths_to_device
             .first()
             .unwrap()
             .path()
