@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 serialport = "*"
 rusb = "*"
+thiserror = "*"
+pyo3 = { version = "*", features = ["extension-module"] }
