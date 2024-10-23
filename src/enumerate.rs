@@ -54,9 +54,9 @@ fn get_dev_path(serial_number: String) -> Result<String, Error> {
     is_dev_connected(&serial_number)?;
     let dev_paths = get_dev_paths(&serial_number, "/dev/serial/by-id/")?;
     match dev_paths.len() {
-        0 => Err(Error::NotFound("No device paths found")),
+        0 => Err(Error::Path("No device paths found")),
         1 => Ok(dev_paths.first().unwrap().to_string()),
-        _ => Err(Error::NotFound("Multiple device paths found")),
+        _ => Err(Error::Path("Multiple device paths found")),
     }
 }
 

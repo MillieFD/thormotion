@@ -11,27 +11,53 @@ Notes:
 
 use pyo3::exceptions::PyIOError;
 use pyo3::PyErr;
-use thiserror::Error;
+use std::fmt::{Display, Formatter};
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("Device not found: {0}")]
+#[derive(Debug)]
+pub(crate) enum Error {
     NotFound(&'static str),
-    #[error("rusb::Error: {0:?}")]
-    RusbError(#[from] rusb::Error),
-    #[error("std::io::Error: {0:?}")]
-    IoError(#[from] std::io::Error),
-    #[error("serialport::Error: {0:?}")]
-    SerialPortError(#[from] serialport::Error),
+    External(String),
+    Path(&'static str),
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::NotFound(msg) => write!(f, "NotFound error: {}", msg),
+            Error::External(msg) => write!(f, "External error: {}", msg),
+            Error::Path(msg) => {
+                write!(f, "Path error: {}", msg)
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl From<rusb::Error> for Error {
+    fn from(err: rusb::Error) -> Self {
+        Error::External(format!("Error from rusb: {:?}", err))
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::External(format!("Error from std::io: {:?}", err))
+    }
+}
+
+impl From<serialport::Error> for Error {
+    fn from(err: serialport::Error) -> Self {
+        Error::External(format!("Error from serialport: {:?}", err))
+    }
 }
 
 impl From<Error> for PyErr {
     fn from(err: Error) -> PyErr {
         match err {
             Error::NotFound(msg) => PyIOError::new_err(msg),
-            Error::RusbError(e) => PyIOError::new_err(e.to_string()),
-            Error::IoError(e) => PyIOError::new_err(e.to_string()),
-            Error::SerialPortError(e) => PyIOError::new_err(e.to_string()),
+            Error::External(msg) => PyIOError::new_err(msg),
+            Error::Path(msg) => PyIOError::new_err(msg),
         }
     }
 }
