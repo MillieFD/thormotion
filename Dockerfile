@@ -1,36 +1,62 @@
-FROM python:latest AS base
+FROM rust:latest AS base
 ARG BUILD_CONFIGURATION=release
-ARG PYPI_TOKEN
+ARG BUILD_TARGET=aarch64-unknown-linux-gnu
+ARG PYTHON_VERSIONS="3.9 3.10 3.11 3.12 3.13"
 WORKDIR /app
 
-FROM base AS build
-
+FROM base AS system
 # Install system dependencies
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y \
-        libudev-dev \
-        curl \
+        wget \
+        python3-pip \
         patchelf \
-	    # Check which packages are included in your base image \
-	    # Add additional packages here if required for the build process \
-	    # If no packages are required, this step is automatically skipped \
+        libudev-dev \
+        # Check which packages are included in your base image \
+        # Add additional packages here if required for the build process \
+        # If no packages are required, this step is automatically skipped \
     && apt-get clean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+FROM system AS python
+# Install Python versions
+RUN for version in $PYTHON_VERSIONS; do \
+    if [ ! -d "/usr/local/python-$version" ]; then \
+        wget https://www.python.org/ftp/python/$version.0/Python-$version.0.tgz \
+        && tar -xvf Python-$version.0.tgz \
+        && cd Python-$version.0 \
+        && ./configure --enable-optimizations \
+        && make -j $(nproc) \
+        && make install \
+        && cd .. \
+        && rm -rf Python-$version.0 Python-$version.0.tgz; \
+    fi \
+    done
 
-# Install python dependencies
-RUN pip install --no-cache-dir maturin twine
+FROM python AS venv
+# Create a python virtual environment and install dependencies
+ARG VENV_PATH=/app/.venv
+RUN python3.13 -m venv $VENV_PATH
+RUN /app/.venv/bin/pip install maturin twine
 
-# Copy source files
+FROM venv AS source
+# Copy source files in layers to take advantage of caching
 COPY ./src/ ./src/
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
+COPY ./pyproject.toml ./pyproject.toml
+COPY ./README.md ./README.md
+COPY ./LICENSE ./LICENSE
 
-# Build and publish
-RUN maturin build --$BUILD_CONFIGURATION --strip
-RUN twine upload --repository pypi -u __token__ -p $PYPI_TOKEN target/wheels/* || true
+FROM source AS build
+# Build for each Python version
+RUN for version in $PYTHON_VERSIONS; do \
+        $VENV_PATH/bin/maturin build --$BUILD_CONFIGURATION --strip --target $BUILD_TARGET --interpreter /usr/local/bin/python$version; \
+    done
+
+FROM build AS publish
+# Publish to PyPI
+ARG PYPI_API
+RUN $VENV_PATH/bin/twine upload --repository pypi -u __token__ -p $PYPI_API --skip-existing target/wheels/*
