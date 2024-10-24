@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+serialport = "4.6.0"
+rusb = "0.9.4"
+pyo3 = { version = "0.22.5", features = ["extension-module"] }
