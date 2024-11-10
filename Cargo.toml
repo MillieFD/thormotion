@@ -4,3 +4,10 @@ version = "0.1.3"
 edition = "2021"
 
 [dependencies]
+tokio = { version = "*", features = ["full"] }
+tokio-serial = "*"
+pyo3 = { version = "*", features = ["extension-module"] }
+once_cell = "*"
+rusb = "*"
+usb-ids = "*"
+phf = { version = "*", features = ["macros"] }

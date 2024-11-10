@@ -3,11 +3,17 @@ Project: thormotion
 GitHub: https://github.com/MillieFD/thormotion
 Author: Amelia Fraser-Dale
 License: BSD 3-Clause "New" or "Revised"
-Filename: todo
-Description: todo
+Filename: traits/mod.rs
+Description: This file defines the traits module, which contains submodules for different traits.
+Each trait contains functions which can be called from Thorlabs devices that implement the trait.
 ---------------------------------------------------------------------------------------------------
 Notes:
 */
 
-pub(crate) mod message_traits;
-pub(crate) mod thorlabs_device;
+mod motor;
+mod thorlabs_device;
+mod unit_conversion;
+
+pub use motor::Motor;
+pub use thorlabs_device::{MsgFormat, ThorlabsDevice};
+pub use unit_conversion::UnitConversion;
