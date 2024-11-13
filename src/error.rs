@@ -24,7 +24,7 @@ pub enum Error {
     InvalidSerialNumber(String),
     InvalidMessageId([u8; 2]),
     UsbWriteError(String),
-    DeviceError(&'static str),
+    DeviceError(String, String),
     WaitingSenderExists([u8; 2]),
 
     // External errors with implicit conversions
@@ -52,7 +52,9 @@ impl Error {
             Error::UsbWriteError(serial_number) => {
                 format!("Failed to write message to device (serial number: {serial_number})")
             }
-            Error::DeviceError(err) => format!("Error whilst communicating with device: {err}"),
+            Error::DeviceError(serial_number, err) => format!(
+                "Error whilst communicating with device (serial number: {serial_number}): {err}"
+            ),
             Error::WaitingSenderExists(id) => {
                 format!("A waiting sender already exists for message ID {id:?})")
             }

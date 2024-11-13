@@ -10,10 +10,14 @@ Each trait contains functions which can be called from Thorlabs devices that imp
 Notes:
 */
 
+mod chan_enable_state;
+mod hub;
 mod motor;
 mod thorlabs_device;
 mod unit_conversion;
 
+pub use chan_enable_state::ChanEnableState;
+pub use hub::Hub;
 pub use motor::Motor;
 pub use thorlabs_device::{MsgFormat, ThorlabsDevice};
 pub use unit_conversion::UnitConversion;
