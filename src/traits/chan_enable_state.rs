@@ -18,9 +18,9 @@ pub trait ChanEnableState: ThorlabsDevice {
         if response[3] == enable_byte {
             return Ok(());
         }
-        Err(Error::DeviceError(
-            self.serial_number.clone(),
-            "Failed to set channel enable state".to_string(),
-        ))
+        Err(Error::DeviceError(format!(
+            "Failed to set channel {} enable state to {} for device with serial number {}",
+            channel, enable, self.serial_number,
+        )))
     }
 }

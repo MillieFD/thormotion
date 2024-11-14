@@ -25,10 +25,10 @@ pub trait Hub: ThorlabsDevice {
             0x00 => BayIdent::BayUnknown,
             n if n > 0 && n <= 6 => BayIdent::Bay(n),
             _ => {
-                return Err(Error::DeviceError(
-                    self.serial_number.clone(),
-                    format!("Invalid bay number: {}", response[2]),
-                ))
+                return Err(Error::DeviceError(format!(
+                    "Device (serial number {}) returned an invalid bay number {}",
+                    self.serial_number, response[2]
+                )))
             }
         })
     }

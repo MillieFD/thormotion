@@ -8,9 +8,9 @@ Description: todo
 ---------------------------------------------------------------------------------------------------
 Notes:
 */
+
 use std::time::Duration;
 
-pub(crate) const MAX_ATTEMPTS: u32 = 5; // todo add a way for users to change this from the default if necessary
 pub(crate) const BUFFER_SIZE: usize = 256; // todo add a way for users to change this from the default if necessary
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(500); // todo add a way for users to change this from the default if necessary
 pub(crate) const OUT_ENDPOINT: u8 = 0x02;

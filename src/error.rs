@@ -19,12 +19,10 @@ use tokio::sync::broadcast;
 
 #[derive(Debug)]
 pub enum Error {
-    DeviceNotFound(String),
-    MultipleDevicesFound(String),
-    InvalidSerialNumber(String),
+    DeviceError(String),
+    EnumerationError(String),
     InvalidMessageId([u8; 2]),
     UsbWriteError(String),
-    DeviceError(String, String),
     WaitingSenderExists([u8; 2]),
 
     // External errors with implicit conversions
@@ -37,14 +35,11 @@ pub enum Error {
 impl Error {
     pub(crate) fn message(&self) -> String {
         match self {
-            Error::DeviceNotFound(serial_number) => {
-                format!("Device with serial number {serial_number} could not be found")
+            Error::DeviceError(msg) => {
+                format!("Error occurred whilst communicating with device: {msg}")
             }
-            Error::MultipleDevicesFound(serial_number) => {
-                format!("Multiple devices with serial number {serial_number} were found")
-            }
-            Error::InvalidSerialNumber(serial_number) => {
-                format!("Serial number {serial_number} is not valid for the selected device type")
+            Error::EnumerationError(msg) => {
+                format!("Error occurred during device enumeration: {}", msg)
             }
             Error::InvalidMessageId(id) => {
                 format!("{id:?} does not correspond to a known message ID")
@@ -52,9 +47,6 @@ impl Error {
             Error::UsbWriteError(serial_number) => {
                 format!("Failed to write message to device (serial number: {serial_number})")
             }
-            Error::DeviceError(serial_number, err) => format!(
-                "Error whilst communicating with device (serial number: {serial_number}): {err}"
-            ),
             Error::WaitingSenderExists(id) => {
                 format!("A waiting sender already exists for message ID {id:?})")
             }

@@ -37,9 +37,15 @@ pub fn get_device(serial_number: &str) -> Result<UsbDevicePrimitive, Error> {
         .collect();
 
     match devices.len() {
-        0 => Err(Error::DeviceNotFound(serial_number.to_string())),
+        0 => Err(Error::EnumerationError(format!(
+            "Device with serial number {} could not be found",
+            serial_number
+        ))),
         1 => Ok(devices.into_iter().next().unwrap()),
-        _ => Err(Error::MultipleDevicesFound(serial_number.to_string())),
+        _ => Err(Error::EnumerationError(format!(
+            "Multiple devices with serial number {} were found",
+            serial_number
+        ))),
     }
 }
 fn get_language(handle: &DeviceHandle<GlobalContext>) -> Option<Language> {

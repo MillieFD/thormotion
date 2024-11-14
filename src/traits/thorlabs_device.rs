@@ -79,7 +79,11 @@ pub trait ThorlabsDevice:
 
     fn new(serial_number: &str) -> Result<Self, Error> {
         if !serial_number.starts_with(Self::SERIAL_NUMBER_PREFIX) {
-            return Err(Error::InvalidSerialNumber(serial_number.to_string()));
+            return Err(Error::EnumerationError(format!(
+                "Serial number {} is not valid for the selected device type. Expected a serial number starting with {}",
+                serial_number,
+                Self::SERIAL_NUMBER_PREFIX,
+            )));
         };
         let device = get_device(serial_number)?;
         Ok(Self::from(device))
