@@ -19,10 +19,9 @@ use tokio::sync::broadcast;
 
 #[derive(Debug)]
 pub enum Error {
+    AptProtocolError(String),
     DeviceError(String),
     EnumerationError(String),
-    InvalidMessageId([u8; 2]),
-    WaitingSenderExists([u8; 2]),
 
     // External errors with implicit conversions
     ChannelReceiveError(String),
@@ -34,17 +33,14 @@ pub enum Error {
 impl Error {
     pub(crate) fn message(&self) -> String {
         match self {
+            Error::AptProtocolError(msg) => {
+                format!("APT protocol error: {msg}")
+            }
             Error::DeviceError(msg) => {
                 format!("Error occurred whilst communicating with device: {msg}")
             }
             Error::EnumerationError(msg) => {
                 format!("Error occurred during device enumeration: {}", msg)
-            }
-            Error::InvalidMessageId(id) => {
-                format!("{id:?} does not correspond to a known message ID")
-            }
-            Error::WaitingSenderExists(id) => {
-                format!("A waiting sender already exists for message ID {id:?})")
             }
             Error::ChannelReceiveError(err) => format!("Error from channel receiver: {err}"),
             Error::ChannelSendError(err) => format!("Error from channel sender: {err}"),

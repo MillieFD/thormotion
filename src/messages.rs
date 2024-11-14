@@ -130,14 +130,24 @@ static ALL_MESSAGE_GROUPS: phf::Map<[u8; 2], &MessageGroup> = phf_map! {
 pub(crate) fn get_metadata_by_id(id: [u8; 2]) -> Result<&'static MessageMetadata, Error> {
     Ok(ALL_MESSAGE_METADATA
         .get(&id)
-        .ok_or_else(|| Error::InvalidMessageId(id))?
+        .ok_or_else(|| {
+            Error::AptProtocolError(format!(
+                "{:?} does not correspond to a known message ID",
+                id
+            ))
+        })?
         .deref())
 }
 
 pub(crate) fn get_group_by_id(id: [u8; 2]) -> Result<&'static MessageGroup, Error> {
     Ok(ALL_MESSAGE_GROUPS
         .get(&id)
-        .ok_or_else(|| Error::InvalidMessageId(id))?
+        .ok_or_else(|| {
+            Error::AptProtocolError(format!(
+                "{:?} does not correspond to a known message ID",
+                id
+            ))
+        })?
         .deref())
 }
 
@@ -161,7 +171,10 @@ pub(crate) fn get_rx_new_or_sub(id: [u8; 2]) -> Result<ChannelStatus, Error> {
 pub(crate) fn get_rx_new_or_err(id: [u8; 2]) -> Result<Receiver<Box<[u8]>>, Error> {
     let mut waiting_sender = get_group_by_id(id)?.waiting_sender.write()?;
     if let Some(_) = waiting_sender.as_ref() {
-        Err(Error::WaitingSenderExists(id))
+        Err(Error::AptProtocolError(format!(
+            "A waiting sender already exists for message ID {:?}",
+            id
+        )))
     } else {
         let (tx, rx) = channel(1);
         waiting_sender.replace(tx);
