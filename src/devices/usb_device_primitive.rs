@@ -116,7 +116,10 @@ impl UsbDevicePrimitive {
 
     pub(crate) fn port_write(&self, data: MsgFormat) -> Result<(), Error> {
         if data.len() != self.handle.write_bulk(OUT_ENDPOINT, &data, TIMEOUT)? {
-            return Err(Error::UsbWriteError(self.serial_number.clone()));
+            return Err(Error::DeviceError(format!(
+                "Failed to write correct number of bytes to device (serial number: {})",
+                self.serial_number,
+            )));
         }
         Ok(())
     }
