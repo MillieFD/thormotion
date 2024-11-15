@@ -109,21 +109,21 @@ pub trait ThorlabsDevice:
         Ok(())
     }
 
-    fn hw_start_update_messages(&self) -> Result<(), Error> {
+    fn start_update_messages(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x11, 0x00];
         let data = Self::pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
     }
 
-    fn hw_stop_update_messages(&self) -> Result<(), Error> {
+    fn stop_update_messages(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x12, 0x00];
         let data = Self::pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
     }
 
-    async fn hw_get_info(&self) -> Result<HwInfo, Error> {
+    async fn req_hw_info(&self) -> Result<HwInfo, Error> {
         const ID: [u8; 2] = [0x00, 0x05];
         let mut rx = match get_rx_new_or_sub(ID)? {
             Sub(rx) => rx,
@@ -159,5 +159,40 @@ pub trait ThorlabsDevice:
             mod_state,
             number_channels,
         })
+    }
+
+    async fn req_serial_number(&self) -> Result<u32, Error> {
+        let hw_info = self.req_hw_info().await?;
+        Ok(hw_info.hardware_serial_number)
+    }
+
+    async fn req_model_number(&self) -> Result<String, Error> {
+        let hw_info = self.req_hw_info().await?;
+        Ok(hw_info.model_number)
+    }
+
+    async fn req_hardware_type(&self) -> Result<u16, Error> {
+        let hw_info = self.req_hw_info().await?;
+        Ok(hw_info.hardware_type)
+    }
+
+    async fn req_firmware_version(&self) -> Result<String, Error> {
+        let hw_info = self.req_hw_info().await?;
+        Ok(hw_info.firmware_version)
+    }
+
+    async fn req_hardware_version(&self) -> Result<u16, Error> {
+        let hw_info = self.req_hw_info().await?;
+        Ok(hw_info.hardware_version)
+    }
+
+    async fn req_mod_state(&self) -> Result<u16, Error> {
+        let hw_info = self.req_hw_info().await?;
+        Ok(hw_info.mod_state)
+    }
+
+    async fn req_num_channels(&self) -> Result<u16, Error> {
+        let hw_info = self.req_hw_info().await?;
+        Ok(hw_info.number_channels)
     }
 }
