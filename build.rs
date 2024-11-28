@@ -4,7 +4,10 @@ GitHub: https://github.com/MillieFD/thormotion
 Author: Amelia Fraser-Dale
 License: BSD 3-Clause "New" or "Revised"
 Filename: build.rs
-Description: todo
+Description: This file defines the build script which is run at compile time. This build script
+reads the messages.csv file and generates several static hash maps to lookup length and waiting
+sender for a given message ID. The generated code is saved to separate .rs files in the OUT_DIR,
+which are then included in the src/messages.rs file.
 ---------------------------------------------------------------------------------------------------
 Notes:
 */
@@ -17,7 +20,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-///
+/// # Define The Record Struct
+/// This struct represents a single record (row) in the CSV file. It contains the ID, length, and
+/// group names for a given message. The struct implements the Deserialize trait from the serde
+/// crate, which automatically parses columns in the CSV file to struct fields with the same name.
 
 #[derive(Deserialize, Hash, Eq, PartialEq)]
 struct Record {
@@ -27,7 +33,10 @@ struct Record {
     group: Option<String>,
 }
 
-///
+/// # Deserialize ID Function
+/// A custom deserialization function is defined to parse hexadecimal values from the messages.csv
+/// ID column into two-byte hexadecimal arrays in little-endian order. For example, the ID
+/// "0x1234" will be parsed into the array [0x34, 0x12].
 
 fn deserialize_id<'a, 'de, D>(deserializer: D) -> Result<String, D::Error>
 where
@@ -41,7 +50,10 @@ where
     Ok(id_bytes)
 }
 
-///
+/// # Main
+/// This build script reads the messages.csv file and generates several static hash maps to lookup
+/// length and waiting sender for a given message ID. The generated code is saved to separate .rs
+/// files in the OUT_DIR, which are then included in the src/messages.rs file.
 
 fn main() -> Result<(), Box<dyn Error>> {
     let out_dir = var_os("OUT_DIR").ok_or("OUT_DIR not set")?;
