@@ -12,52 +12,12 @@ Notes:
 */
 
 use crate::error::Error;
-use phf::phf_map;
 use std::ops::Deref;
-use std::sync::RwLock;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 
-///
-
-#[derive(Debug, Clone)]
-pub(crate) struct MessageMetadata {
-    pub(crate) id: [u8; 2],
-    pub(crate) length: usize,
-}
-
-impl MessageMetadata {
-    pub(crate) const fn new(id: u16, length: usize) -> Self {
-        Self {
-            id: id.to_le_bytes(),
-            length,
-        }
-    }
-}
-
-///
-
-#[derive(Debug)]
-pub(crate) struct MessageGroup {
-    pub(crate) set: Option<&'static MessageMetadata>,
-    pub(crate) req: &'static MessageMetadata,
-    pub(crate) get: &'static MessageMetadata,
-    pub(crate) waiting_sender: RwLock<Option<Sender<Box<[u8]>>>>,
-}
-
-impl MessageGroup {
-    pub(crate) const fn new(
-        set: Option<&'static MessageMetadata>,
-        req: &'static MessageMetadata,
-        get: &'static MessageMetadata,
-    ) -> Self {
-        MessageGroup {
-            set,
-            req,
-            get,
-            waiting_sender: RwLock::new(None),
-        }
-    }
-}
+include!(concat!(env!("OUT_DIR"), "/init_groups.rs"));
+include!(concat!(env!("OUT_DIR"), "/length_map.rs"));
+include!(concat!(env!("OUT_DIR"), "/sender_map.rs"));
 
 /// # Define messages
 ///
@@ -72,24 +32,6 @@ impl MessageGroup {
 /// The ALL_MESSAGE_METADATA hashmap allows looking up message metadata by ID. Keys are `[u8; 2]`
 /// arrays containing the low and high bytes of the message ID in little-endian order. Values are
 /// references to the corresponding MessageMetadata instances.
-
-static SET_CHANENABLESTATE: MessageMetadata = MessageMetadata::new(0x0210, 6);
-static REQ_CHANENABLESTATE: MessageMetadata = MessageMetadata::new(0x0211, 6);
-static GET_CHANENABLESTATE: MessageMetadata = MessageMetadata::new(0x0212, 6);
-static HW_START_UPDATEMSGS: MessageMetadata = MessageMetadata::new(0x0011, 6);
-static HW_STOP_UPDATEMSGS: MessageMetadata = MessageMetadata::new(0x0012, 6);
-static HW_REQ_INFO: MessageMetadata = MessageMetadata::new(0x0005, 6);
-static HW_GET_INFO: MessageMetadata = MessageMetadata::new(0x0006, 6);
-
-static ALL_MESSAGE_METADATA: phf::Map<[u8; 2], &MessageMetadata> = phf_map! {
-    [0x10, 0x02] => &SET_CHANENABLESTATE,
-    [0x11, 0x02] => &REQ_CHANENABLESTATE,
-    [0x12, 0x02] => &GET_CHANENABLESTATE,
-    [0x00, 0x11] => &HW_START_UPDATEMSGS,
-    [0x00, 0x12] => &HW_STOP_UPDATEMSGS,
-    [0x00, 0x05] => &HW_REQ_INFO,
-    [0x00, 0x06] => &HW_GET_INFO,
-};
 
 /// # Define groups
 ///
@@ -109,26 +51,11 @@ static ALL_MESSAGE_METADATA: phf::Map<[u8; 2], &MessageMetadata> = phf_map! {
 /// Values are references to the corresponding MessageGroup instances.
 /// This enables the system to handle related messages together and manage their shared state.
 
-static CHANENABLESTATE: MessageGroup = MessageGroup::new(
-    Some(&SET_CHANENABLESTATE),
-    &REQ_CHANENABLESTATE,
-    &GET_CHANENABLESTATE,
-);
-static HW_INFO: MessageGroup = MessageGroup::new(None, &HW_REQ_INFO, &HW_GET_INFO);
-
-static ALL_MESSAGE_GROUPS: phf::Map<[u8; 2], &MessageGroup> = phf_map! {
-    [0x10, 0x02] => &CHANENABLESTATE,
-    [0x11, 0x02] => &CHANENABLESTATE,
-    [0x12, 0x02] => &CHANENABLESTATE,
-    [0x00, 0x11] => &HW_INFO,
-    [0x00, 0x12] => &HW_INFO,
-};
-
 /// # Lookup Functions
 /// This section contains functions for looking up message metadata and groups by their IDs:
 
-pub(crate) fn get_metadata_by_id(id: [u8; 2]) -> Result<&'static MessageMetadata, Error> {
-    Ok(ALL_MESSAGE_METADATA
+pub(crate) fn get_length(id: [u8; 2]) -> Result<usize, Error> {
+    Ok(LENGTH_MAP
         .get(&id)
         .ok_or_else(|| {
             Error::AptProtocolError(format!(
@@ -136,11 +63,13 @@ pub(crate) fn get_metadata_by_id(id: [u8; 2]) -> Result<&'static MessageMetadata
                 id
             ))
         })?
-        .deref())
+        .clone())
 }
 
-pub(crate) fn get_group_by_id(id: [u8; 2]) -> Result<&'static MessageGroup, Error> {
-    Ok(ALL_MESSAGE_GROUPS
+pub(crate) fn get_waiting_sender<'a>(
+    id: [u8; 2],
+) -> Result<&'a RwLock<Option<Sender<Box<[u8]>>>>, Error> {
+    Ok(SENDER_MAP
         .get(&id)
         .ok_or_else(|| {
             Error::AptProtocolError(format!(
@@ -157,7 +86,7 @@ pub(crate) enum ChannelStatus {
 }
 
 pub(crate) fn get_rx_new_or_sub(id: [u8; 2]) -> Result<ChannelStatus, Error> {
-    let mut waiting_sender = get_group_by_id(id)?.waiting_sender.write()?;
+    let mut waiting_sender = get_waiting_sender(id)?.write()?;
     if let Some(tx) = waiting_sender.as_ref() {
         let rx = tx.subscribe();
         Ok(ChannelStatus::Sub(rx))
@@ -169,7 +98,7 @@ pub(crate) fn get_rx_new_or_sub(id: [u8; 2]) -> Result<ChannelStatus, Error> {
 }
 
 pub(crate) fn get_rx_new_or_err(id: [u8; 2]) -> Result<Receiver<Box<[u8]>>, Error> {
-    let mut waiting_sender = get_group_by_id(id)?.waiting_sender.write()?;
+    let mut waiting_sender = get_waiting_sender(id)?.write()?;
     if let Some(_) = waiting_sender.as_ref() {
         Err(Error::AptProtocolError(format!(
             "A waiting sender already exists for message ID {:?}",
