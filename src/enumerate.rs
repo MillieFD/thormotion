@@ -14,7 +14,7 @@ todo when a device is disconnected, it is not currently removed from the hash ma
 */
 
 use crate::devices::UsbDevicePrimitive;
-use crate::env::{TIMEOUT, VENDOR_ID};
+use crate::env::{SHORT_TIMEOUT, VENDOR_ID};
 use crate::error::Error;
 use rusb::{DeviceDescriptor, DeviceHandle, DeviceList, GlobalContext, Language};
 
@@ -49,7 +49,7 @@ pub fn get_device(serial_number: &str) -> Result<UsbDevicePrimitive, Error> {
     }
 }
 fn get_language(handle: &DeviceHandle<GlobalContext>) -> Option<Language> {
-    handle.read_languages(TIMEOUT).ok()?.get(0).copied()
+    handle.read_languages(SHORT_TIMEOUT).ok()?.get(0).copied()
 }
 
 fn get_serial_number(
@@ -59,7 +59,7 @@ fn get_serial_number(
 ) -> Option<String> {
     Some(
         handle
-            .read_serial_number_string(language, &descriptor, TIMEOUT)
+            .read_serial_number_string(language, &descriptor, SHORT_TIMEOUT)
             .ok()?,
     )
 }
