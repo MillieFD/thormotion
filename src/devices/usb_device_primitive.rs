@@ -11,8 +11,8 @@ communicating with the underlying USB device.
 Notes:
 */
 
-use crate::env::{BUFFER_SIZE, IN_ENDPOINT, OUT_ENDPOINT, READ_INTERVAL, TIMEOUT};
-use crate::messages::{get_group_by_id, get_metadata_by_id};
+use crate::env::{BUFFER_SIZE, IN_ENDPOINT, OUT_ENDPOINT, READ_INTERVAL, SHORT_TIMEOUT};
+use crate::messages::{get_length, get_waiting_sender};
 use crate::traits::MsgFormat;
 use crate::Error;
 use rusb::{DeviceDescriptor, DeviceHandle, GlobalContext, Language};
@@ -79,43 +79,43 @@ impl UsbDevicePrimitive {
 
         // Reset the device
         self.handle
-            .write_control(0x40, 0x00, 0x0000, 0, &[], TIMEOUT)?;
+            .write_control(0x40, 0x00, 0x0000, 0, &[], SHORT_TIMEOUT)?;
 
         // Set baud rate (115200)
         self.handle
-            .write_control(0x40, 0x03, 0x001A, 0, &[], TIMEOUT)?;
+            .write_control(0x40, 0x03, 0x001A, 0, &[], SHORT_TIMEOUT)?;
 
         // Set data format (8 data bits, 1 stop bit, no parity)
         self.handle
-            .write_control(0x40, 0x04, 0x0008, 0, &[], TIMEOUT)?;
+            .write_control(0x40, 0x04, 0x0008, 0, &[], SHORT_TIMEOUT)?;
 
         // Pre-purge dwell
         sleep(Duration::from_millis(50));
 
         // Purge receive buffer
         self.handle
-            .write_control(0x40, 0x00, 0x0001, 0, &[], TIMEOUT)?;
+            .write_control(0x40, 0x00, 0x0001, 0, &[], SHORT_TIMEOUT)?;
 
         // Purge transmit buffer
         self.handle
-            .write_control(0x40, 0x00, 0x0002, 0, &[], TIMEOUT)?;
+            .write_control(0x40, 0x00, 0x0002, 0, &[], SHORT_TIMEOUT)?;
 
         // Post-purge dwell
         sleep(Duration::from_millis(500));
 
         // Set flow control (RTS/CTS)
         self.handle
-            .write_control(0x40, 0x02, 0x0200, 0, &[], TIMEOUT)?;
+            .write_control(0x40, 0x02, 0x0200, 0, &[], SHORT_TIMEOUT)?;
 
         // Set RTS high
         self.handle
-            .write_control(0x40, 0x01, 0x0202, 0, &[], TIMEOUT)?;
+            .write_control(0x40, 0x01, 0x0202, 0, &[], SHORT_TIMEOUT)?;
 
         Ok(())
     }
 
     pub(crate) fn port_write(&self, data: MsgFormat) -> Result<(), Error> {
-        if data.len() != self.handle.write_bulk(OUT_ENDPOINT, &data, TIMEOUT)? {
+        if data.len() != self.handle.write_bulk(OUT_ENDPOINT, &data, SHORT_TIMEOUT)? {
             return Err(Error::DeviceError(format!(
                 "Failed to write correct number of bytes to device (serial number: {})",
                 self.serial_number,
@@ -134,18 +134,18 @@ impl UsbDevicePrimitive {
                     break;
                 }
                 let mut buffer = [0u8; BUFFER_SIZE];
-                let num_bytes_read = handle.read_bulk(IN_ENDPOINT, &mut buffer, TIMEOUT)?;
+                let num_bytes_read = handle.read_bulk(IN_ENDPOINT, &mut buffer, SHORT_TIMEOUT)?;
                 if num_bytes_read == 2 {
                     continue;
                 }
                 queue.extend(&buffer[2..num_bytes_read - 2]);
                 loop {
                     let id: [u8; 2] = [queue[0], queue[1]];
-                    let message_length = get_metadata_by_id(id)?.length;
+                    let message_length = get_length(id)?;
                     if queue.len() < message_length {
                         break;
                     }
-                    if let Some(sender) = get_group_by_id(id)?.waiting_sender.write()?.take() {
+                    if let Some(sender) = get_waiting_sender(id)?.write()?.take() {
                         let message: Box<[u8]> = queue.drain(..message_length).collect();
                         sender.send(message)?;
                     };
