@@ -12,7 +12,6 @@ Notes:
 */
 
 use crate::error::Error;
-use std::ops::Deref;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 
 include!(concat!(env!("OUT_DIR"), "/init_groups.rs"));
