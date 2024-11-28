@@ -68,16 +68,13 @@ pub(crate) fn get_length(id: [u8; 2]) -> Result<usize, Error> {
 
 pub(crate) fn get_waiting_sender<'a>(
     id: [u8; 2],
-) -> Result<&'a RwLock<Option<Sender<Box<[u8]>>>>, Error> {
-    Ok(SENDER_MAP
-        .get(&id)
-        .ok_or_else(|| {
-            Error::AptProtocolError(format!(
-                "{:?} does not correspond to a known message ID",
-                id
-            ))
-        })?
-        .deref())
+) -> Result<&'a &'a RwLock<Option<Sender<Box<[u8]>>>>, Error> {
+    Ok(SENDER_MAP.get(&id).ok_or_else(|| {
+        Error::AptProtocolError(format!(
+            "{:?} does not correspond to a known message ID",
+            id
+        ))
+    })?)
 }
 
 pub(crate) enum ChannelStatus {
