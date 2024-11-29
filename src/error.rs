@@ -16,6 +16,7 @@ use pyo3::PyErr;
 use std::fmt::{Display, Formatter};
 use std::sync::PoisonError;
 use tokio::sync::broadcast;
+use tokio::time::error::Elapsed;
 
 #[derive(Debug)]
 pub enum Error {
@@ -77,6 +78,12 @@ impl From<broadcast::error::RecvError> for Error {
 impl From<broadcast::error::SendError<Box<[u8]>>> for Error {
     fn from(err: broadcast::error::SendError<Box<[u8]>>) -> Self {
         Error::ChannelSendError(err.to_string())
+    }
+}
+
+impl From<Elapsed> for Error {
+    fn from(err: Elapsed) -> Self {
+        Error::AptProtocolError(err.to_string())
     }
 }
 
