@@ -27,18 +27,20 @@ use std::path::Path;
 
 #[derive(Deserialize, Hash, Eq, PartialEq)]
 struct Record {
+    name: String,
     #[serde(deserialize_with = "deserialize_id")]
     id: String,
-    length: usize,
+    #[serde(deserialize_with = "deserialize_length")]
+    length: Vec<usize>,
     group: Option<String>,
 }
 
 /// # Deserialize ID Function
-/// A custom deserialization function is defined to parse hexadecimal values from the messages.csv
-/// ID column into two-byte hexadecimal arrays in little-endian order. For example, the ID
-/// "0x1234" will be parsed into the array [0x34, 0x12].
+/// This custom deserialization function parses hexadecimal values from the messages.csv "id"
+/// column into two-byte hexadecimal arrays in little-endian order.
+/// For example, the ID "0x1234" will be parsed into the array [0x34, 0x12].
 
-fn deserialize_id<'a, 'de, D>(deserializer: D) -> Result<String, D::Error>
+fn deserialize_id<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -48,6 +50,25 @@ where
         .to_le_bytes();
     let id_bytes = format!("[0x{:02x}, 0x{:02x}]", array[0], array[1]);
     Ok(id_bytes)
+}
+
+/// # Deserialize Length Function
+/// This custom deserialization function parses a semicolon-separated string of lengths from
+/// the messages.csv "length" column into a set of unique `usize` values.
+/// A `HashSet` is used initially to ensure uniqueness, and is then converted into a `Vec`
+/// to simplify later usage in the `Record` struct.
+
+fn deserialize_length<'de, D>(deserializer: D) -> Result<Vec<usize>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let lengths_str: &str = Deserialize::deserialize(deserializer)?;
+    let lengths_set: HashSet<usize> = lengths_str
+        .split(';')
+        .map(|s| s.trim().parse::<usize>().map_err(serde::de::Error::custom))
+        .collect::<Result<HashSet<usize>, _>>()?;
+    let lengths_vec: Vec<usize> = lengths_set.into_iter().collect();
+    Ok(lengths_vec)
 }
 
 /// # Main
@@ -63,25 +84,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut groups_map = HashMap::new();
 
     let mut reader = csv::Reader::from_path("messages.csv")?;
-    let records: HashSet<Record> = reader.deserialize().collect::<Result<_, csv::Error>>()?;
+    let records = reader
+        .deserialize()
+        .collect::<Result<HashSet<Record>, csv::Error>>()?;
     if records.len() < reader.into_records().count() {
         panic!("WARNING: messages.csv contains duplicate rows");
     }
 
     writeln!(length_map, "use phf::phf_map;")?;
-    writeln!(init_groups, "use std::sync::RwLock;")?;
-
     writeln!(
         length_map,
         "pub(crate) static LENGTH_MAP: phf::Map<[u8; 2], usize> = phf_map! {{"
     )?;
     for record in &records {
-        writeln!(length_map, "{} => {},", record.id, record.length)?;
+        if let [length] = record.length.as_slice() {
+            writeln!(length_map, "{} => {},", record.id, length)?;
+        }
         if let Some(group) = &record.group {
             groups_map
                 .entry(group.clone())
-                .or_insert(Vec::new())
-                .push(record.id.clone());
+                .or_insert(HashSet::new())
+                .insert(record.id.clone());
         }
     }
     writeln!(length_map, "}};")?;
