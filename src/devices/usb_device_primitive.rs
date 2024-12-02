@@ -11,7 +11,7 @@ communicating with the underlying USB device.
 Notes:
 */
 
-use crate::env::{BUFFER_SIZE, IN_ENDPOINT, OUT_ENDPOINT, READ_INTERVAL, SHORT_TIMEOUT};
+use crate::env::{BUFFER_SIZE, IN_ENDPOINT, OUT_ENDPOINT, POLL_READ_INTERVAL, SHORT_TIMEOUT};
 use crate::messages::{get_length, get_waiting_sender};
 use crate::traits::MsgFormat;
 use crate::Error;
@@ -20,9 +20,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::oneshot::error::TryRecvError;
-use tokio::sync::oneshot::Receiver;
-use tokio::sync::oneshot::{channel, Sender};
-use tokio::time::sleep;
+use tokio::sync::oneshot::{channel, Receiver, Sender};
 
 /// UsbDevicePrimitive provides a wrapper around rusb's DeviceHandle for communicating with USB devices.
 /// It handles device initialization, message formatting, and asynchronous I/O operations.
@@ -90,7 +88,7 @@ impl UsbDevicePrimitive {
             .write_control(0x40, 0x04, 0x0008, 0, &[], SHORT_TIMEOUT)?;
 
         // Pre-purge dwell
-        sleep(Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(50));
 
         // Purge receive buffer
         self.handle
@@ -101,7 +99,7 @@ impl UsbDevicePrimitive {
             .write_control(0x40, 0x00, 0x0002, 0, &[], SHORT_TIMEOUT)?;
 
         // Post-purge dwell
-        sleep(Duration::from_millis(500));
+        std::thread::sleep(Duration::from_millis(500));
 
         // Set flow control (RTS/CTS)
         self.handle
@@ -129,26 +127,44 @@ impl UsbDevicePrimitive {
         tokio::spawn(async move {
             let mut queue: VecDeque<u8> = VecDeque::with_capacity(2 * BUFFER_SIZE);
             loop {
-                sleep(READ_INTERVAL).await;
+                tokio::time::sleep(POLL_READ_INTERVAL).await;
                 if shutdown_rx.try_recv() != Err(TryRecvError::Empty) {
                     break;
                 }
                 let mut buffer = [0u8; BUFFER_SIZE];
                 let num_bytes_read = handle.read_bulk(IN_ENDPOINT, &mut buffer, SHORT_TIMEOUT)?;
+                println!("num_bytes_read: {}", num_bytes_read);
                 if num_bytes_read == 2 {
+                    println!();
                     continue;
                 }
-                queue.extend(&buffer[2..num_bytes_read - 2]);
+                println!("Adding bytes to queue");
+                queue.extend(&buffer[2..num_bytes_read]);
+                println!("queue length: {}", queue.len());
                 loop {
-                    let id: [u8; 2] = [queue[0], queue[1]];
-                    let message_length = get_length(id)?;
-                    if queue.len() < message_length {
+                    if queue.is_empty() {
+                        println!("Queue is empty. Breaking from inner loop.");
+                        println!();
                         break;
                     }
+                    let id: [u8; 2] = [queue[0], queue[1]];
+                    println!("id: {:?}", id);
+                    let message_length = get_length(id)?;
+                    println!("message length: {}", message_length);
+                    if queue.len() < message_length {
+                        println!("Not enough bytes in queue");
+                        break;
+                    }
+                    println!("Getting sender for id: {:?}", id);
                     if let Some(sender) = get_waiting_sender(id)?.write()?.take() {
+                        println!("Sender found for id: {:?}", id);
                         let message: Box<[u8]> = queue.drain(..message_length).collect();
+                        println!("Message: {:?}", message);
+                        println!("Sending message");
                         sender.send(message)?;
+                        println!("Message sent");
                     };
+                    println!("Queue length after draining: {}", queue.len());
                 }
             }
             Ok::<(), Error>(())
