@@ -8,7 +8,6 @@ Description: This file defines traits for Thorlabs devices. Each trait contains 
  be called by Thorlabs devices that implement the trait.
 ---------------------------------------------------------------------------------------------------
 Notes:
-TODO alter hash maps to lookup using command name (e.g. "REQ_CHANENABLESTATE"). This allows for multiple versions for commands with the same ID but different lengths (e.g. "MOVE_ABSOLUTE_LONG" and "MOVE_ABSOLUTE_SHORT")
 */
 
 use crate::devices::UsbDevicePrimitive;
@@ -26,10 +25,9 @@ use tokio::time::timeout;
 /// be followed by a variable-length data packet. For simple commands, the 6-byte message header
 /// is sufficient to convey the entire command. For more complex commands (e.g. commands where a
 /// set of parameters needs to be passed to the device) the 6-byte header is insufficient and
-/// must be followed by a data packet.
-///
-/// The MsgFormat enum is used to wrap the bytes of a message and indicate whether the message
-/// is "short" (6 byte header only) or "long" (6 byte header + variable length data package).
+/// must be followed by a data packet. The `MsgFormat` enum is used to wrap the bytes of a message
+/// and indicate whether the message is `Short` (six byte header only) or `Long` (six byte header
+/// plus variable length data package).
 
 pub enum MsgFormat {
     Short([u8; 6]),
@@ -133,14 +131,6 @@ pub trait ThorlabsDevice:
     }
 
     fn pack_short_message(id: [u8; 2], param1: u8, param2: u8) -> MsgFormat {
-        print!("Packing short message: ");
-        print!("{:2?}, ", id[0]);
-        print!("{:2?}, ", id[1]);
-        print!("{:2?}, ", param1);
-        print!("{:2?}, ", param2);
-        print!("{:2?}, ", DEST);
-        print!("{:2?}", SOURCE);
-        println!();
         MsgFormat::Short([id[0], id[1], param1, param2, DEST, SOURCE])
     }
 
@@ -250,7 +240,7 @@ pub trait ThorlabsDevice:
 
 /// # Unit Conversion
 /// The UnitConversion trait provides functions for converting between real units (e.g. mm) and
-/// device units (encoder counts). This trait is required by all Thorlabs devices which move.
+/// device units (encoder counts). This trait is required by all Thorlabs devices that move.
 
 pub trait UnitConversion {
     const DISTANCE_ANGLE_SCALING_FACTOR: f64;
