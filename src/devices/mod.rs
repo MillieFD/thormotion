@@ -12,8 +12,10 @@ specific to its device type. These are defined in the "traits" module.
 ---------------------------------------------------------------------------------------------------
 Notes:
 */
+mod hardware_info;
 mod kdc101;
 mod usb_device_primitive;
 
+pub use hardware_info::HardwareInfo;
 pub use kdc101::KDC101;
 pub use usb_device_primitive::UsbDevicePrimitive;
