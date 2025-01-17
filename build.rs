@@ -20,10 +20,12 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-/// # Define The Record Struct
-/// This struct represents a single record (row) in the CSV file. It contains the ID, length, and
-/// group names for a given message. The struct implements the Deserialize trait from the serde
-/// crate, which automatically parses columns in the CSV file to struct fields with the same name.
+/// # Record
+/// The `record` struct represents a single record (row) in the CSV file.
+/// It contains the ID, length, and group names for a given message.
+/// The struct implements the `serde::Deserialize` trait,
+/// which automatically parses columns in the CSV file to struct fields with the same name.
+/// Specific deserialization functions are provided where necessary.
 
 #[derive(Deserialize, Hash, Eq, PartialEq)]
 struct Record {
@@ -36,9 +38,9 @@ struct Record {
 }
 
 /// # Deserialize ID Function
-/// This custom deserialization function parses hexadecimal values from the messages.csv "id"
+/// This custom deserialization function parses hexadecimal values from the messages.csv `id`
 /// column into two-byte hexadecimal arrays in little-endian order.
-/// For example, the ID "0x1234" will be parsed into the array [0x34, 0x12].
+/// For example, the ID `0x1234` will be parsed into the array `[0x34, 0x12]`.
 
 fn deserialize_id<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
@@ -54,7 +56,7 @@ where
 
 /// # Deserialize Length Function
 /// This custom deserialization function parses a semicolon-separated string of lengths from
-/// the messages.csv "length" column into a set of unique `usize` values.
+/// the messages.csv `length` column into a set of unique `usize` values.
 /// A `HashSet` is used initially to ensure uniqueness, and is then converted into a `Vec`
 /// to simplify later usage in the `Record` struct.
 
@@ -72,9 +74,9 @@ where
 }
 
 /// # Main
-/// This build script reads the messages.csv file and generates several static hash maps to lookup
-/// length and waiting sender for a given message ID. The generated code is saved to separate .rs
-/// files in the OUT_DIR, which are then included in the src/messages.rs file.
+/// This build script reads the messages.csv file and generates several static hash maps to
+/// lookup length and waiting sender for a given message ID. The generated code is saved to
+/// separate `.rs` files in the `OUT_DIR`, which are then included in the `messages.rs` file.
 
 fn main() -> Result<(), Box<dyn Error>> {
     let out_dir = var_os("OUT_DIR").ok_or("OUT_DIR not set")?;
