@@ -6,7 +6,6 @@ Filename: test.rs
 */
 
 use crate::devices::{HardwareInfo, UsbDevicePrimitive};
-use crate::enumerate::get_device;
 use crate::env::{DEST, LONG_TIMEOUT, SOURCE};
 use crate::error::Error;
 use crate::messages::ChannelStatus::{New, Sub};
@@ -21,6 +20,8 @@ use tokio::time::timeout;
 pub trait ThorlabsDevice:
     From<UsbDevicePrimitive> + Deref<Target = UsbDevicePrimitive> + Send + Sync
 {
+    fn new(serial_number: &str) -> Result<Self, Error>;
+
     /// # Serial Number Prefix
     /// Each Thorlabs device type has a unique serial number prefix. For example, KDC101
     /// "K-cubes" always have serial numbers which begin with "27". The `new()` function
@@ -28,17 +29,16 @@ pub trait ThorlabsDevice:
     /// calling struct. This prevents users from accidentally connecting to devices
     /// from the incorrect struct.
     const SERIAL_NUMBER_PREFIX: &'static str;
-
-    fn new(serial_number: &str) -> Result<Self, Error> {
-        if !serial_number.starts_with(Self::SERIAL_NUMBER_PREFIX) {
-            return Err(Error::EnumerationError(format!(
+    fn check_serial_number(serial_number: &str) -> Result<(), Error> {
+        if serial_number.starts_with(Self::SERIAL_NUMBER_PREFIX) {
+            Ok(())
+        } else {
+            Err(Error::EnumerationError(format!(
                 "Serial number {} is not valid for the selected device type. Expected a serial number starting with {}",
                 serial_number,
                 Self::SERIAL_NUMBER_PREFIX,
-            )));
-        };
-        let device = get_device(serial_number)?;
-        Ok(Self::from(device))
+            )))
+        }
     }
 
     /// # Pack Functions
@@ -70,7 +70,7 @@ pub trait ThorlabsDevice:
 
     /// # MOD_IDENTIFY (0x0223)
     ///
-    /// **Function implemented from Thorlabs ATP protocol**
+    /// **Function implemented from Thorlabs APT protocol**
     ///
     /// This function instructs the hardware unit to identify itself (by flashing its front
     /// panel LEDs). In card-slot (bay) type of systems (which are usually multichannel
@@ -90,7 +90,7 @@ pub trait ThorlabsDevice:
 
     /// # HW_START_UPDATEMSGS (0x0011)
     ///
-    /// **Function implemented from Thorlabs ATP protocol**
+    /// **Function implemented from Thorlabs APT protocol**
     ///
     /// This function starts automatic status updates from the embedded controller. Status
     /// update messages contain information about the position and status of the controller
@@ -108,7 +108,7 @@ pub trait ThorlabsDevice:
 
     /// # HW_STOP_UPDATEMSGS (0x0012)
     ///
-    /// **Function implemented from Thorlabs ATP protocol**
+    /// **Function implemented from Thorlabs APT protocol**
     ///
     /// This function stops automatic status updates from the embedded controller. Status
     /// update messages contain information about the position and status of the controller
@@ -129,12 +129,11 @@ pub trait ThorlabsDevice:
 
     /// # HW_REQ_INFO (0x0005)
     ///
-    /// **Function implemented from Thorlabs ATP protocol**
+    /// **Function implemented from Thorlabs APT protocol**
     ///
     /// This function is used to request hardware information from the controller.
     /// The controller will send a `HW_GET_INFO (0x0006)` message in response, which
     /// is then parsed into a new instance of the `HardwareInfo` struct.
-
     // todo This internal function is not intended to be used directly.
     async fn req_hw_info(&self) -> Result<HardwareInfo, Error> {
         const ID: [u8; 2] = [0x00, 0x05];
