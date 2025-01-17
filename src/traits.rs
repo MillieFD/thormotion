@@ -10,109 +10,19 @@ Description: This file defines traits for Thorlabs devices. Each trait contains 
 Notes:
 */
 
-use crate::devices::UsbDevicePrimitive;
+use crate::devices::{HardwareInfo, UsbDevicePrimitive};
 use crate::enumerate::get_device;
 use crate::env::{DEST, LONG_TIMEOUT, SHORT_TIMEOUT, SOURCE};
 use crate::messages::ChannelStatus::{New, Sub};
-use crate::messages::{get_rx_new_or_err, get_rx_new_or_sub, LENGTH_MAP};
+use crate::messages::{get_rx_new_or_err, get_rx_new_or_sub, MsgFormat};
 use crate::Error;
-use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use tokio::time::timeout;
 
-/// # Message Format
-/// The Thorlabs APT communication protocol uses a fixed length 6-byte message header, which may
-/// be followed by a variable-length data packet. For simple commands, the 6-byte message header
-/// is sufficient to convey the entire command. For more complex commands (e.g. commands where a
-/// set of parameters needs to be passed to the device) the 6-byte header is insufficient and
-/// must be followed by a data packet. The `MsgFormat` enum is used to wrap the bytes of a message
-/// and indicate whether the message is `Short` (six byte header only) or `Long` (six byte header
-/// plus variable length data package).
-
-pub enum MsgFormat {
-    Short([u8; 6]),
-    Long(Vec<u8>),
-}
-
-impl Deref for MsgFormat {
-    type Target = [u8];
-    fn deref(&self) -> &Self::Target {
-        match self {
-            MsgFormat::Short(arr) => arr,
-            MsgFormat::Long(vec) => vec.as_slice(),
-        }
-    }
-}
-
-impl Extend<u8> for MsgFormat {
-    fn extend<T: IntoIterator<Item = u8>>(&mut self, iter: T) {
-        match self {
-            MsgFormat::Short(arr) => {
-                let mut vec = arr.to_vec();
-                vec.extend(iter);
-                *self = MsgFormat::Long(vec);
-            }
-            MsgFormat::Long(vec) => vec.extend(iter),
-        }
-    }
-}
-
-impl Display for MsgFormat {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MsgFormat::Short(arr) => {
-                write!(
-                    f,
-                    "Short Message [ {} ]",
-                    arr.iter()
-                        .map(|b| format!("{:02X}", b))
-                        .collect::<Vec<String>>()
-                        .join(" ")
-                )
-            }
-            MsgFormat::Long(vec) => {
-                write!(
-                    f,
-                    "Long Message [ {} ]",
-                    vec.iter()
-                        .map(|b| format!("{:02X}", b))
-                        .collect::<Vec<String>>()
-                        .join(" ")
-                )
-            }
-        }
-    }
-}
-
-impl MsgFormat {
-    pub(crate) fn len(&self) -> usize {
-        match self {
-            MsgFormat::Short(arr) => arr.len(),
-            MsgFormat::Long(vec) => vec.len(),
-        }
-    }
-}
-
-/// # Hardware Information
-/// The HwInfo struct is used to package information about the hardware of the Thorlabs device. An
-/// instance of the HwInfo struct is returned by the req_hw_info() function.
-
-#[derive(Debug, Clone)]
-pub(crate) struct HwInfo {
-    hardware_serial_number: u32,
-    model_number: String,
-    hardware_type: u16,
-    firmware_version: String,
-    hardware_version: u16,
-    mod_state: u16,
-    number_channels: u16,
-}
-
 /// # Thorlabs Device
-/// The ThorlabsDevice trait is implemented by all Thorlabs devices. It defines functions to
-/// simplify communication using the APT protocol. It also defines functions which are common to
-/// all Thorlabs devices.
-
+/// The `ThorlabsDevice` trait is a base trait implemented by all Thorlabs devices.
+/// It defines functions which are common to all Thorlabs devices,
+/// including functions to simplify communication using the APT protocol.
 pub trait ThorlabsDevice:
     From<UsbDevicePrimitive> + Deref<Target = UsbDevicePrimitive> + Send + Sync
 {
@@ -164,7 +74,7 @@ pub trait ThorlabsDevice:
         Ok(())
     }
 
-    async fn req_hw_info(&self) -> Result<HwInfo, Error> {
+    async fn req_hw_info(&self) -> Result<HardwareInfo, Error> {
         const ID: [u8; 2] = [0x00, 0x05];
         let mut rx = match get_rx_new_or_sub(ID)? {
             Sub(rx) => rx,
@@ -174,9 +84,9 @@ pub trait ThorlabsDevice:
                 rx
             }
         };
-        let response = rx.recv().await?;
+        let response = timeout(LONG_TIMEOUT, rx.recv()).await??;
 
-        // Parse response
+        // Parse response todo why all of these .try_into(). Why .unwrap() instead of `?`
         let hardware_serial_number = u32::from_le_bytes(response[6..10].try_into().unwrap());
         let model_number = String::from_utf8_lossy(&response[10..18]).to_string();
         let hardware_type = u16::from_le_bytes(response[18..20].try_into().unwrap());
@@ -191,7 +101,7 @@ pub trait ThorlabsDevice:
         let mod_state = u16::from_le_bytes(response[86..88].try_into().unwrap());
         let number_channels = u16::from_le_bytes(response[88..90].try_into().unwrap());
 
-        Ok(HwInfo {
+        Ok(HardwareInfo {
             hardware_serial_number,
             model_number,
             hardware_type,
@@ -298,23 +208,18 @@ pub trait Motor: ThorlabsDevice + UnitConversion + ChanEnableState {
 
     async fn move_absolute(&self, channel: u16, absolute_distance: f64) -> Result<(), Error> {
         const ID: [u8; 2] = [0x53, 0x04];
-        let len = LENGTH_MAP
-            .get(&ID)
-            .ok_or(Error::AptProtocolError(format!(
-                "Message length could not be found for MOVE_ABSOLUTE (ID {:?})",
-                ID
-            )))?
-            .clone();
+        const LENGTH: usize = 12;
         let mut rx = get_rx_new_or_err(ID)?;
-        let mut data = Self::pack_long_message(ID, len);
+        let mut data = Self::pack_long_message(ID, LENGTH);
         data.extend(channel.to_le_bytes());
         data.extend(Self::position_to_bytes(absolute_distance));
         self.port_write(data)?;
-        timeout(LONG_TIMEOUT, rx.recv()).await??;
+        let response = timeout(LONG_TIMEOUT, rx.recv()).await??;
+
         Ok(())
     }
 
-    async fn move_absolute_preset(&self, channel: u8) -> Result<(), Error> {
+    async fn move_absolute_from_params(&self, channel: u8) -> Result<(), Error> {
         const ID: [u8; 2] = [0x53, 0x04];
         let mut rx = get_rx_new_or_err(ID)?;
         let data = Self::pack_short_message(ID, channel, 0);

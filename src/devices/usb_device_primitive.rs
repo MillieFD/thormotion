@@ -12,8 +12,7 @@ Notes:
 */
 
 use crate::env::{BUFFER_SIZE, IN_ENDPOINT, OUT_ENDPOINT, POLL_READ_INTERVAL, SHORT_TIMEOUT};
-use crate::messages::{get_length, get_waiting_sender};
-use crate::traits::MsgFormat;
+use crate::messages::{get_length, get_waiting_sender, MsgFormat};
 use crate::Error;
 use rusb::{DeviceDescriptor, DeviceHandle, GlobalContext, Language};
 use std::collections::VecDeque;
