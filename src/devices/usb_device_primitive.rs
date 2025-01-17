@@ -27,7 +27,7 @@ use tokio::sync::oneshot::{channel, Receiver, Sender};
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use thormotion::devices::UsbDevicePrimitive;
 /// use thormotion::enumerate::get_device;
 /// use thormotion::Error;
@@ -37,7 +37,7 @@ use tokio::sync::oneshot::{channel, Receiver, Sender};
 ///     let serial_number: &str = "USB123456";
 ///     let device: UsbDevicePrimitive = get_device(serial_number)?;
 ///     
-///     // Device is now initialized and ready for communication
+///     // The device is now initialised and ready for communication
 ///     Ok(())
 /// }
 /// ```
@@ -133,38 +133,59 @@ impl UsbDevicePrimitive {
                 }
                 let mut buffer = [0u8; BUFFER_SIZE];
                 let num_bytes_read = handle.read_bulk(IN_ENDPOINT, &mut buffer, SHORT_TIMEOUT)?;
-                println!("num_bytes_read: {}", num_bytes_read);
+                #[cfg(debug_assertions)]
+                {
+                    println!("num_bytes_read: {}", num_bytes_read);
+                }
                 if num_bytes_read == 2 {
-                    println!();
                     continue;
                 }
-                println!("Adding bytes to queue");
                 queue.extend(&buffer[2..num_bytes_read]);
-                println!("queue length: {}", queue.len());
+                #[cfg(debug_assertions)]
+                {
+                    println!(
+                        "\nAdding {} bytes to queue\nQueue: {:?}\nQueue length: {} bytes",
+                        num_bytes_read,
+                        queue,
+                        queue.len()
+                    );
+                }
                 loop {
                     if queue.is_empty() {
-                        println!("Queue is empty. Breaking from inner loop.");
-                        println!();
+                        #[cfg(debug_assertions)]
+                        {
+                            println!("Queue is empty. Breaking from inner loop.\n");
+                        }
                         break;
                     }
                     let id: [u8; 2] = [queue[0], queue[1]];
-                    println!("id: {:?}", id);
                     let message_length = get_length(id)?;
-                    println!("message length: {}", message_length);
+                    #[cfg(debug_assertions)]
+                    {
+                        println!(
+                            "\nMessage ID: {:?}\nExpected message length: {}",
+                            id, message_length
+                        );
+                    }
                     if queue.len() < message_length {
-                        println!("Not enough bytes in queue");
+                        #[cfg(debug_assertions)]
+                        {
+                            println!("Not enough bytes in queue\n");
+                        }
                         break;
                     }
-                    println!("Getting sender for id: {:?}", id);
-                    if let Some(sender) = get_waiting_sender(id)?.write()?.take() {
-                        println!("Sender found for id: {:?}", id);
-                        let message: Box<[u8]> = queue.drain(..message_length).collect();
-                        println!("Message: {:?}", message);
-                        println!("Sending message");
-                        sender.send(message)?;
-                        println!("Message sent");
-                    };
-                    println!("Queue length after draining: {}", queue.len());
+                    let message: Box<[u8]> = queue.drain(..message_length).collect();
+                    #[cfg(debug_assertions)]
+                    {
+                        println!("Drained {} bytes from queue", message.len());
+                    }
+                    if let Some(tx) = get_waiting_sender(id)?.write()?.take() {
+                        #[cfg(debug_assertions)]
+                        {
+                            println!("Sender found for id: {:?}", id);
+                        }
+                        tx.send(message)?;
+                    }
                 }
             }
             Ok::<(), Error>(())
