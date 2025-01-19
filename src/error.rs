@@ -13,84 +13,105 @@ Notes:
 
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
-use std::fmt::{Display, Formatter};
-use std::sync::PoisonError;
+use std::fmt::{Display, Formatter, Result as FmtResult};
 use tokio::sync::broadcast;
 use tokio::time::error::Elapsed;
 
+/// # Error Enum
+/// todo documentation
 #[derive(Debug)]
 pub enum Error {
+    AptError(AptError),
+    ExternalError(ExternalError),
+}
+
+/// todo documentation
+#[derive(Debug)]
+pub enum AptError {
     AptProtocolError(String),
     DeviceError(String),
     EnumerationError(String),
-
-    // External errors with implicit conversions
-    ChannelReceiveError(String),
-    ChannelSendError(String),
-    RwLockPoisoned(String),
-    RusbError(String),
 }
 
-impl Error {
-    pub(crate) fn message(&self) -> String {
+/// todo documentation External errors with implicit conversions
+#[derive(Debug)]
+pub enum ExternalError {
+    ChannelReceiveError(broadcast::error::RecvError),
+    ChannelSendError(broadcast::error::SendError<Box<[u8]>>),
+    RusbError(rusb::Error),
+    TryFromSliceError(std::array::TryFromSliceError),
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            Error::AptProtocolError(msg) => {
-                format!("APT protocol error: {msg}")
-            }
-            Error::DeviceError(msg) => {
-                format!("Error occurred whilst communicating with device: {msg}")
-            }
-            Error::EnumerationError(msg) => {
-                format!("Error occurred during device enumeration: {}", msg)
-            }
-            Error::ChannelReceiveError(err) => format!("Error from channel receiver: {err}"),
-            Error::ChannelSendError(err) => format!("Error from channel sender: {err}"),
-            Error::RwLockPoisoned(err) => format!("Error from RwLock: {err}"),
-            Error::RusbError(err) => format!("Error from rusb: {err}"),
+            Error::AptError(apt_error) => write!(f, "Error : AptError : {}", apt_error),
+            Error::ExternalError(ext_error) => write!(f, "Error : ExternalError : {}", ext_error),
         }
     }
 }
 
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message())
+impl Display for AptError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match self {
+            AptError::AptProtocolError(msg) => write!(f, "AptProtocolError : {}", msg),
+            AptError::DeviceError(msg) => write!(f, "DeviceError : {}", msg),
+            AptError::EnumerationError(msg) => write!(f, "EnumerationError : {}", msg),
+        }
+    }
+}
+
+impl Display for ExternalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match self {
+            ExternalError::ChannelReceiveError(err) => write!(f, "ChannelReceiveError : {}", err),
+            ExternalError::ChannelSendError(err) => write!(f, "ChannelSendError : {}", err),
+            ExternalError::RusbError(err) => write!(f, "RusbError : {}", err),
+            ExternalError::TryFromSliceError(err) => write!(f, "TryFromSliceError : {}", err),
+        }
     }
 }
 
 impl From<rusb::Error> for Error {
     fn from(err: rusb::Error) -> Self {
-        Error::RusbError(err.to_string())
+        Error::ExternalError(ExternalError::RusbError(err))
     }
 }
 
-impl<T> From<PoisonError<T>> for Error {
-    fn from(err: PoisonError<T>) -> Self {
-        Error::RwLockPoisoned(err.to_string())
-    }
-}
+// impl<T> From<PoisonError<T>> for Error {
+//     fn from(err: PoisonError<T>) -> Self {
+//         Error::RwLockPoisoned(err.to_string())
+//     }
+// }
 
 impl From<broadcast::error::RecvError> for Error {
     fn from(err: broadcast::error::RecvError) -> Self {
-        Error::ChannelReceiveError(err.to_string())
+        Error::ExternalError(ExternalError::ChannelReceiveError(err))
     }
 }
 
 impl From<broadcast::error::SendError<Box<[u8]>>> for Error {
     fn from(err: broadcast::error::SendError<Box<[u8]>>) -> Self {
-        Error::ChannelSendError(err.to_string())
+        Error::ExternalError(ExternalError::ChannelSendError(err))
     }
 }
 
 impl From<Elapsed> for Error {
     fn from(err: Elapsed) -> Self {
-        Error::AptProtocolError(err.to_string())
+        Error::AptError(AptError::AptProtocolError(err.to_string()))
+    }
+}
+
+impl From<std::array::TryFromSliceError> for Error {
+    fn from(err: std::array::TryFromSliceError) -> Self {
+        Error::ExternalError(ExternalError::TryFromSliceError(err))
     }
 }
 
 impl From<Error> for PyErr {
     fn from(err: Error) -> PyErr {
         match err {
-            _ => PyRuntimeError::new_err(err.message()),
+            _ => PyRuntimeError::new_err(err.to_string()),
         }
     }
 }
