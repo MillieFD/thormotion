@@ -1,46 +1,76 @@
 /*
 Project: thormotion
 GitHub: https://github.com/MillieFD/thormotion
-Author: Amelia Fraser-Dale
-License: BSD 3-Clause "New" or "Revised"
-Filename: kdc101
-Description: This file defines the KDC101 struct and associated functions.
----------------------------------------------------------------------------------------------------
-Notes:
+License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fraser-Dale
+Filename: test.rs
 */
 
 use crate::devices::usb_device_primitive::UsbDevicePrimitive;
-use crate::traits::{ChanEnableState, Motor, ThorlabsDevice, UnitConversion};
+use crate::enumerate::get_device;
+use crate::error::Error;
+use crate::traits::{ChannelEnableState, Motor, ThorlabsDevice};
+use std::fmt::Result as FmtResult;
+use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 
 #[derive(Debug)]
-pub struct KDC101 {
+pub(super) struct KDC101 {
     device: UsbDevicePrimitive,
-}
-
-impl ThorlabsDevice for KDC101 {
-    const SERIAL_NUMBER_PREFIX: &'static str = "27";
 }
 
 impl From<UsbDevicePrimitive> for KDC101 {
     fn from(device: UsbDevicePrimitive) -> Self {
-        KDC101 { device }
+        Self::check_serial_number(device.serial_number.as_str()).unwrap_or_else(|err| {
+            panic!("KDC101 From<UsbDevicePrimitive> failed: {}", err);
+        });
+        Self { device }
+    }
+}
+
+impl From<String> for KDC101 {
+    fn from(serial_number: String) -> Self {
+        Self::new(serial_number.as_str()).unwrap_or_else(|err| {
+            panic!("KDC101 From<String> failed: {}", err);
+        })
+    }
+}
+
+impl From<&'static str> for KDC101 {
+    fn from(serial_number: &'static str) -> Self {
+        Self::new(serial_number).unwrap_or_else(|err| {
+            panic!("KDC101 From<&'static str> failed: {}", err);
+        })
     }
 }
 
 impl Deref for KDC101 {
     type Target = UsbDevicePrimitive;
+
     fn deref(&self) -> &Self::Target {
         &self.device
     }
 }
 
-impl UnitConversion for KDC101 {
+impl Display for KDC101 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "KDC101 (serial number : {})", self.serial_number)
+    }
+}
+
+impl ThorlabsDevice for KDC101 {
+    fn new(serial_number: &str) -> Result<Self, Error> {
+        Self::check_serial_number(serial_number)?;
+        let device = get_device(serial_number)?;
+        Ok(Self { device })
+    }
+
+    const SERIAL_NUMBER_PREFIX: &'static str = "27";
+}
+
+impl ChannelEnableState for KDC101 {}
+
+impl Motor for KDC101 {
     const DISTANCE_ANGLE_SCALING_FACTOR: f64 = 34554.96;
     const VELOCITY_SCALING_FACTOR: f64 = 772981.3692;
     const ACCELERATION_SCALING_FACTOR: f64 = 263.8443072;
 }
-
-impl ChanEnableState for KDC101 {}
-
-impl Motor for KDC101 {}
