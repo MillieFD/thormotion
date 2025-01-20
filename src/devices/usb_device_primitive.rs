@@ -1,14 +1,8 @@
 /*
 Project: thormotion
 GitHub: https://github.com/MillieFD/thormotion
-Author: Amelia Fraser-Dale
-License: BSD 3-Clause "New" or "Revised"
+License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fraser-Dale
 Filename: usb_device_primitive.rs
-Description: This file defines the UsbDevicePrimitive struct, which provides a wrapper around the
-rusb DeviceHandle struct. The associated functions simplify the processes of initialising and
-communicating with the underlying USB device.
----------------------------------------------------------------------------------------------------
-Notes:
 */
 
 use crate::env::{
@@ -26,7 +20,7 @@ use tokio::sync::oneshot::{channel, error::TryRecvError, Receiver, Sender};
 use tokio::time::timeout;
 
 /// # UsbDevicePrimitive
-/// This struct provides a wrapper around the rusb `DeviceHandle` struct,
+/// The `UsbDevicePrimitive` struct provides a wrapper around the rusb `DeviceHandle` struct,
 /// which implements functions for communicating with USB devices.
 /// `UsbDevicePrimitive` handles device initialisation,
 /// message formatting, and asynchronous I/O operations.
@@ -54,33 +48,6 @@ pub struct UsbDevicePrimitive {
     language: Language,
     pub(crate) serial_number: String,
     shutdown: Arc<Sender<()>>,
-}
-
-/// # Pack Functions
-///
-/// The Thorlabs APT communication protocol uses a fixed length 6-byte message header, which
-/// may be followed by a variable-length data packet.
-/// For simple commands, the 6-byte message header is sufficient to convey the entire command.
-/// For more complex commands (e.g. commands where a set of parameters needs to be passed
-/// to the device) the 6-byte header is insufficient and must be followed by a data packet.
-///
-/// The `MsgFormat` enum is used to wrap the bytes of a message and indicate whether the
-/// message is `Short` (six byte header only) or `Long` (six byte header plus variable length
-/// data package).
-///
-/// The `pack_short_message()` and `pack_long_message()` helper functions are implemented to
-/// simplify message formatting and enforce consistency with the APT protocol.
-pub(crate) fn pack_short_message(id: [u8; 2], param1: u8, param2: u8) -> MsgFormat {
-    MsgFormat::Short([id[0], id[1], param1, param2, DEST, SOURCE])
-}
-
-pub(crate) fn pack_long_message(id: [u8; 2], length: usize) -> MsgFormat {
-    let mut data: Vec<u8> = Vec::with_capacity(length);
-    data.extend(id);
-    data.extend(((length - 6) as u16).to_le_bytes());
-    data.push(DEST | 0x80);
-    data.push(SOURCE);
-    MsgFormat::Long(data)
 }
 
 impl UsbDevicePrimitive {
@@ -277,6 +244,9 @@ impl UsbDevicePrimitive {
     /// **Function implemented from Thorlabs APT protocol**
     ///
     /// This function is used to request hardware information from the controller.
+    /// This function is not intended to be accessed by end-users.
+    /// Instead, `hw_req_info()` is used to populate the hardware information fields for
+    /// device structs during their `new()` function.
     ///
     /// Message ID: 0x0005
     ///
@@ -322,4 +292,31 @@ impl UsbDevicePrimitive {
             number_of_channels,
         ))
     }
+}
+
+/// # Pack Functions
+///
+/// The Thorlabs APT communication protocol uses a fixed length 6-byte message header, which
+/// may be followed by a variable-length data packet.
+/// For simple commands, the 6-byte message header is sufficient to convey the entire command.
+/// For more complex commands (e.g. commands where a set of parameters needs to be passed
+/// to the device) the 6-byte header is insufficient and must be followed by a data packet.
+///
+/// The `MsgFormat` enum is used to wrap the bytes of a message and indicate whether the
+/// message is `Short` (six byte header only) or `Long` (six byte header plus variable length
+/// data package).
+///
+/// The `pack_short_message()` and `pack_long_message()` helper functions are implemented to
+/// simplify message formatting and enforce consistency with the APT protocol.
+pub(crate) fn pack_short_message(id: [u8; 2], param1: u8, param2: u8) -> MsgFormat {
+    MsgFormat::Short([id[0], id[1], param1, param2, DEST, SOURCE])
+}
+
+pub(crate) fn pack_long_message(id: [u8; 2], length: usize) -> MsgFormat {
+    let mut data: Vec<u8> = Vec::with_capacity(length);
+    data.extend(id);
+    data.extend(((length - 6) as u16).to_le_bytes());
+    data.push(DEST | 0x80);
+    data.push(SOURCE);
+    MsgFormat::Long(data)
 }

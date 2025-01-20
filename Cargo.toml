@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "*", features = ["full"] }
-pyo3 = { version = "*", features = ["extension-module"] }
+pyo3 = { version = "*", features = ["extension-module", "experimental-async"] }
 rusb = "*"
 phf = { version = "*", features = ["macros"] }
 
