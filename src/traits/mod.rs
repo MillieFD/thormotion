@@ -2,7 +2,7 @@
 Project: thormotion
 GitHub: https://github.com/MillieFD/thormotion
 License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fraser-Dale
-Filename: channel_enable_state.rs
+Filename: traits/mod.rs
 */
 
 /// # Traits Module
@@ -15,7 +15,7 @@ mod hub;
 mod motor;
 mod thorlabs_device;
 
-use channel_enable_state::ChannelEnableState;
-use hub::Hub;
-use motor::Motor;
-use thorlabs_device::ThorlabsDevice;
+pub use channel_enable_state::ChannelEnableState;
+pub use hub::Hub;
+pub use motor::Motor;
+pub use thorlabs_device::ThorlabsDevice;
