@@ -17,17 +17,22 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use tokio::sync::broadcast;
 use tokio::time::error::Elapsed;
 
+/// todo documentation to explain re-exporting and visibility
+pub(crate) use Error::*;
+pub(crate) use ExternalErr::*;
+pub(crate) use InternalErr::*;
+
 /// # Error Enum
 /// todo documentation
 #[derive(Debug)]
-pub enum Error {
-    AptError(AptError),
-    ExternalError(ExternalError),
+pub(crate) enum Error {
+    ThormotionError(InternalErr),
+    ExternalError(ExternalErr),
 }
 
 /// todo documentation
 #[derive(Debug)]
-pub enum AptError {
+pub(crate) enum InternalErr {
     AptProtocolError(String),
     DeviceError(String),
     EnumerationError(String),
@@ -35,7 +40,7 @@ pub enum AptError {
 
 /// todo documentation External errors with implicit conversions
 #[derive(Debug)]
-pub enum ExternalError {
+pub(crate) enum ExternalErr {
     ChannelReceiveError(broadcast::error::RecvError),
     ChannelSendError(broadcast::error::SendError<Box<[u8]>>),
     RusbError(rusb::Error),
@@ -45,36 +50,36 @@ pub enum ExternalError {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            Error::AptError(apt_error) => write!(f, "Error : AptError : {}", apt_error),
+            Error::ThormotionError(apt_error) => write!(f, "Error : AptError : {}", apt_error),
             Error::ExternalError(ext_error) => write!(f, "Error : ExternalError : {}", ext_error),
         }
     }
 }
 
-impl Display for AptError {
+impl Display for InternalErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            AptError::AptProtocolError(msg) => write!(f, "AptProtocolError : {}", msg),
-            AptError::DeviceError(msg) => write!(f, "DeviceError : {}", msg),
-            AptError::EnumerationError(msg) => write!(f, "EnumerationError : {}", msg),
+            InternalErr::AptProtocolError(msg) => write!(f, "AptProtocolError : {}", msg),
+            InternalErr::DeviceError(msg) => write!(f, "DeviceError : {}", msg),
+            InternalErr::EnumerationError(msg) => write!(f, "EnumerationError : {}", msg),
         }
     }
 }
 
-impl Display for ExternalError {
+impl Display for ExternalErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            ExternalError::ChannelReceiveError(err) => write!(f, "ChannelReceiveError : {}", err),
-            ExternalError::ChannelSendError(err) => write!(f, "ChannelSendError : {}", err),
-            ExternalError::RusbError(err) => write!(f, "RusbError : {}", err),
-            ExternalError::TryFromSliceError(err) => write!(f, "TryFromSliceError : {}", err),
+            ExternalErr::ChannelReceiveError(err) => write!(f, "ChannelReceiveError : {}", err),
+            ExternalErr::ChannelSendError(err) => write!(f, "ChannelSendError : {}", err),
+            ExternalErr::RusbError(err) => write!(f, "RusbError : {}", err),
+            ExternalErr::TryFromSliceError(err) => write!(f, "TryFromSliceError : {}", err),
         }
     }
 }
 
 impl From<rusb::Error> for Error {
     fn from(err: rusb::Error) -> Self {
-        Error::ExternalError(ExternalError::RusbError(err))
+        Error::ExternalError(ExternalErr::RusbError(err))
     }
 }
 
@@ -86,25 +91,25 @@ impl From<rusb::Error> for Error {
 
 impl From<broadcast::error::RecvError> for Error {
     fn from(err: broadcast::error::RecvError) -> Self {
-        Error::ExternalError(ExternalError::ChannelReceiveError(err))
+        Error::ExternalError(ExternalErr::ChannelReceiveError(err))
     }
 }
 
 impl From<broadcast::error::SendError<Box<[u8]>>> for Error {
     fn from(err: broadcast::error::SendError<Box<[u8]>>) -> Self {
-        Error::ExternalError(ExternalError::ChannelSendError(err))
+        Error::ExternalError(ExternalErr::ChannelSendError(err))
     }
 }
 
 impl From<Elapsed> for Error {
     fn from(err: Elapsed) -> Self {
-        Error::AptError(AptError::AptProtocolError(err.to_string()))
+        Error::ThormotionError(InternalErr::AptProtocolError(err.to_string()))
     }
 }
 
 impl From<std::array::TryFromSliceError> for Error {
     fn from(err: std::array::TryFromSliceError) -> Self {
-        Error::ExternalError(ExternalError::TryFromSliceError(err))
+        Error::ExternalError(ExternalErr::TryFromSliceError(err))
     }
 }
 
