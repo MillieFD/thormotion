@@ -11,12 +11,7 @@ error types.
 Notes:
 */
 
-use pyo3::exceptions::PyRuntimeError;
-use pyo3::PyErr;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::sync::PoisonError;
-use tokio::sync::broadcast;
-use tokio::time::error::Elapsed;
 
 /// todo documentation to explain re-exporting and visibility
 pub(crate) use Error::*;
@@ -28,8 +23,8 @@ pub enum Error {
     AptProtocolError(String),
     DeviceError(String),
     EnumerationError(String),
-    ChannelReceiveError(broadcast::error::RecvError),
-    ChannelSendError(broadcast::error::SendError<Box<[u8]>>),
+    ChannelReceiveError(tokio::sync::broadcast::error::RecvError),
+    ChannelSendError(tokio::sync::broadcast::error::SendError<Box<[u8]>>),
     RusbError(rusb::Error),
     TryFromSliceError(std::array::TryFromSliceError),
     RwLockPoisoned(String),
@@ -50,32 +45,40 @@ impl Display for Error {
     }
 }
 
+impl std::error::Error for Error {}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        DeviceError(err.to_string())
+    }
+}
+
 impl From<rusb::Error> for Error {
     fn from(err: rusb::Error) -> Self {
         RusbError(err)
     }
 }
 
-impl<T> From<PoisonError<T>> for Error {
-    fn from(err: PoisonError<T>) -> Self {
+impl<T> From<std::sync::PoisonError<T>> for Error {
+    fn from(err: std::sync::PoisonError<T>) -> Self {
         RwLockPoisoned(err.to_string())
     }
 }
 
-impl From<broadcast::error::RecvError> for Error {
-    fn from(err: broadcast::error::RecvError) -> Self {
+impl From<tokio::sync::broadcast::error::RecvError> for Error {
+    fn from(err: tokio::sync::broadcast::error::RecvError) -> Self {
         ChannelReceiveError(err)
     }
 }
 
-impl From<broadcast::error::SendError<Box<[u8]>>> for Error {
-    fn from(err: broadcast::error::SendError<Box<[u8]>>) -> Self {
+impl From<tokio::sync::broadcast::error::SendError<Box<[u8]>>> for Error {
+    fn from(err: tokio::sync::broadcast::error::SendError<Box<[u8]>>) -> Self {
         ChannelSendError(err)
     }
 }
 
-impl From<Elapsed> for Error {
-    fn from(err: Elapsed) -> Self {
+impl From<tokio::time::error::Elapsed> for Error {
+    fn from(err: tokio::time::error::Elapsed) -> Self {
         AptProtocolError(err.to_string())
     }
 }
@@ -86,10 +89,10 @@ impl From<std::array::TryFromSliceError> for Error {
     }
 }
 
-impl From<Error> for PyErr {
-    fn from(err: Error) -> PyErr {
+impl From<Error> for pyo3::PyErr {
+    fn from(err: Error) -> pyo3::PyErr {
         match err {
-            _ => PyRuntimeError::new_err(err.to_string()),
+            _ => pyo3::exceptions::PyRuntimeError::new_err(err.to_string()),
         }
     }
 }

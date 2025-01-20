@@ -6,16 +6,32 @@ Filename: test.rs
 */
 
 use crate::devices::usb_device_primitive::UsbDevicePrimitive;
-use crate::enumerate::get_device;
+use crate::enumerate::get_device_primitive;
 use crate::error::Error;
 use crate::traits::{ChannelEnableState, Motor, ThorlabsDevice};
-use std::fmt::Result as FmtResult;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct KDC101 {
     device: UsbDevicePrimitive,
+    serial_number: u32,
+    model_number: String,
+    hardware_type: u16,
+    firmware_version: String,
+    hardware_version: u16,
+    module_state: u16,
+    number_of_channels: u16,
+}
+
+impl ThorlabsDevice for KDC101 {
+    fn new(serial_number: &str) -> Result<Self, Error> {
+        Self::check_serial_number(serial_number)?;
+        let device = get_device_primitive(serial_number)?;
+        Ok(Self::from(device))
+    }
+
+    const SERIAL_NUMBER_PREFIX: &'static str = "27";
 }
 
 impl From<UsbDevicePrimitive> for KDC101 {
@@ -23,7 +39,28 @@ impl From<UsbDevicePrimitive> for KDC101 {
         Self::check_serial_number(device.serial_number.as_str()).unwrap_or_else(|err| {
             panic!("KDC101 From<UsbDevicePrimitive> failed: {}", err);
         });
-        Self { device }
+        let (
+            serial_number,
+            model_number,
+            hardware_type,
+            firmware_version,
+            hardware_version,
+            module_state,
+            number_of_channels,
+        ) = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { device.hw_req_info().await })
+            .unwrap();
+        Self {
+            device,
+            serial_number,
+            model_number,
+            hardware_type,
+            firmware_version,
+            hardware_version,
+            module_state,
+            number_of_channels,
+        }
     }
 }
 
@@ -55,16 +92,6 @@ impl Display for KDC101 {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "KDC101 (serial number : {})", self.serial_number)
     }
-}
-
-impl ThorlabsDevice for KDC101 {
-    fn new(serial_number: &str) -> Result<Self, Error> {
-        Self::check_serial_number(serial_number)?;
-        let device = get_device(serial_number)?;
-        Ok(Self { device })
-    }
-
-    const SERIAL_NUMBER_PREFIX: &'static str = "27";
 }
 
 impl ChannelEnableState for KDC101 {}
