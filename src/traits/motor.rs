@@ -4,7 +4,8 @@ GitHub: https://github.com/MillieFD/thormotion
 License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fraser-Dale
 Filename: motor.rs
 */
-use crate::traits::{ChannelEnableState, ThorlabsDevice};
+
+use crate::traits::ThorlabsDevice;
 use std::f64;
 
 /// # Motor
@@ -15,7 +16,7 @@ use std::f64;
 /// End-user movement functions are implemented for each device struct independently.
 /// These functions are detailed in the Thorlabs APT protocol **Motor Control Messages**
 /// section and are named with the `MOT` prefix.
-pub trait Motor: ThorlabsDevice + ChannelEnableState {
+pub trait Motor: ThorlabsDevice {
     /// # Unit Conversion
     /// Internally, all thorlabs motor devices use an encoder to keep track of their current
     /// position. All distances must therefore be converted from real-word units (mm) into
