@@ -7,7 +7,7 @@ Filename: enumerate.rs
 
 use crate::devices::UsbDevicePrimitive;
 use crate::env::{SHORT_TIMEOUT, VENDOR_ID};
-use crate::error::{EnumerationError, Error, ThormotionError};
+use crate::error::{EnumerationError, Error};
 use rusb::{DeviceDescriptor, DeviceHandle, DeviceList, GlobalContext, Language};
 
 /// # Connecting to a Specific Thorlabs Device
@@ -35,7 +35,7 @@ use rusb::{DeviceDescriptor, DeviceHandle, DeviceList, GlobalContext, Language};
 /// 2. Filters by the Thorlabs vendor ID.
 /// 3. Matches the device's serial number with the input string.
 /// 4. Constructs and returns a `UsbDevicePrimitive` for the matching device.
-pub(crate) fn get_device(serial_number: &str) -> Result<UsbDevicePrimitive, Error> {
+pub fn get_device_primitive(serial_number: &str) -> Result<UsbDevicePrimitive, Error> {
     let devices: Vec<UsbDevicePrimitive> = DeviceList::new()?
         .iter()
         .filter_map(|dev| {
@@ -54,15 +54,15 @@ pub(crate) fn get_device(serial_number: &str) -> Result<UsbDevicePrimitive, Erro
         .collect();
 
     match devices.len() {
-        0 => Err(ThormotionError(EnumerationError(format!(
+        0 => Err(EnumerationError(format!(
             "Device with serial number {} could not be found",
             serial_number
-        )))),
+        ))),
         1 => Ok(devices.into_iter().next().unwrap()),
-        _ => Err(ThormotionError(EnumerationError(format!(
+        _ => Err(EnumerationError(format!(
             "Multiple devices with serial number {} were found",
             serial_number
-        )))),
+        ))),
     }
 }
 

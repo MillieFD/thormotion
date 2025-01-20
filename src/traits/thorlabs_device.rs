@@ -5,11 +5,9 @@ License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fra
 Filename: thorlabs_device.rs
 */
 
-use crate::devices::{HardwareInfo, UsbDevicePrimitive};
+use crate::devices::UsbDevicePrimitive;
 use crate::env::{DEST, LONG_TIMEOUT, SOURCE};
-use crate::error::AptError::EnumerationError;
-use crate::error::Error;
-use crate::error::Error::AptError;
+use crate::error::{EnumerationError, Error};
 use crate::messages::ChannelStatus::{New, Sub};
 use crate::messages::{get_rx_new_or_sub, MsgFormat};
 use std::fmt::Display;
@@ -42,12 +40,12 @@ pub trait ThorlabsDevice:
         if serial_number.starts_with(Self::SERIAL_NUMBER_PREFIX) {
             Ok(())
         } else {
-            Err(AptError(EnumerationError(format!(
+            Err(EnumerationError(format!(
                 "Serial number {} is not valid for the selected device type. \
                 Expected a serial number starting with {}",
                 serial_number,
                 Self::SERIAL_NUMBER_PREFIX,
-            ))))
+            )))
         }
     }
 
