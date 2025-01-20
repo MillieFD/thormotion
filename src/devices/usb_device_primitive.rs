@@ -290,7 +290,9 @@ impl UsbDevicePrimitive {
     /// Response ID: 0x0006
     ///
     /// Response length: 90 bytes (6-byte header followed by 84-byte data packet)
-    async fn hw_req_info(&self) -> Result<(u32, String, u16, String, u16, u16, u16), Error> {
+    pub(crate) async fn hw_req_info(
+        &self,
+    ) -> Result<(u32, String, u16, String, u16, u16, u16), Error> {
         const ID: [u8; 2] = [0x00, 0x05];
         let mut rx = match get_rx_new_or_sub(ID)? {
             Sub(rx) => rx,
@@ -308,16 +310,16 @@ impl UsbDevicePrimitive {
         let firmware_interim = u8::from_le_bytes(response[21..22].try_into()?);
         let firmware_major = u8::from_le_bytes(response[22..23].try_into()?);
         let hardware_version = u16::from_le_bytes(response[84..86].try_into()?);
-        let mod_state = u16::from_le_bytes(response[86..88].try_into()?);
-        let number_channels = u16::from_le_bytes(response[88..90].try_into()?);
+        let module_state = u16::from_le_bytes(response[86..88].try_into()?);
+        let number_of_channels = u16::from_le_bytes(response[88..90].try_into()?);
         Ok((
             serial_number,
             model_number,
             hardware_type,
             format!("{}.{}.{}", firmware_major, firmware_interim, firmware_minor),
             hardware_version,
-            mod_state,
-            number_channels,
+            module_state,
+            number_of_channels,
         ))
     }
 }
