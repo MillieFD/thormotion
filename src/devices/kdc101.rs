@@ -5,14 +5,18 @@ License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fra
 Filename: test.rs
 */
 
-use crate::devices::pack_short_message;
 use crate::devices::usb_device_primitive::UsbDevicePrimitive;
+use crate::devices::{pack_long_message, pack_short_message};
 use crate::enumerate::get_device_primitive;
+use crate::env::LONG_TIMEOUT;
 use crate::error::Error;
+use crate::messages::ChannelStatus::{New, Sub};
+use crate::messages::{get_rx_new_or_err, get_rx_new_or_sub};
 use crate::traits::{ChannelEnableState, Motor, ThorlabsDevice};
 use pyo3::prelude::*;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Deref;
+use tokio::time::timeout;
 
 #[pyclass]
 #[derive(Debug)]
@@ -112,6 +116,66 @@ impl KDC101 {
         const ID: [u8; 2] = [0x12, 0x00];
         let data = pack_short_message(ID, 0, 0);
         self.port_write(data)?;
+        Ok(())
+    }
+
+    /// # MOT_MOVE_HOME (0x0443)
+    ///
+    /// **Function implemented from Thorlabs APT protocol**
+    ///
+    /// This function initiates the homing move sequence on the specified motor channel.
+    /// The homing parameters can be set using `MOT_SET_HOMEPARAMS (0x0440)`
+    /// The controller will respond with a `MOT_MOVE_HOMED (0x0444)` once the homing sequence
+    /// has successfully completed.
+    async fn home(&self, channel: u8) -> Result<(), Error> {
+        const ID: [u8; 2] = [0x43, 0x04];
+        let mut rx = match get_rx_new_or_sub(ID)? {
+            Sub(rx) => rx,
+            New(rx) => {
+                let data = pack_short_message(ID, channel, 0);
+                self.port_write(data)?;
+                rx
+            }
+        };
+        timeout(LONG_TIMEOUT, rx.recv()).await??;
+        Ok(())
+    }
+
+    /// # MOT_MOVE_ABSOLUTE (0x0453)
+    ///
+    /// **Function implemented from Thorlabs APT protocol**
+    ///
+    /// This function causes the specified motor channel to move to an absolute position.
+    /// Internally, the motor uses an encoder to keep track of its current position. The
+    /// absolute distance must therefore be converted from real-word units (mm) into
+    /// encoder-counts using the correct scaling factor for the device. The `Motor`
+    /// trait implements functions to simplify these conversions.
+    ///
+    /// The Thorlabs APT protocol describes two versions of this command:
+    /// * **Short 6-byte version** (header only) uses the absolute move parameters for
+    /// the specified motor channel, which can be set using the `MOT_SET_MOVEABSPARAMS (0x0450)`
+    /// command.
+    /// * **Long 12-byte version** (6-byte header followed by 6-byte data packet) which
+    /// transmits the target position within the message's data packet.
+    async fn move_absolute(&self, channel: u16, absolute_distance: f64) -> Result<(), Error> {
+        const ID: [u8; 2] = [0x53, 0x04];
+        const LENGTH: usize = 12;
+        let mut rx = get_rx_new_or_err(ID)?;
+        let mut data = pack_long_message(ID, LENGTH);
+        data.extend(channel.to_le_bytes());
+        data.extend(Self::position_to_bytes(absolute_distance));
+        self.port_write(data)?;
+        let response = timeout(LONG_TIMEOUT, rx.recv()).await??;
+
+        Ok(())
+    }
+
+    async fn move_absolute_from_params(&self, channel: u8) -> Result<(), Error> {
+        const ID: [u8; 2] = [0x53, 0x04];
+        let mut rx = get_rx_new_or_err(ID)?;
+        let data = pack_short_message(ID, channel, 0);
+        self.port_write(data)?;
+        timeout(LONG_TIMEOUT, rx.recv()).await??;
         Ok(())
     }
 }
