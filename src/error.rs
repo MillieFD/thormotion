@@ -14,6 +14,7 @@ Notes:
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::sync::PoisonError;
 use tokio::sync::broadcast;
 use tokio::time::error::Elapsed;
 
@@ -45,13 +46,14 @@ pub(crate) enum ExternalErr {
     ChannelSendError(broadcast::error::SendError<Box<[u8]>>),
     RusbError(rusb::Error),
     TryFromSliceError(std::array::TryFromSliceError),
+    RwLockPoisoned(String),
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            Error::ThormotionError(apt_error) => write!(f, "Error : AptError : {}", apt_error),
-            Error::ExternalError(ext_error) => write!(f, "Error : ExternalError : {}", ext_error),
+            ThormotionError(apt_error) => write!(f, "Error : AptError : {}", apt_error),
+            ExternalError(ext_error) => write!(f, "Error : ExternalError : {}", ext_error),
         }
     }
 }
@@ -59,9 +61,9 @@ impl Display for Error {
 impl Display for InternalErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            InternalErr::AptProtocolError(msg) => write!(f, "AptProtocolError : {}", msg),
-            InternalErr::DeviceError(msg) => write!(f, "DeviceError : {}", msg),
-            InternalErr::EnumerationError(msg) => write!(f, "EnumerationError : {}", msg),
+            AptProtocolError(msg) => write!(f, "AptProtocolError : {}", msg),
+            DeviceError(msg) => write!(f, "DeviceError : {}", msg),
+            EnumerationError(msg) => write!(f, "EnumerationError : {}", msg),
         }
     }
 }
@@ -69,47 +71,48 @@ impl Display for InternalErr {
 impl Display for ExternalErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
-            ExternalErr::ChannelReceiveError(err) => write!(f, "ChannelReceiveError : {}", err),
-            ExternalErr::ChannelSendError(err) => write!(f, "ChannelSendError : {}", err),
-            ExternalErr::RusbError(err) => write!(f, "RusbError : {}", err),
-            ExternalErr::TryFromSliceError(err) => write!(f, "TryFromSliceError : {}", err),
+            ChannelReceiveError(err) => write!(f, "ChannelReceiveError : {}", err),
+            ChannelSendError(err) => write!(f, "ChannelSendError : {}", err),
+            RusbError(err) => write!(f, "RusbError : {}", err),
+            TryFromSliceError(err) => write!(f, "TryFromSliceError : {}", err),
+            RwLockPoisoned(err) => write!(f, "RwLockPoisoned : {}", err),
         }
     }
 }
 
 impl From<rusb::Error> for Error {
     fn from(err: rusb::Error) -> Self {
-        Error::ExternalError(ExternalErr::RusbError(err))
+        ExternalError(RusbError(err))
     }
 }
 
-// impl<T> From<PoisonError<T>> for Error {
-//     fn from(err: PoisonError<T>) -> Self {
-//         Error::RwLockPoisoned(err.to_string())
-//     }
-// }
+impl<T> From<PoisonError<T>> for Error {
+    fn from(err: PoisonError<T>) -> Self {
+        ExternalError(RwLockPoisoned(err.to_string()))
+    }
+}
 
 impl From<broadcast::error::RecvError> for Error {
     fn from(err: broadcast::error::RecvError) -> Self {
-        Error::ExternalError(ExternalErr::ChannelReceiveError(err))
+        ExternalError(ChannelReceiveError(err))
     }
 }
 
 impl From<broadcast::error::SendError<Box<[u8]>>> for Error {
     fn from(err: broadcast::error::SendError<Box<[u8]>>) -> Self {
-        Error::ExternalError(ExternalErr::ChannelSendError(err))
+        ExternalError(ChannelSendError(err))
     }
 }
 
 impl From<Elapsed> for Error {
     fn from(err: Elapsed) -> Self {
-        Error::ThormotionError(InternalErr::AptProtocolError(err.to_string()))
+        ThormotionError(AptProtocolError(err.to_string()))
     }
 }
 
 impl From<std::array::TryFromSliceError> for Error {
     fn from(err: std::array::TryFromSliceError) -> Self {
-        Error::ExternalError(ExternalErr::TryFromSliceError(err))
+        ExternalError(TryFromSliceError(err))
     }
 }
 
