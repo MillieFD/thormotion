@@ -2,7 +2,7 @@
 Project: thormotion
 GitHub: https://github.com/MillieFD/thormotion
 License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fraser-Dale
-Filename: thorlabs_device.rs
+Filename: impl_from_deref_display
 */
 
 use crate::devices::UsbDevicePrimitive;
@@ -42,4 +42,109 @@ pub trait ThorlabsDevice:
             )))
         }
     }
+}
+
+/// # `impl_thorlabs_device!` macro
+///
+/// This macro simplifies the implementation of several traits for a struct.
+///
+/// # Purpose
+/// The macro takes a struct name as input and implements the following for the given struct:
+///
+/// - **`From<UsbDevicePrimitive>`**
+///
+/// - **`From<String>` and `From<&'static str>`**:
+///   Provides the ability to construct the struct from a `String` or a string slice
+///   (`&'static str`) representing the device's serial number.
+///
+/// - **`Deref`**:
+///   Allows the struct to act as a reference to the inner `UsbDevicePrimitive` object.
+///   This enables treating the struct as if it were directly interacting with the `UsbDevicePrimitive`,
+///   simplifying usage in code that expects a `UsbDevicePrimitive`.
+///
+/// - **`Display` for the given struct**:
+///   Provides a string representation of the struct in the format
+///   `"{StructName} (serial number: {serial_number})"`.
+///
+/// # Notes
+/// - This macro assumes the `new` and `check_serial_number` methods are implemented for the target struct.
+/// - The asynchronous work required to fetch device details (`hw_req_info`) uses a `tokio` runtime,
+///   which creates a new instance for each invocation.
+
+#[macro_export]
+macro_rules! impl_thorlabs_device {
+    ($name: ident, $serial_number_prefix: expr) => {
+        impl ThorlabsDevice for $name {
+            const SERIAL_NUMBER_PREFIX: &'static str = $serial_number_prefix;
+        }
+
+        impl From<UsbDevicePrimitive> for $name {
+            fn from(device: UsbDevicePrimitive) -> Self {
+                Self::check_serial_number(device.serial_number.as_str()).unwrap_or_else(|err| {
+                    panic!(
+                        "{} From<UsbDevicePrimitive> failed: {}",
+                        stringify!($name),
+                        err
+                    );
+                });
+                let (
+                    serial_number,
+                    model_number,
+                    hardware_type,
+                    firmware_version,
+                    hardware_version,
+                    module_state,
+                    number_of_channels,
+                ) = tokio::runtime::Runtime::new()
+                    .unwrap()
+                    .block_on(async { device.hw_req_info().await })
+                    .unwrap();
+                Self {
+                    device,
+                    serial_number,
+                    model_number,
+                    hardware_type,
+                    firmware_version,
+                    hardware_version,
+                    module_state,
+                    number_of_channels,
+                }
+            }
+        }
+
+        impl From<String> for $name {
+            fn from(serial_number: String) -> Self {
+                Self::new(serial_number.as_str()).unwrap_or_else(|err| {
+                    panic!("{} From<String> failed: {}", stringify!($name), err);
+                })
+            }
+        }
+
+        impl From<&'static str> for $name {
+            fn from(serial_number: &'static str) -> Self {
+                Self::new(serial_number).unwrap_or_else(|err| {
+                    panic!("{} From<&'static str> failed: {}", stringify!($name), err);
+                })
+            }
+        }
+
+        impl Deref for $name {
+            type Target = UsbDevicePrimitive;
+
+            fn deref(&self) -> &Self::Target {
+                &self.device
+            }
+        }
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+                write!(
+                    f,
+                    "{} (serial number: {})",
+                    stringify!($name),
+                    self.serial_number
+                )
+            }
+        }
+    };
 }
