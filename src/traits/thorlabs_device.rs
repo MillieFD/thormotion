@@ -6,13 +6,9 @@ Filename: thorlabs_device.rs
 */
 
 use crate::devices::UsbDevicePrimitive;
-use crate::env::{DEST, LONG_TIMEOUT, SOURCE};
 use crate::error::{EnumerationError, Error};
-use crate::messages::ChannelStatus::{New, Sub};
-use crate::messages::{get_rx_new_or_sub, MsgFormat};
 use std::fmt::Display;
 use std::ops::Deref;
-use tokio::time::timeout;
 
 /// # Thorlabs Device
 /// The `ThorlabsDevice` trait is a base trait implemented by all Thorlabs devices.
@@ -49,33 +45,6 @@ pub trait ThorlabsDevice:
         }
     }
 
-    /// # Pack Functions
-    ///
-    /// The Thorlabs APT communication protocol uses a fixed length 6-byte message header, which
-    /// may be followed by a variable-length data packet. For simple commands, the 6-byte message
-    /// header is sufficient to convey the entire command. For more complex commands (e.g.
-    /// commands where a set of parameters needs to be passed to the device) the 6-byte header
-    /// is insufficient and must be followed by a data packet.
-    ///
-    /// The `MsgFormat` enum is used to wrap the bytes of a message and indicate whether the
-    /// message is `Short` (six byte header only) or `Long` (six byte header plus variable length
-    /// data package).
-    ///
-    /// The `pack_short_message()` and `pack_long_message()` helper functions are implemented to
-    /// simplify message formatting and enforce consistency with the APT protocol.
-    fn pack_short_message(id: [u8; 2], param1: u8, param2: u8) -> MsgFormat {
-        MsgFormat::Short([id[0], id[1], param1, param2, DEST, SOURCE])
-    }
-
-    fn pack_long_message(id: [u8; 2], length: usize) -> MsgFormat {
-        let mut data: Vec<u8> = Vec::with_capacity(length);
-        data.extend(id);
-        data.extend(((length - 6) as u16).to_le_bytes());
-        data.push(DEST | 0x80);
-        data.push(SOURCE);
-        MsgFormat::Long(data)
-    }
-
     /// # MOD_IDENTIFY (0x0223)
     ///
     /// **Function implemented from Thorlabs APT protocol**
@@ -95,7 +64,7 @@ pub trait ThorlabsDevice:
     /// Message Length: 6 bytes (header only)
     fn identify(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x23, 0x02];
-        let data = Self::pack_short_message(ID, 0, 0);
+        let data = UsbDevicePrimitive::pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
     }
@@ -120,7 +89,7 @@ pub trait ThorlabsDevice:
     /// using the controller's relevant `GET_STATUTSUPDATE` function.
     fn start_update_messages(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x11, 0x00];
-        let data = Self::pack_short_message(ID, 0, 0);
+        let data = UsbDevicePrimitive::pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
     }
@@ -143,57 +112,8 @@ pub trait ThorlabsDevice:
     /// The controller will stop sending automatic status messages every 100 milliseconds (10 Hz).
     fn stop_update_messages(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x12, 0x00];
-        let data = Self::pack_short_message(ID, 0, 0);
+        let data = UsbDevicePrimitive::pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
-    }
-
-    /// # HW_REQ_INFO (0x0005)
-    ///
-    /// **Function implemented from Thorlabs APT protocol**
-    ///
-    /// This function is used to request hardware information from the controller.
-    ///
-    /// Message ID: 0x0005
-    ///
-    /// Message length: 6 bytes (header only)
-    ///
-    /// # Response
-    ///
-    /// The controller will send a `HW_GET_INFO (0x0006)` message in response, which
-    /// is then parsed into a new instance of the `HardwareInfo` struct.
-    ///
-    /// Response ID: 0x0006
-    ///
-    /// Response length: 90 bytes (6-byte header followed by 84-byte data packet)
-    async fn hw_req_info(&self) -> Result<HardwareInfo, Error> {
-        const ID: [u8; 2] = [0x00, 0x05];
-        let mut rx = match get_rx_new_or_sub(ID)? {
-            Sub(rx) => rx,
-            New(rx) => {
-                let data = Self::pack_short_message(ID, 0, 0);
-                self.port_write(data)?;
-                rx
-            }
-        };
-        let response = timeout(LONG_TIMEOUT, rx.recv()).await??;
-        let serial_number = u32::from_le_bytes(response[6..10].try_into()?);
-        let model_number = String::from_utf8_lossy(&response[10..18]).to_string();
-        let hardware_type = u16::from_le_bytes(response[18..20].try_into()?);
-        let firmware_minor = u8::from_le_bytes(response[20..21].try_into()?);
-        let firmware_interim = u8::from_le_bytes(response[21..22].try_into()?);
-        let firmware_major = u8::from_le_bytes(response[22..23].try_into()?);
-        let hardware_version = u16::from_le_bytes(response[84..86].try_into()?);
-        let mod_state = u16::from_le_bytes(response[86..88].try_into()?);
-        let number_channels = u16::from_le_bytes(response[88..90].try_into()?);
-        Ok(HardwareInfo {
-            serial_number,
-            model_number,
-            hardware_type,
-            firmware_version: format!("{}.{}.{}", firmware_major, firmware_interim, firmware_minor),
-            hardware_version,
-            mod_state,
-            number_channels,
-        })
     }
 }
