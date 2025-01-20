@@ -14,7 +14,7 @@ use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 
 #[derive(Debug)]
-pub(super) struct KDC101 {
+pub struct KDC101 {
     device: UsbDevicePrimitive,
 }
 
