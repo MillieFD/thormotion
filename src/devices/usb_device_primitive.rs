@@ -56,6 +56,33 @@ pub struct UsbDevicePrimitive {
     shutdown: Arc<Sender<()>>,
 }
 
+/// # Pack Functions
+///
+/// The Thorlabs APT communication protocol uses a fixed length 6-byte message header, which
+/// may be followed by a variable-length data packet.
+/// For simple commands, the 6-byte message header is sufficient to convey the entire command.
+/// For more complex commands (e.g. commands where a set of parameters needs to be passed
+/// to the device) the 6-byte header is insufficient and must be followed by a data packet.
+///
+/// The `MsgFormat` enum is used to wrap the bytes of a message and indicate whether the
+/// message is `Short` (six byte header only) or `Long` (six byte header plus variable length
+/// data package).
+///
+/// The `pack_short_message()` and `pack_long_message()` helper functions are implemented to
+/// simplify message formatting and enforce consistency with the APT protocol.
+pub(crate) fn pack_short_message(id: [u8; 2], param1: u8, param2: u8) -> MsgFormat {
+    MsgFormat::Short([id[0], id[1], param1, param2, DEST, SOURCE])
+}
+
+pub(crate) fn pack_long_message(id: [u8; 2], length: usize) -> MsgFormat {
+    let mut data: Vec<u8> = Vec::with_capacity(length);
+    data.extend(id);
+    data.extend(((length - 6) as u16).to_le_bytes());
+    data.push(DEST | 0x80);
+    data.push(SOURCE);
+    MsgFormat::Long(data)
+}
+
 impl UsbDevicePrimitive {
     /// # Initialising UsbDevicePrimitive
     /// This struct provides a wrapper around the rusb `DeviceHandle` struct,
@@ -245,33 +272,6 @@ impl UsbDevicePrimitive {
         Ok(())
     }
 
-    /// # Pack Functions
-    ///
-    /// The Thorlabs APT communication protocol uses a fixed length 6-byte message header, which
-    /// may be followed by a variable-length data packet.
-    /// For simple commands, the 6-byte message header is sufficient to convey the entire command.
-    /// For more complex commands (e.g. commands where a set of parameters needs to be passed
-    /// to the device) the 6-byte header is insufficient and must be followed by a data packet.
-    ///
-    /// The `MsgFormat` enum is used to wrap the bytes of a message and indicate whether the
-    /// message is `Short` (six byte header only) or `Long` (six byte header plus variable length
-    /// data package).
-    ///
-    /// The `pack_short_message()` and `pack_long_message()` helper functions are implemented to
-    /// simplify message formatting and enforce consistency with the APT protocol.
-    pub(crate) fn pack_short_message(id: [u8; 2], param1: u8, param2: u8) -> MsgFormat {
-        MsgFormat::Short([id[0], id[1], param1, param2, DEST, SOURCE])
-    }
-
-    pub(crate) fn pack_long_message(id: [u8; 2], length: usize) -> MsgFormat {
-        let mut data: Vec<u8> = Vec::with_capacity(length);
-        data.extend(id);
-        data.extend(((length - 6) as u16).to_le_bytes());
-        data.push(DEST | 0x80);
-        data.push(SOURCE);
-        MsgFormat::Long(data)
-    }
-
     /// # HW_REQ_INFO (0x0005)
     ///
     /// **Function implemented from Thorlabs APT protocol**
@@ -297,7 +297,7 @@ impl UsbDevicePrimitive {
         let mut rx = match get_rx_new_or_sub(ID)? {
             Sub(rx) => rx,
             New(rx) => {
-                let data = Self::pack_short_message(ID, 0, 0);
+                let data = pack_short_message(ID, 0, 0);
                 self.port_write(data)?;
                 rx
             }

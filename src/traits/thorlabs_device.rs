@@ -5,7 +5,7 @@ License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fra
 Filename: thorlabs_device.rs
 */
 
-use crate::devices::UsbDevicePrimitive;
+use crate::devices::{pack_short_message, UsbDevicePrimitive};
 use crate::error::{EnumerationError, Error};
 use std::fmt::Display;
 use std::ops::Deref;
@@ -64,7 +64,7 @@ pub trait ThorlabsDevice:
     /// Message Length: 6 bytes (header only)
     fn identify(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x23, 0x02];
-        let data = UsbDevicePrimitive::pack_short_message(ID, 0, 0);
+        let data = pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
     }
@@ -89,7 +89,7 @@ pub trait ThorlabsDevice:
     /// using the controller's relevant `GET_STATUTSUPDATE` function.
     fn start_update_messages(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x11, 0x00];
-        let data = UsbDevicePrimitive::pack_short_message(ID, 0, 0);
+        let data = pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
     }
@@ -112,7 +112,7 @@ pub trait ThorlabsDevice:
     /// The controller will stop sending automatic status messages every 100 milliseconds (10 Hz).
     fn stop_update_messages(&self) -> Result<(), Error> {
         const ID: [u8; 2] = [0x12, 0x00];
-        let data = UsbDevicePrimitive::pack_short_message(ID, 0, 0);
+        let data = pack_short_message(ID, 0, 0);
         self.port_write(data)?;
         Ok(())
     }

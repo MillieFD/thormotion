@@ -5,6 +5,7 @@ License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fra
 Filename: motor.rs
 */
 
+use crate::devices::{pack_long_message, pack_short_message};
 use crate::env::LONG_TIMEOUT;
 use crate::error::Error;
 use crate::messages::ChannelStatus::{New, Sub};
@@ -31,7 +32,7 @@ pub trait Motor: ThorlabsDevice + ChannelEnableState {
         let mut rx = match get_rx_new_or_sub(ID)? {
             Sub(rx) => rx,
             New(rx) => {
-                let data = Self::pack_short_message(ID, channel, 0);
+                let data = pack_short_message(ID, channel, 0);
                 self.port_write(data)?;
                 rx
             }
@@ -60,7 +61,7 @@ pub trait Motor: ThorlabsDevice + ChannelEnableState {
         const ID: [u8; 2] = [0x53, 0x04];
         const LENGTH: usize = 12;
         let mut rx = get_rx_new_or_err(ID)?;
-        let mut data = Self::pack_long_message(ID, LENGTH);
+        let mut data = pack_long_message(ID, LENGTH);
         data.extend(channel.to_le_bytes());
         data.extend(Self::position_to_bytes(absolute_distance));
         self.port_write(data)?;
@@ -72,7 +73,7 @@ pub trait Motor: ThorlabsDevice + ChannelEnableState {
     async fn move_absolute_from_params(&self, channel: u8) -> Result<(), Error> {
         const ID: [u8; 2] = [0x53, 0x04];
         let mut rx = get_rx_new_or_err(ID)?;
-        let data = Self::pack_short_message(ID, channel, 0);
+        let data = pack_short_message(ID, channel, 0);
         self.port_write(data)?;
         timeout(LONG_TIMEOUT, rx.recv()).await??;
         Ok(())
@@ -95,7 +96,11 @@ pub trait Motor: ThorlabsDevice + ChannelEnableState {
     const ACCELERATION_SCALING_FACTOR: f64;
 
     fn position_to_bytes(position: f64) -> [u8; 4] {
-        i32::to_le_bytes((position * Self::DISTANCE_ANGLE_SCALING_FACTOR).into())
+        i32::to_le_bytes(
+            (position * Self::DISTANCE_ANGLE_SCALING_FACTOR)
+                .round()
+                .into(),
+        )
     }
 
     fn position_from_bytes(bytes: [u8; 4]) -> f64 {

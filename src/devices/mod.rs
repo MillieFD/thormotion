@@ -16,4 +16,4 @@ mod kdc101;
 mod usb_device_primitive;
 
 pub use kdc101::KDC101;
-pub use usb_device_primitive::UsbDevicePrimitive;
+pub(crate) use usb_device_primitive::{pack_long_message, pack_short_message, UsbDevicePrimitive};
