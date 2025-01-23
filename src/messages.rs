@@ -6,7 +6,7 @@ Filename: messages.rs
 */
 
 use crate::error::{AptProtocolError, Error};
-use crate::messages::ChannelStatus::{New, Sub};
+pub(crate) use crate::messages::ChannelStatus::{New, Sub};
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use std::sync::RwLock;
