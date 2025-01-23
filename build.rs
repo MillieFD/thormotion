@@ -1,48 +1,41 @@
 /*
 Project: thormotion
 GitHub: https://github.com/MillieFD/thormotion
-Author: Amelia Fraser-Dale
-License: BSD 3-Clause "New" or "Revised"
+License: BSD 3-Clause "New" or "Revised" License, Copyright (c) 2025, Amelia Fraser-Dale
 Filename: build.rs
-Description: This file defines the build script which is run at compile time. This build script
-reads the messages.csv file and generates several static hash maps to lookup length and waiting
-sender for a given message ID. The generated code is saved to separate .rs files in the OUT_DIR,
-which are then included in the src/messages.rs file.
----------------------------------------------------------------------------------------------------
-Notes:
 */
 
 use serde::{Deserialize, Deserializer};
 use std::collections::{HashMap, HashSet};
 use std::env::var_os;
 use std::error::Error;
-use std::fs::File;
+use std::fs::{read_to_string, File};
+use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::Path;
+use std::process::Command;
 
-/// # Record
-/// The `record` struct represents a single record (row) in the CSV file.
+/// # Message
+/// The `Message` struct represents a single record (row) in the `messages.csv` file.
 /// It contains the ID, length, and group names for a given message.
 /// The struct implements the `serde::Deserialize` trait,
 /// which automatically parses columns in the CSV file to struct fields with the same name.
-/// Specific deserialization functions are provided where necessary.
-
+/// Specific deserialization templates are provided where needed.
 #[derive(Deserialize, Hash, Eq, PartialEq)]
-struct Record {
+struct Message {
     name: String,
-    #[serde(deserialize_with = "deserialize_id")]
+    #[serde(deserialize_with = "deserialize_message_id")]
     id: String,
-    #[serde(deserialize_with = "deserialize_length")]
+    #[serde(deserialize_with = "deserialize_message_length")]
     length: Vec<usize>,
     group: Option<String>,
 }
 
-/// # Deserialize ID Function
+/// # Deserialize Message ID Function
 /// This custom deserialization function parses hexadecimal values from the messages.csv `id`
 /// column into two-byte hexadecimal arrays in little-endian order.
 /// For example, the ID `0x1234` will be parsed into the array `[0x34, 0x12]`.
-
-fn deserialize_id<'de, D>(deserializer: D) -> Result<String, D::Error>
+fn deserialize_message_id<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -54,13 +47,12 @@ where
     Ok(id_bytes)
 }
 
-/// # Deserialize Length Function
+/// # Deserialize Message Length Function
 /// This custom deserialization function parses a semicolon-separated string of lengths from
 /// the messages.csv `length` column into a set of unique `usize` values.
 /// A `HashSet` is used initially to ensure uniqueness, and is then converted into a `Vec`
 /// to simplify later usage in the `Record` struct.
-
-fn deserialize_length<'de, D>(deserializer: D) -> Result<Vec<usize>, D::Error>
+fn deserialize_message_length<'de, D>(deserializer: D) -> Result<Vec<usize>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -73,11 +65,193 @@ where
     Ok(lengths_vec)
 }
 
+/// # Device
+/// The `Device` struct represents a single record (row) in the `devices.csv` file.
+/// It contains the name and available templates for a given device.
+/// The struct implements the `serde::Deserialize` trait,
+/// which automatically parses columns in the CSV file to struct fields with the same name.
+/// Specific deserialization templates are provided where needed.
+#[derive(Deserialize)]
+struct Device {
+    name: String,
+    serial_number_prefix: String,
+    identify: bool,
+    channel_enable_state: bool,
+    distance_angle_scale_factor: Option<f64>,
+    velocity_scale_factor: Option<f64>,
+    acceleration_scale_factor: Option<f64>,
+    home: bool,
+    move_absolute: bool,
+}
+
+/// # Equality Testing for Device
+/// The `PartialEq` and `Eq` traits are implemented for the `Device` struct.
+/// These are required for the `Hash` trait implementation below.
+impl PartialEq for Device {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for Device {}
+
+/// # Hash for Device
+/// The `Hash` trait is implemented for the `Device`
+/// struct to enable storing `Device` instances in a `HashSet`.
+/// The `hash()` function compares `Device` instances using the device.csv `name` column
+/// A `HashSet` is used to ensure uniqueness,
+/// panicking if the `devices.csv` file contains duplicate rows.
+impl Hash for Device {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+    }
+}
+
+/// # Build Devices
+/// The `build_devices()` function reads the `devices.csv` file and generates structs which
+/// each implements their respective required functions.
+/// The generated code is written to the `OUT_DIR/devices.rs` file in the `OUT_DIR` directory.
+/// The contents of `OUT_DIR/devices.rs` are then included in the `src/devices.rs` file.
+fn build_devices() -> Result<(), Box<dyn Error>> {
+    let out_dir = var_os("OUT_DIR").ok_or("OUT_DIR not set")?;
+    let mut file = File::create(Path::new(&out_dir).join("devices.rs"))?;
+    writeln!(file, "// This file is generated by build.rs\n")?;
+
+    // Import dependencies
+    writeln!(file, "use crate::env::*;")?;
+    writeln!(file, "use crate::error::*;")?;
+    writeln!(file, "use crate::messages::*;")?;
+    writeln!(file, "use pyo3::prelude::*;")?;
+    writeln!(
+        file,
+        "use std::fmt::{{Display, Formatter, Result as FmtResult}};"
+    )?;
+    writeln!(file, "use std::ops::Deref;\n")?;
+
+    let mut reader = csv::Reader::from_path("devices.csv")?;
+    let devices = reader
+        .deserialize()
+        .collect::<Result<HashSet<Device>, csv::Error>>()?;
+    if devices.len() < reader.into_records().count() {
+        panic!("WARNING: devices.csv contains duplicate rows");
+    }
+
+    for device in &devices {
+        // Define the struct
+        let template = read_to_string("templates/struct_definition.rs")?;
+        let modified = template.replace("TemplateStructName", &device.name);
+        writeln!(file, "{}", modified)?;
+
+        // Start unexposed impl block
+        writeln!(file, "impl {} {{", device.name)?;
+
+        // Define `check_serial_number()` function
+        let template = read_to_string("templates/check_serial_number.rs")?;
+        let modified = template.replace("template_prefix", &device.serial_number_prefix);
+        writeln!(file, "{}", modified)?;
+
+        // Define `distance_angle_scale_factor` and conversion functions if needed
+        if let Some(f) = device.distance_angle_scale_factor {
+            let template = read_to_string("templates/distance_conversion.rs")?;
+            let modified = template.replace("template_scale_factor", f.to_string().as_str());
+            writeln!(file, "{}", modified)?;
+        }
+
+        // Define `velocity_scale_factor` and conversion functions if needed
+        if let Some(f) = device.velocity_scale_factor {
+            let template = read_to_string("templates/velocity_conversion.rs")?;
+            let modified = template.replace("template_scale_factor", f.to_string().as_str());
+            writeln!(file, "{}", modified)?;
+        }
+
+        // Define `acceleration_scale_factor` and conversion functions if needed
+        if let Some(f) = device.acceleration_scale_factor {
+            let template = read_to_string("templates/acceleration_conversion.rs")?;
+            let modified = template.replace("template_scale_factor", f.to_string().as_str());
+            writeln!(file, "{}", modified)?;
+        }
+
+        // End unexposed impl block
+        writeln!(file, "}}\n")?;
+
+        // Start exposed impl block (for functions that are exposed to python)
+        writeln!(
+            file,
+            "/// # Exposing `{}` to Python\n\
+            /// The **Thormotion** Rust library is published as a Python package using `PyO3`.\n\
+            /// PyO3 is a Rust library that provides tools and macros for creating Python\n\
+            /// bindings, allowing Rust code to be called directly from Python.\n\
+            /// Functions exposed to Python are defined below.\n\
+            #[pymethods]\n\
+            impl {} {{",
+            device.name, device.name,
+        )?;
+
+        // Define `new()` function
+        let template = read_to_string("templates/new.rs")?;
+        writeln!(file, "{}", template)?;
+
+        // Define `start_update_messages()` and `stop_update_messages()` functions
+        let template = read_to_string("templates/update_messages.rs")?;
+        writeln!(file, "{}", template)?;
+
+        // Define `identify()` function if needed
+        if device.identify {
+            let template = read_to_string("templates/identify.rs")?;
+            writeln!(file, "{}", template)?;
+        }
+
+        // Define `set_channel_enable_state()` function if needed
+        if device.channel_enable_state {
+            let template = read_to_string("templates/channel_enable_state.rs")?;
+            writeln!(file, "{}", template)?;
+        }
+
+        // Define `home()` and `home_async()` functions if needed
+        if device.home {
+            let template = read_to_string("templates/home.rs")?;
+            writeln!(file, "{}", template)?;
+        }
+
+        // Define `move_absolute()` and `move_absolute_from_params()` functions if needed
+        if device.move_absolute {
+            let template = read_to_string("templates/move_absolute.rs")?;
+            writeln!(file, "{}", template)?;
+        }
+
+        // End exposed impl block
+        writeln!(file, "}}\n")?;
+
+        // Implement From<T> traits
+        let template = read_to_string("templates/from.rs")?;
+        let modified = template.replace("TemplateStructName", device.name.as_str());
+        writeln!(file, "{}", modified)?;
+
+        // Implement the Deref trait
+        let template = read_to_string("templates/deref.rs")?;
+        let modified = template.replace("TemplateStructName", device.name.as_str());
+        writeln!(file, "{}", modified)?;
+
+        // Implement the Display trait
+        let template = read_to_string("templates/display.rs")?;
+        let modified = template.replace("TemplateStructName", device.name.as_str());
+        writeln!(file, "{}", modified)?;
+    }
+
+    // todo Post "RustFmt not working with generated async code" to RustFmt GitHub issues
+    // Use rustfmt to format the generated file
+    Command::new("rustfmt")
+        .arg(Path::new(&out_dir).join("devices.rs"))
+        .status()
+        .expect("Failed to run rustfmt");
+
+    Ok(())
+}
+
 /// # Main
-/// This build script reads the messages.csv file and generates several static hash maps to
+/// This build script reads the `messages.csv` file and generates several static hash maps to
 /// lookup length and waiting sender for a given message ID. The generated code is saved to
 /// separate `.rs` files in the `OUT_DIR`, which are then included in the `messages.rs` file.
-
 fn main() -> Result<(), Box<dyn Error>> {
     let out_dir = var_os("OUT_DIR").ok_or("OUT_DIR not set")?;
     let mut length_map = File::create(Path::new(&out_dir).join("length_map.rs"))?;
@@ -86,10 +260,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut groups_map = HashMap::new();
 
     let mut reader = csv::Reader::from_path("messages.csv")?;
-    let records = reader
+    let messages = reader
         .deserialize()
-        .collect::<Result<HashSet<Record>, csv::Error>>()?;
-    if records.len() < reader.into_records().count() {
+        .collect::<Result<HashSet<Message>, csv::Error>>()?;
+    if messages.len() < reader.into_records().count() {
         panic!("WARNING: messages.csv contains duplicate rows");
     }
 
@@ -98,15 +272,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         length_map,
         "pub(crate) static LENGTH_MAP: phf::Map<[u8; 2], usize> = phf_map! {{"
     )?;
-    for record in &records {
-        if let [length] = record.length.as_slice() {
-            writeln!(length_map, "{} => {},", record.id, length)?;
+    for message in &messages {
+        if let [length] = message.length.as_slice() {
+            writeln!(length_map, "{} => {},", message.id, length)?;
         }
-        if let Some(group) = &record.group {
+        if let Some(group) = &message.group {
             groups_map
                 .entry(group.clone())
                 .or_insert(HashSet::new())
-                .insert(record.id.clone());
+                .insert(message.id.clone());
         }
     }
     writeln!(length_map, "}};")?;
@@ -126,6 +300,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     writeln!(sender_map, "}};")?;
+
+    build_devices();
 
     Ok(())
 }
