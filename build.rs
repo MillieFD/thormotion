@@ -237,13 +237,12 @@ fn build_devices() -> Result<(), Box<dyn Error>> {
     }
 
     // Format the generated file using rustfmt
-    match Command::new("rustfmt")
+    if !Command::new("rustfmt")
         .arg(Path::new(&out_dir).join("devices_built.rs"))
-        .status()
+        .status()?
+        .success()
     {
-        Ok(status) if status.success() => (),
-        Ok(status) => panic!("Failed to format using rustfmt: {}", status),
-        Err(e) => panic!("Failed to format using rustfmt: {}", e),
+        panic!("Failed to format using rustfmt");
     }
 
     Ok(())
