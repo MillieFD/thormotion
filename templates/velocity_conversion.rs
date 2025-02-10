@@ -14,7 +14,7 @@
 /// This scaling factor may differ between device types due to different encoder
 /// polling frequencies.
 const VELOCITY_SCALE_FACTOR: f64 = template_scale_factor;
-fn velocity_to_bytes(position: f64) -> [u8; 4] {
+fn velocity_to_le_bytes(position: f64) -> [u8; 4] {
     let rounded = (position * Self::VELOCITY_SCALE_FACTOR).round();
     if !(rounded > i32::MIN.into() && rounded < i32::MAX.into()) {
         panic!(
@@ -27,7 +27,7 @@ fn velocity_to_bytes(position: f64) -> [u8; 4] {
     }
     i32::to_le_bytes(rounded as i32)
 }
-fn velocity_from_bytes(bytes: [u8; 4]) -> f64 {
+fn velocity_from_le_bytes(bytes: [u8; 4]) -> f64 {
     let encoder_counts: f64 = i32::from_le_bytes(bytes).into();
     encoder_counts / Self::VELOCITY_SCALE_FACTOR
 }
