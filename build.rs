@@ -158,7 +158,8 @@ fn build_devices() -> Result<(), Box<dyn Error>> {
         let mut external_functions = String::new();
 
         // Define `check_serial_number()` function
-        let template = read_to_string("templates/check_serial_number.rs")?;
+        let template = read_to_string("templates/check_serial_number.rs")?
+            .replace("template_prefix", device.serial_number_prefix.as_str());
         internal_functions.push_str(&template);
 
         // Define `distance_angle_scale_factor` and conversion functions if needed
