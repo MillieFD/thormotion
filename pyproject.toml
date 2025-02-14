@@ -2,7 +2,7 @@
 # pyproject.toml takes precedence over Cargo.toml.
 
 [build-system]
-requires = ["maturin>=0.13"]
+requires = ["maturin>=1.0"]
 build-backend = "maturin"
 
 [tool.maturin]
