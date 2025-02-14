@@ -3,7 +3,7 @@
 #
 #    maturin generate-ci github
 #
-name: maturin
+name: Maturin
 
 on:
   push:
@@ -47,7 +47,7 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
-          before-script-linux: 'apt-get update && apt-get install -y libusb-1.0-0-dev'
+          before-script-linux: 'apt-get update && apt-get install -y libusb-1.0-0-dev libc6-dev gcc'
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
