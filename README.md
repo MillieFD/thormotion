@@ -18,6 +18,12 @@ Install from PyPI using Pip:
 pip install thormotion
 ```
 
+Then import the package at the top of your python file:
+
+```python
+import thormotion
+```
+
 **Rust users**
 
 Add Thormotion to your Cargo.toml file:
@@ -27,16 +33,22 @@ Add Thormotion to your Cargo.toml file:
 thormotion = "0.2.0" # Check for the latest version on crates.io
 ```
 
+### 📖 Documentation
+
+Thormotion implements the Thorlabs APT communication protocol. 
+For full details, please refer to the APT protocol documentation.
+
 ### 🤝 Contributing
 
-Axisolotl is an open-source project! Contributions are welcome, and we are always looking for ways to improve the library. 
-If you would like to contribute, check out the list of open issues. 
-If you have an idea for a new feature or would like to report a bug, please open an issue or submit a pull request. 
+Thormotion is an open-source project! 
+Contributions are welcome, and we are always looking for ways to improve the library. 
+If you would like to help out, please check the list of open issues. 
+If you have an idea for a new feature or would like to report a bug, please open a new issue or submit a pull request. 
 Please ask questions and discuss features in the issues if anything is unclear. 
-Note that all code submissions in pull requests are assumed to agree with the BSD 3-Clause License. 
+Note that all code submissions and pull requests are assumed to agree with the BSD 3-Clause License. 
 Make sure to read the contributing guidelines before getting started.
 
 ### 📝 License
 
 This project is licensed under the BSD 3-Clause License. 
-Opening a pull request is assumed to indicate agreement with these terms.
+Opening a pull request indicates agreement with these terms.
