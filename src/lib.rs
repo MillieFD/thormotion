@@ -5,7 +5,11 @@ mod error;
 mod messages;
 mod traits;
 
-use error::Error;
+#[pymodule]
+fn thormotion(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<KDC101>()?;
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
