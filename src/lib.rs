@@ -2,7 +2,6 @@ use crate::devices::*;
 use pyo3::prelude::*;
 use pyo3::{pymodule, Bound, PyResult};
 mod devices;
-mod enumerate;
 mod env;
 mod error;
 mod messages;
