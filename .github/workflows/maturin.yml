@@ -37,6 +37,10 @@ jobs:
           - runner: ubuntu-22.04
             target: ppc64le
     steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libusb-1.0-0-dev
+      - name: Install rustfmt
+        run: rustup component add rustfmt
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
