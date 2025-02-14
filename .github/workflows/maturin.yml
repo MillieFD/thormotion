@@ -3,13 +3,12 @@
 #
 #    maturin generate-ci github
 #
-name: CI
+name: maturin
 
 on:
   push:
     branches:
       - main
-      - master
     tags:
       - '*'
   pull_request:
@@ -38,7 +37,7 @@ jobs:
             target: ppc64le
     steps:
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential libusb-1.0-0-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential libusb-1.0-0-dev libc6-dev
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
