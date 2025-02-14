@@ -40,7 +40,6 @@ use std::fs::{read_to_string, File};
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::Path;
-use std::process::Command;
 
 /// # Message
 /// The `Message` struct represents a single record (row) in the `messages.csv` file.
@@ -237,14 +236,14 @@ fn build_devices() -> Result<(), Box<dyn Error>> {
         writeln!(file, "{}", modified)?;
     }
 
-    // Format the generated file using rustfmt
-    if !Command::new("rustfmt")
-        .arg(Path::new(&out_dir).join("devices_built.rs"))
-        .status()?
-        .success()
-    {
-        panic!("Failed to format using rustfmt");
-    }
+    // Uncomment to format the generated file using rustfmt
+    // if !Command::new("rustfmt")
+    //     .arg(Path::new(&out_dir).join("devices_built.rs"))
+    //     .status()?
+    //     .success()
+    // {
+    //     panic!("Failed to format using rustfmt");
+    // }
 
     Ok(())
 }
