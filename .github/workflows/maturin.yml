@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   linux:
-    runs-on: ubuntu-22.04
+    runs-on: macos-14
     strategy:
       matrix:
         target:
