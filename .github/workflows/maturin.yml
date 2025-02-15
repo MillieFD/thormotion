@@ -31,45 +31,14 @@ jobs:
             target: aarch64
           - runner: ubuntu-22.04
             target: armv7
-          - runner: ubuntu-22.04
-            target: s390x
-          - runner: ubuntu-22.04
-            target: ppc64le
+    #          - runner: ubuntu-22.04
+    #            target: s390x
+    #          - runner: ubuntu-22.04
+    #            target: ppc64le
     steps:
       - uses: actions/checkout@v4
-        # Install common dependencies for all targets
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libusb-1.0-0-dev libc6-dev build-essential pkg-config gcc-multilib g++-multilib
-      # Install architecture-specific cross-compilation tooling and `pkg-config` wrappers
-      - name: Install cross-compilation dependencies
-        run: |
-          case "${{ matrix.platform.target }}" in
-            "x86_64")
-              sudo apt-get install -y gcc-multilib g++-multilib
-              ;;
-            "x86")
-              sudo apt-get install -y gcc-multilib g++-multilib
-              export PKG_CONFIG=i686-linux-gnu-pkg-config
-              ;;
-            "aarch64")
-              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-              export PKG_CONFIG=aarch64-linux-gnu-pkg-config
-              ;;
-            "armv7")
-              sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-              export PKG_CONFIG=arm-linux-gnueabihf-pkg-config
-              ;;
-            "s390x")
-              sudo apt-get install -y gcc-s390x-linux-gnu g++-s390x-linux-gnu
-              export PKG_CONFIG=s390x-linux-gnu-pkg-config
-              ;;
-            "ppc64le")
-              sudo apt-get install -y gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu
-              export PKG_CONFIG=powerpc64le-linux-gnu-pkg-config
-              ;;
-          esac
+      - name: Install Dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libstdc++-dev
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
