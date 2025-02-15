@@ -1,0 +1,2 @@
+name,serial_number_prefix,identify,channel_enable_state,distance_angle_scale_factor,velocity_scale_factor,acceleration_scale_factor,home,move_absolute
+KDC101,27,true,true,34554.96,772981.3692,263.8443072,true,true

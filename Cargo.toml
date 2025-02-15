@@ -1,13 +1,24 @@
 [package]
 name = "thormotion"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
+description = "A cross-platform motion control library for Thorlabs systems, written in Rust."
+keywords = ["thorlabs", "lab", "automation", "robot", "robotics"]
+readme = "README.md"
+license = "BSD-3"
+repository = "https://github.com/MillieFD/thormotion"
+authors = ["Amelia Fraser-Dale"]
+
+[lib]
+name = "thormotion"
+crate-type = ["cdylib"]
 
 [dependencies]
 tokio = { version = "*", features = ["full"] }
-tokio-serial = "*"
-pyo3 = { version = "*", features = ["extension-module"] }
-once_cell = "*"
+pyo3 = { version = "*", features = ["extension-module", "experimental-async"] }
 rusb = "*"
-usb-ids = "*"
 phf = { version = "*", features = ["macros"] }
+
+[build-dependencies]
+csv = "*"
+serde = { version = "*", features = ["derive"] }

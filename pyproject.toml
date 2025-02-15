@@ -1,0 +1,9 @@
+# Maturin merges metadata from Cargo.toml and pyproject.toml
+# pyproject.toml takes precedence over Cargo.toml.
+
+[build-system]
+requires = ["maturin>=1.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
