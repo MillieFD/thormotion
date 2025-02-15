@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: 3.x
       - name: Add rustup target
-        run: rustup target add ${{ matrix.platform.target }}
+        run: rustup target add ${{ matrix.target }}
       - name: Install maturin with ziglang
         run: pip install maturin[zig]
       - name: Build wheels
@@ -43,7 +43,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.platform.target }}
+          name: wheels-${{ matrix.target }}
           path: dist
 
 #  musllinux:
