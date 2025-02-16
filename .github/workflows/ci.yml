@@ -1,4 +1,4 @@
-name: CI
+name: Build Maturin Wheels
 
 on:
   push:
@@ -12,13 +12,14 @@ permissions:
   contents: read
 
 jobs:
-  linux:
+  manylinux:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         target:
           - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,3 +34,104 @@ jobs:
         run: pip install maturin[zig]
       - name: Build wheels
         run: maturin build --strip --find-interpreter --out dist --zig --release --target ${{ matrix.target }}
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: manylinux-${{ matrix.platform.target }}
+          path: dist
+
+  musllinux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - name: Install maturin
+        run: pip install maturin[zig]
+      - name: Build wheels
+        run: maturin build --strip --find-interpreter --out dist --compatibility musllinux_1_2 --zig --release --target ${{ matrix.target }}
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: musllinux-${{ matrix.platform.target }}
+          path: dist
+
+  macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target:
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - name: Install maturin
+        run: pip install maturin
+      - name: Build wheels
+        run: maturin build --strip --find-interpreter --out dist --release --target ${{ matrix.target }}
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.platform.target }}
+          path: dist
+
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target:
+          - aarch64-pc-windows-msvc
+          - x86_64-pc-windows-msv
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - name: Install maturin
+        run: pip install maturin
+      - name: Build wheels
+        run: maturin build --strip --find-interpreter --out dist --release --target ${{ matrix.target }}
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.platform.target }}
+          path: dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist
