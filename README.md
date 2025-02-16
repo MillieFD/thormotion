@@ -2,6 +2,9 @@
 
 A cross-platform motion control library for Thorlabs systems, written in Rust.
 
+> [!WARNING]
+> Thormotion is currently pre-release and offers limited functionality for KDC101 devices only.
+
 ### 🚀 Features
 - Designed for robotics, automation, and scientific applications.
 - Fast and efficient, with minimal overhead.
