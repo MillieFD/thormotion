@@ -77,6 +77,57 @@ fn thormotion(module: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+/// # Tokio Runtime
+/// The `tokio` runtime is a core component used to manage and execute asynchronous tasks.
+/// Tokio is an asynchronous runtime for the Rust programming language that allows you to run and
+/// manage non-blocking I/O tasks.
+/// It facilitates running async/await code in Rust by providing an event-driven execution model.
+///
+/// # Why is the Tokio runtime necessary in this project?
+///
+/// In this project, the `tokio::runtime` is used to enable and manage asynchronous operations
+/// for interacting with external devices.
+/// For example, after sending a `MOT_MOVE_HOME (0x0443)` command to a motor controller,
+/// the host computer doesn't know when, or indeed if, the controller will send the
+/// `MOT_MOVE_HOMED (0x0444)` response.
+/// Motor homing is a physical process which may take varying lengths of time depending on
+/// physical factors beyond the host computer's knowledge or control.
+/// For this reason, we must `.await` the response using `tokio` non-blocking async/await code.
+///
+/// By using `Tokio`, multiple async operations can run concurrently, ensuring better performance
+/// while handling I/O tasks or delays without blocking the executor.
+///
+/// # Member Functions of Tokio Runtime
+///
+/// The `tokio::runtime` provides several templates, but in this context, `Runtime::new()`
+/// and `Handle::try_current()` are primarily used:
+///
+/// - `Runtime::new()`: Creates a new async runtime. It is used when there is no existing runtime
+///   for the current thread (e.g., if running outside of an async-aware context).
+/// -
+///
+/// # Initialisation Logic
+///
+/// The `RUNTIME_HANDLE` constant uses a `LazyLock` initialisation pattern to ensure that the
+/// runtime is only created when needed.
+///
+/// `Handle::try_current()`: Attempts to grab a runtime handle for the current thread.
+/// This prevents conflicting runtimes when the project is already running in an async context,
+/// such as when using the `#[tokio::main]` or `#[tokio::test]` macros.
+///
+/// If a runtime doesn't yet exist, `Handle::try_current()` fails,
+/// and a new runtime is created using `Runtime::new()`.
+
+// const RUNTIME_HANDLE: LazyLock<Handle> = LazyLock::new(|| {
+//     Handle::try_current().unwrap_or_else(|_| {
+//         Runtime::new()
+//             .map_err(|err| format!("Failed to initialise Tokio runtime: {}", err))
+//             .unwrap()
+//             .handle()
+//             .clone()
+//     })
+// });
+
 /*
 todo write tests which cycle through all templates
 create test device struct with implements every trait
@@ -85,3 +136,29 @@ separate test for each function
 failed test skips to next test without stopping the whole process
 output to csv
  */
+
+#[cfg(test)]
+mod tests {
+    use crate::devices::KDC101;
+    use crate::error::Error;
+    use std::time::Duration;
+    use tokio::time::sleep;
+
+    #[tokio::test]
+    async fn identify_device_test() -> Result<(), Error> {
+        let device = KDC101::new("27266788");
+        device.set_channel_enable_state(1, true)?;
+        device.home(1)?;
+        device.move_absolute(1, 1.0)?;
+        sleep(Duration::from_secs(1)).await;
+        device.move_absolute(1, 0.0)?;
+
+        // let device = KDC101::new("27264344")?;
+        // device.identify()?;
+
+        // let device = KDC101::new("27266825")?;
+        // device.identify()?;
+
+        Ok(())
+    }
+}
