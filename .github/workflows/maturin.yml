@@ -35,10 +35,15 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
-      - name: Install maturin
+      - name: Install maturin and zig
         run: pip install maturin[zig]
       - name: Build wheels
-        run: maturin build --release --out dist --find-interpreter --strip --zig --target ${{ matrix.target }}
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter --strip --zig
+          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          manylinux: musllinux_1_2
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
