@@ -1,0 +1,1 @@
+static TEMPLATE_CHANNEL_NAME: RwLock<Option<Channel>> = RwLock::new(None);
