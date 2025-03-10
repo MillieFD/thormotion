@@ -9,7 +9,6 @@ repository = "https://github.com/MillieFD/thormotion"
 license = "BSD-3"
 keywords = ["thorlabs", "research", "automation", "robotics", "mechatronics"]
 categories = ["hardware-support", "science", "science::robotics"]
-exclude = ["build/"]
 build = "build/build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
