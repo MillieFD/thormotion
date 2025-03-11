@@ -43,4 +43,5 @@ pub(crate) use channel_enable_state::{
 pub(crate) use home::__home_async;
 pub(crate) use identify::__identify;
 pub(crate) use move_absolute::__move_absolute_async;
+pub(crate) use status_update::__get_u_status_update_async;
 pub(crate) use update_messages::{__start_update_messages, __stop_update_messages};
