@@ -81,6 +81,9 @@ MillieFD. (2025). MillieFD/thormotion: v0.3.0 Stable Pre-Release (v0.3.0). Zenod
 
 ### 📖 Documentation
 
+A complete list of the supported Thorlabs devices and functions can be found on
+[docs.rs](https://docs.rs/thormotion/).
+
 Thormotion implements the Thorlabs APT communication protocol. For full details, please refer to the APT protocol
 documentation.
 
