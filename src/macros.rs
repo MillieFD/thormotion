@@ -126,9 +126,9 @@ macro_rules! errors_doc {
     (@inner RUSB $(, $rest:ident)*) => {
         concat!(
             "- `Error::RUSB` if the underlying USB write operation encounters any form of error \
-            while fulfilling the transfer request. See [rusb::DeviceHandle::write_bulk][1] \
-            for a more detailed explanation of the possible returned error variants.\n\n\
-            [1]: https://docs.rs/rusb/latest/rusb/struct.DeviceHandle.html#method.write_bulk\n\n",
+            while fulfilling the transfer request. See [rusb::DeviceHandle::write_bulk]\
+            (https://docs.rs/rusb/latest/rusb/struct.DeviceHandle.html#method.write_bulk)\
+            for a more detailed explanation of the possible returned error variants.\n\n",
             errors_doc!(@inner $($rest),*)
         )
     };
@@ -164,8 +164,8 @@ macro_rules! errors_doc {
         concat!(
             "- `Error::FatalError` if an unrecoverable error occurs. Thormotion \
             includes internal mechanisms to prevent this from occurring. If you \
-            encounter this error, Please open a new [GitHub issue][1] and provide the \
-            relevant details. [1]: https://github.com/MillieFD/thormotion/issues\n\n",
+            encounter this error, Please open a new [GitHub issue]\
+            (https://github.com/MillieFD/thormotion/issues) and provide the relevant details.\n\n",
             errors_doc!(@inner $($rest),*)
         )
     };
