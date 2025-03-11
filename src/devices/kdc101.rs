@@ -108,6 +108,18 @@ impl KDC101 {
         __stop_update_messages(self)
     }
 
+    #[doc = "Returns the current position (mm), velocity (mm/s), and status of the device"]
+    #[doc = apt_doc!(async, "MOT_REQ_STATUSUPDATE", "MOT_GET_STATUSUPDATE", RUSB, Timeout, FatalError)]
+    pub async fn get_u_status_update_async(&self) -> Result<(f64, f64, i32), Error> {
+        __get_u_status_update_async(self, 1).await
+    }
+
+    #[doc = "Returns the current position (mm), velocity (mm/s), and status of the device"]
+    #[doc = apt_doc!(sync, "MOT_REQ_STATUSUPDATE", "MOT_GET_STATUSUPDATE", RUSB, Timeout, FatalError)]
+    pub async fn get_u_status_update(&self) -> Result<(f64, f64, i32), Error> {
+        block_on(__get_u_status_update_async(self, 1))
+    }
+
     #[doc = "Homes the device."]
     #[doc = apt_doc!(async, "MOT_MOVE_HOME", "MOT_MOVE_HOMED", RUSB, Timeout, FatalError)]
     pub async fn home_async(&self) -> Result<(), Error> {
