@@ -35,6 +35,7 @@ use crate::macros::*;
 use crate::messages::utils::pack_short_message;
 use crate::traits::ThorlabsDevice;
 
+#[doc(hidden)]
 #[doc = "Starts periodic update messages from the device every 100 milliseconds (10 Hz)."]
 #[doc = "Automatic updates will continue until the `stop_update_messages` function is called."]
 #[doc = "A 'one-off' status update can be requested using `get_status_update_async`."]
@@ -49,6 +50,7 @@ where
     Ok(())
 }
 
+#[doc(hidden)]
 #[doc = "Stops periodic update messages from the device every 100 milliseconds (10 Hz)."]
 #[doc = "Automatic updates will cease until the `start_update_messages` function is called."]
 #[doc = apt_doc!(async, "HW_STOP_UPDATEMSGS", RUSB)]

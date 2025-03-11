@@ -35,6 +35,7 @@ use crate::macros::*;
 use crate::messages::utils::pack_short_message;
 use crate::traits::ThorlabsDevice;
 
+#[doc(hidden)]
 #[doc = "Identifies the device by flashing the front panel LED"]
 #[doc = apt_doc!(async, "MOD_IDENTIFY", RUSB)]
 pub(crate) fn __identify<A>(device: &A) -> Result<(), Error>
