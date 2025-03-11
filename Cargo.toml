@@ -2,7 +2,7 @@
 name = "thormotion"
 version = "0.3.0"
 authors = ["Amelia Fraser-Dale"]
-edition = "2024"
+edition = "2021"
 description = "A cross-platform motion control library for Thorlabs systems, written in Rust."
 readme = "README.md"
 repository = "https://github.com/MillieFD/thormotion"
