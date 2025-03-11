@@ -14,7 +14,7 @@ build = "build/build.rs"
 
 [lib]
 name = "thormotion"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["lib"]
 
 [features]
 format-built-files = []
