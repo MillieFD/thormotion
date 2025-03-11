@@ -68,6 +68,17 @@ Install libusb using [vcpkg](https://vcpkg.io/en/):
 vcpkg install libusb
 ```
 
+### 📝 Citing Thormotion
+
+Please cite Thormotion in your research. To find the correct DOI for the version of Thormotion you are using, visit 
+[Zenodo](https://zenodo.org) and search for `thormotion`. Alternatively, You can cite all versions by using the 
+generic DOI [10.5281/zenodo.15006067](https://doi.org/10.5281/zenodo.15006067) which always resolves to the latest 
+release.
+
+```markdown
+MillieFD. (2025). MillieFD/thormotion: v0.3.0 Stable Pre-Release (v0.3.0). Zenodo. https://doi.org/10.5281/zenodo.15006067
+```
+
 ### 📖 Documentation
 
 Thormotion implements the Thorlabs APT communication protocol. For full details, please refer to the APT protocol
