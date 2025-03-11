@@ -31,7 +31,13 @@ import thormotion
 
 **Rust users**
 
-Add Thormotion to your Cargo.toml file:
+Run the following Cargo command in your project directory:
+
+```bash
+cargo add thormotion
+```
+
+Or add Thormotion to your Cargo.toml file:
 
 ```toml
 [dependencies]
