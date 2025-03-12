@@ -162,10 +162,10 @@ macro_rules! errors_doc {
     };
     (@inner FatalError $(, $rest:ident)*) => {
         concat!(
-            "- `Error::FatalError` if an unrecoverable error occurs. Thormotion \
-            includes internal mechanisms to prevent this from occurring. If you \
-            encounter this error, Please open a new [GitHub issue]\
-            (https://github.com/MillieFD/thormotion/issues) and provide the relevant details.\n\n",
+            "- `Error::FatalError` if an unrecoverable error occurs. Thormotion includes internal \
+            mechanisms to prevent this from occurring. If you encounter this error, please open \
+            a new [GitHub issue](https://github.com/MillieFD/thormotion/issues) and provide the \
+            relevant details.\n\n",
             errors_doc!(@inner $($rest),*)
         )
     };
