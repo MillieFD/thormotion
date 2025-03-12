@@ -270,6 +270,8 @@ impl UsbDevicePrimitive {
     [1]: https://docs.rs/rusb/latest/rusb/struct.DeviceHandle.html#method.write_bulk
     */
     fn initialise_serial_port(&self) -> Result<(), Error> {
+        self.rusb_device_handle
+            .set_auto_detach_kernel_driver(true)?;
         self.rusb_device_handle.claim_interface(0)?;
         self.rusb_device_handle
             .write_control(0x40, 0x00, 0x0000, 0, &[], self.short_timeout)?;
