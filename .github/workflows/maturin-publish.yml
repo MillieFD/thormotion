@@ -1,4 +1,4 @@
-name: Maturin Build
+name: Maturin Publish
 
 on:
   release:
