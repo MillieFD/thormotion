@@ -127,7 +127,7 @@ macro_rules! errors_doc {
         concat!(
             "- `Error::RUSB` if the underlying USB write operation encounters any form of error \
             while fulfilling the transfer request. See [rusb::DeviceHandle::write_bulk]\
-            (https://docs.rs/rusb/latest/rusb/struct.DeviceHandle.html#method.write_bulk)\
+            (https://docs.rs/rusb/latest/rusb/struct.DeviceHandle.html#method.write_bulk) \
             for a more detailed explanation of the possible returned error variants.\n\n",
             errors_doc!(@inner $($rest),*)
         )
