@@ -33,7 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use crate::devices::utils::get_usb_device_primitive;
 use crate::durations::{DEFAULT_LONG_TIMEOUT, DEFAULT_POLL_INTERVAL, DEFAULT_SHORT_TIMEOUT};
 use crate::error::Error;
-use crate::messages::{MsgFormat, utils::get_channel, utils::get_length};
+use crate::macros::errors_doc;
+use crate::messages::{utils::get_channel, utils::get_length, MsgFormat};
 use async_std::future::timeout;
 use async_std::sync::Arc;
 use async_std::task::{self, JoinHandle};
@@ -133,9 +134,9 @@ impl UsbDevicePrimitive {
     device.
 
     The stream of incoming bytes is segmented into discrete messages using the message ID.
-    Messages are then dispatched to any internal waiting for a response from the device. The
+    Messages are then dispatched to any functions waiting for a response from the device. The
     frequency of USB read operations is controlled by `UsbDevicePrimitive.poll_interval`,
-    which is initialised with a default value of 200 milliseconds.
+    which is initialized with a default value of 200 milliseconds.
 
     # Panics
 
@@ -144,23 +145,14 @@ impl UsbDevicePrimitive {
     - An unknown or invalid message ID is encountered.
     - The `async_std::channel::Sender` fails to dispatch the message.
 
-    # Errors
-
-    The spawned task is to panic with `.expect()` instead of raising an error.
+    The spawned task panics with `.expect()` instead of raising an error.
     By default, the `async-std` runtime will unwind all threads if a panic occurs on any thread.
-    If the USB device becomes unreachable, the spawned background task will panic,
+    Therefore, if the USB device becomes unreachable, the spawned background task will panic,
     causing the entire program to terminate.
 
     This behaviour is intentional to ensure that disconnected devices do not cause undefined
     behaviour or unintended consequences. By enforcing a complete program termination,
     this mechanism guarantees that critical device failures are dealt with safely and explicitly.
-
-    # Examples
-
-    ```rust
-    let device = UsbDevicePrimitive::new(device_handle, device_descriptor, device_language);
-    device.spawn_poll_task();
-    ```
     */
     fn spawn_poll_task(&self) -> JoinHandle<()> {
         let poll_interval = self.poll_interval.clone();
@@ -241,34 +233,8 @@ impl UsbDevicePrimitive {
         handle
     }
 
-    /**
-    Initialises serial port settings to communicate with the connected Thorlabs device.
-
-    This function configures a serial port according to the requirements described
-    in the Thorlabs APT protocol. Refer to the Thorlabs APT protocol for further
-    detail about the required serial port settings.
-
-    # Steps
-
-    1. **Claim the Interface**: Establishes exclusive access to the device's USB
-       interface to prevent conflicts with other processes.
-    2. **Reset the Device**: Sends a control request to clear any previous communication settings.
-    3. **Set Baud Rate**: Configures the communication speed to 115,200 baud.
-    4. **Set Data Format**: Eight data bits, one stop bit, no parity.
-    5. **Purge Buffers**: Pauses momentarily, then clears the `receive` and `transmit` buffers.
-    6. **Flow Control Configuration**: Enables RTS/CTS (Request to Send / Clear to Send)
-       flow control.
-    7. **Set RTS High**: Activates the RTS (Ready to Send) signal to indicate host readiness
-       for communication.
-
-    # Errors
-
-    Returns `Error::RUSB` if the underlying `libusb` operation encounters any form of error
-    while initialising the serial port. See [rusb::DeviceHandle::write_bulk][1] for a more
-    detailed explanation of the possible returned error variants.
-
-    [1]: https://docs.rs/rusb/latest/rusb/struct.DeviceHandle.html#method.write_bulk
-    */
+    #[doc = "Initializes serial port settings according to the requirements described in the Thorlabs APT protocol."]
+    #[doc = errors_doc!(RUSB)]
     fn initialise_serial_port(&self) -> Result<(), Error> {
         self.rusb_device_handle
             .set_auto_detach_kernel_driver(true)?;
@@ -292,36 +258,8 @@ impl UsbDevicePrimitive {
         Ok(())
     }
 
-    /**
-    Writes a series of bytes to the USB device.
-
-    This function takes an instance of the `MsgFormat` enum containing the data to be sent.
-    This data is transferred to the USB device using a bulk write operation.
-
-    # Errors
-
-    - `Error::RUSB` if the underlying USB write operation encounters any form of error while
-      fulfilling the transfer request.
-      See [rusb::DeviceHandle::write_bulk][1] for a more detailed explanation of the possible
-      returned error variants.
-
-      [1]: https://docs.rs/rusb/latest/rusb/struct.DeviceHandle.html#method.write_bulk
-
-    - `Error::FatalError` if the number of successfully written bytes does not match the
-      expected data length, as this indicates a critical error in the `write` process that was not
-      caught by `libusb` or `rusb`.
-
-    # Examples
-
-    ```rust
-    let device = UsbDevice::new();
-    let message = MsgFormat::Short(data);
-
-    if let Err(e) = device.write(message) {
-        println!("Failed to send message: {:?}", e);
-    }
-    ```
-    */
+    #[doc = "Writes a series of bytes to the USB device."]
+    #[doc = errors_doc!(RUSB, FatalError)]
     pub(crate) fn write(&self, data: &MsgFormat) -> Result<(), Error> {
         if self
             .rusb_device_handle
