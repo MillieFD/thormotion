@@ -167,7 +167,7 @@ impl UsbDevicePrimitive {
                 let num_bytes_read = rusb_device_handle
                     .read_bulk(IN_ENDPOINT, &mut buffer, short_timeout)
                     .expect(&format!("Failed to read from {:?}", rusb_device_handle));
-                #[cfg(debug_assertions)]
+                #[cfg(feature = "debug-usb")]
                 {
                     println!("num_bytes_read: {}", num_bytes_read);
                 }
@@ -175,7 +175,7 @@ impl UsbDevicePrimitive {
                     continue;
                 }
                 queue.extend(&buffer[2..num_bytes_read]);
-                #[cfg(debug_assertions)]
+                #[cfg(feature = "debug-usb")]
                 {
                     println!(
                         "\nAdding {} bytes to queue\nQueue: {:?}\nQueue length: {} bytes",
@@ -186,7 +186,7 @@ impl UsbDevicePrimitive {
                 }
                 loop {
                     if queue.is_empty() {
-                        #[cfg(debug_assertions)]
+                        #[cfg(feature = "debug-usb")]
                         {
                             println!("Queue is empty. Breaking from inner loop.\n");
                         }
@@ -194,7 +194,7 @@ impl UsbDevicePrimitive {
                     }
                     let id: [u8; 2] = [queue[0], queue[1]];
                     let message_length = get_length(id);
-                    #[cfg(debug_assertions)]
+                    #[cfg(feature = "debug-usb")]
                     {
                         println!(
                             "\nMessage ID: {:?}\nExpected message length: {}",
@@ -202,14 +202,14 @@ impl UsbDevicePrimitive {
                         );
                     }
                     if queue.len() < *message_length {
-                        #[cfg(debug_assertions)]
+                        #[cfg(feature = "debug-usb")]
                         {
                             println!("Not enough bytes in queue\n");
                         }
                         break;
                     }
                     let message: Box<[u8]> = queue.drain(..message_length).collect();
-                    #[cfg(debug_assertions)]
+                    #[cfg(feature = "debug-usb")]
                     {
                         println!("Drained {} bytes from queue", message.len());
                     }
@@ -218,7 +218,7 @@ impl UsbDevicePrimitive {
                         .expect(&format!("Function timed out while trying to get WriteGuard for channel for message id {:?}", id))
                         .take()
                     {
-                        #[cfg(debug_assertions)]
+                        #[cfg(feature = "debug-usb")]
                         {
                             println!("Sender found for id: {:?}", id);
                         }
