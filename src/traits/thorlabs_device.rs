@@ -30,9 +30,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::UsbDevicePrimitive;
-use crate::devices::utils::get_usb_device_primitive;
+use crate::devices::utils::get_device;
 use crate::error::Error;
+use nusb::{Device, DeviceInfo};
+use std::fmt::Display;
 use std::ops::Deref;
 
 pub trait ThorlabsDevice<Sn, Dev>:
