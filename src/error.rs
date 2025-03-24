@@ -31,92 +31,71 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 use crate::traits::ThorlabsDevice;
-use async_channel::RecvError;
 use async_std::future::TimeoutError;
-use pyo3::PyErr;
 use pyo3::exceptions::PyRuntimeError;
-use std::array::TryFromSliceError;
-use std::fmt::Debug;
-use std::num::TryFromIntError;
+use pyo3::PyErr;
+use std::fmt::{Display, Formatter};
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    RUSB(#[from] rusb::Error),
-
-    #[error("{0} is not a valid serial number for the requested Thorlabs device type.")]
-    InvalidSerialNumber(String),
-
-    #[error("No devices with serial number {0} were found")]
-    DeviceNotFound(String),
-
-    #[error("Multiple devices with serial number {0} were found")]
-    MultipleDevicesFound(String),
-
-    #[error("Function timed out")]
-    Timeout(#[from] TimeoutError),
-
-    #[error(
-        "A fatal error occurred: {0}\n\
-        This is a bug. Please open a [GitHub issue](https://github.com/MillieFD/thormotion/issues)."
-    )]
-    FatalError(String),
-
-    #[error("Conversion was unsuccessful: {0}")]
-    ConversionError(String),
-
-    #[error("APT Protocol command to {} was unsuccessful: {}", device, error)]
-    UnsuccessfulCommand { device: String, error: String },
+pub enum Error<Sn, Dev>
+where
+    Sn: Display + AsRef<str>,
+    Dev: ThorlabsDevice<Sn, Dev>,
+{
+    NUSB(nusb::Error),
+    InvalidSerialNumber(Sn),
+    DeviceNotFound(Sn),
+    MultipleDevicesFound(Sn),
+    Timeout(TimeoutError),
+    ConversionError(Sn),
+    UnsuccessfulCommand { device: Dev, message: Sn },
 }
 
-impl Error {
-    pub(crate) fn wrong_channel<A, B, C>(device: &A, requested: B, received: C) -> Self
-    where
-        A: ThorlabsDevice,
-        B: Debug,
-        C: Debug,
-    {
-        Error::UnsuccessfulCommand {
-            device: device.to_string(),
-            error: format!(
-                "Requested channel {:?} but device responded with channel {:?}",
-                requested, received
+impl<Sn, Dev> Display for Error<Sn, Dev>
+where
+    Sn: Display + AsRef<str>,
+    Dev: ThorlabsDevice<Sn, Dev>,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::NUSB(err) => write!(f, "NUSB error: {}", err),
+            Error::InvalidSerialNumber(sn) => write!(
+                f,
+                "{} is not a valid serial number for the requested Thorlabs device type.",
+                sn
+            ),
+            Error::DeviceNotFound(sn) => {
+                write!(f, "No devices with serial number {} were found", sn)
+            }
+            Error::MultipleDevicesFound(sn) => {
+                write!(f, "Multiple devices with serial number {} were found", sn)
+            }
+            Error::Timeout(err) => write!(f, "Function timed out: {}", err),
+            Error::ConversionError(err) => write!(f, "Conversion error: {}", err),
+            Error::UnsuccessfulCommand { device, message } => write!(
+                f,
+                "APT Protocol command was unsuccessful\n    Device:  {}\n    Command: {}\n",
+                device, message
             ),
         }
     }
+}
 
-    pub(crate) fn unsuccessful_command<A, B>(device: &A, message: B) -> Self
-    where
-        A: ThorlabsDevice,
-        B: Into<String>,
-    {
-        Error::UnsuccessfulCommand {
-            device: device.to_string(),
-            error: message.into(),
-        }
+impl<Sn, Dev> From<nusb::Error> for Error<Sn, Dev>
+where
+    Sn: Display + AsRef<str>,
+    Dev: ThorlabsDevice<Sn, Dev>,
+{
+    fn from(err: nusb::Error) -> Self {
+        Error::NUSB(err)
     }
 }
 
-impl From<RecvError> for Error {
-    fn from(err: RecvError) -> Error {
-        Error::FatalError(err.to_string())
-    }
-}
-
-impl From<TryFromSliceError> for Error {
-    fn from(err: TryFromSliceError) -> Error {
-        Error::ConversionError(err.to_string())
-    }
-}
-
-impl From<TryFromIntError> for Error {
-    fn from(err: TryFromIntError) -> Self {
-        Error::ConversionError(err.to_string())
-    }
-}
-
-impl From<Error> for PyErr {
-    fn from(err: Error) -> PyErr {
+impl<Sn, Dev> From<Error<Sn, Dev>> for PyErr
+where
+    Sn: Display + AsRef<str>,
+    Dev: ThorlabsDevice<Sn, Dev>,
+{
+    fn from(err: Error<Sn, Dev>) -> PyErr {
         PyRuntimeError::new_err(err.to_string())
     }
 }
