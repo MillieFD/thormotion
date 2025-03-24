@@ -47,13 +47,10 @@ where
     Sn: Display + AsRef<str>,
     Dev: ThorlabsDevice<Sn, Dev>,
 {
-    fn new<T>(serial_number: T) -> Result<Self, Error>
-    where
-        T: Into<String> + Clone,
-    {
-        let usb_device_primitive = get_usb_device_primitive(serial_number)?;
-        let device = Self::try_from(usb_device_primitive)?;
-        Ok(device)
+    fn new(serial_number: Sn) -> Result<Self, Error<Sn, Dev>> {
+        let usb_device_info = get_device(serial_number)?;
+        let thorlabs_device = Self::try_from(usb_device_info)?;
+        Ok(thorlabs_device)
     }
 
     /**
