@@ -63,18 +63,20 @@ where
     const SERIAL_NUMBER_PREFIX: &'static str;
 
     /**
-    Returns `Error::InvalidSerialNumber` if the provided serial number does not match the
-    serial number prefix for the target device type.
+    Returns `Error::InvalidSerialNumber` if the serial number:
+    1. Does not match the serial number prefix for the target device type
+    2. Is not exactly eight-digits long
+    3. Contains non-numeric characters
     */
-    fn check_serial_number<T>(serial_number: T) -> Result<(), Error>
-    where
-        T: Into<String>,
-    {
-        let sn: String = serial_number.into();
-        if !sn.starts_with(Self::SERIAL_NUMBER_PREFIX) {
-            Err(Error::InvalidSerialNumber(sn))
-        } else {
+    fn check_serial_number(serial_number: Sn) -> Result<(), Error<Sn, Dev>> {
+        let sn = serial_number.as_ref();
+        if sn.starts_with(Self::SERIAL_NUMBER_PREFIX)
+            && sn.len() == 8
+            && sn.chars().all(|c| c.is_numeric())
+        {
             Ok(())
+        } else {
+            Err(Error::InvalidSerialNumber(serial_number))
         }
     }
 }
