@@ -35,9 +35,17 @@ use crate::devices::utils::get_usb_device_primitive;
 use crate::error::Error;
 use std::ops::Deref;
 
-pub trait ThorlabsDevice
+pub trait ThorlabsDevice<Sn, Dev>:
+    Display
+    + Sized
+    + Clone
+    + Send
+    + Sync
+    + Deref<Target = Device>
+    + TryFrom<DeviceInfo, Error = Error<Sn, Dev>>
 where
-    Self: Deref<Target = UsbDevicePrimitive> + TryFrom<UsbDevicePrimitive, Error = Error>,
+    Sn: Display + AsRef<str>,
+    Dev: ThorlabsDevice<Sn, Dev>,
 {
     fn new<T>(serial_number: T) -> Result<Self, Error>
     where
