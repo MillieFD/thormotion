@@ -35,6 +35,7 @@ use async_std::future::TimeoutError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use std::fmt::{Display, Formatter};
+use std::time::Duration;
 
 pub enum Error<'a, Sn>
 where
@@ -50,6 +51,7 @@ where
     Wrapper around `nusb::transfer::TransferError`.
     */
     UsbTransferError(nusb::transfer::TransferError),
+    PoisonError(std::sync::PoisonError<std::sync::MutexGuard<'a, Duration>>),
     InvalidSerialNumber(Sn),
     DeviceNotFound(Sn),
     MultipleDevicesFound(Sn),
@@ -115,6 +117,15 @@ where
 {
     fn from(err: TimeoutError) -> Self {
         Error::Timeout(err)
+    }
+}
+
+impl<'a, Sn> From<std::sync::PoisonError<std::sync::MutexGuard<'a, Duration>>> for Error<'a, Sn>
+where
+    Sn: AsRef<str> + Display,
+{
+    fn from(err: std::sync::PoisonError<std::sync::MutexGuard<'a, Duration>>) -> Self {
+        Error::PoisonError(err)
     }
 }
 
