@@ -36,10 +36,9 @@ use pyo3::exceptions::PyRuntimeError;
 use pyo3::PyErr;
 use std::fmt::{Display, Formatter};
 
-pub enum Error<Sn, Dev>
+pub enum Error<'a, Sn>
 where
-    Sn: Display + AsRef<str>,
-    Dev: ThorlabsDevice<Sn, Dev>,
+    Sn: AsRef<str> + Display,
 {
     NUSB(nusb::Error),
     InvalidSerialNumber(Sn),
@@ -47,13 +46,15 @@ where
     MultipleDevicesFound(Sn),
     Timeout(TimeoutError),
     ConversionError(Sn),
-    UnsuccessfulCommand { device: Dev, message: Sn },
+    UnsuccessfulCommand {
+        device: &'a dyn ThorlabsDevice,
+        message: Sn,
+    },
 }
 
-impl<Sn, Dev> Display for Error<Sn, Dev>
+impl<Sn> Display for Error<'_, Sn>
 where
-    Sn: Display + AsRef<str>,
-    Dev: ThorlabsDevice<Sn, Dev>,
+    Sn: AsRef<str> + Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -80,22 +81,20 @@ where
     }
 }
 
-impl<Sn, Dev> From<nusb::Error> for Error<Sn, Dev>
+impl<Sn> From<nusb::Error> for Error<'_, Sn>
 where
-    Sn: Display + AsRef<str>,
-    Dev: ThorlabsDevice<Sn, Dev>,
+    Sn: AsRef<str> + Display,
 {
     fn from(err: nusb::Error) -> Self {
         Error::NUSB(err)
     }
 }
 
-impl<Sn, Dev> From<Error<Sn, Dev>> for PyErr
+impl<Sn> From<Error<'_, Sn>> for PyErr
 where
-    Sn: Display + AsRef<str>,
-    Dev: ThorlabsDevice<Sn, Dev>,
+    Sn: AsRef<str> + Display,
 {
-    fn from(err: Error<Sn, Dev>) -> PyErr {
+    fn from(err: Error<Sn>) -> PyErr {
         PyRuntimeError::new_err(err.to_string())
     }
 }
