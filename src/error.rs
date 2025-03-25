@@ -109,6 +109,15 @@ where
     }
 }
 
+impl<Sn> From<TimeoutError> for Error<'_, Sn>
+where
+    Sn: AsRef<str> + Display,
+{
+    fn from(err: TimeoutError) -> Self {
+        Error::Timeout(err)
+    }
+}
+
 impl<Sn> From<Error<'_, Sn>> for PyErr
 where
     Sn: AsRef<str> + Display,
