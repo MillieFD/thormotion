@@ -71,6 +71,7 @@ where
         match self {
             Error::UsbOperationError(err) => write!(f, "nusb::Error: {}", err),
             Error::UsbTransferError(err) => write!(f, "nusb::transfer::TransferError: {}", err),
+            Error::PoisonError(err) => write!(f, "std::sync::PoisonError: {}", err),
             Error::InvalidSerialNumber(sn) => write!(
                 f,
                 "{} is not a valid serial number for the requested Thorlabs device type.",
