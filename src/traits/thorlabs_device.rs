@@ -30,53 +30,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::utils::get_device;
-use crate::error::Error;
-use nusb::{Device, DeviceInfo};
+use nusb::Device;
 use std::fmt::Display;
 use std::ops::Deref;
 
-pub trait ThorlabsDevice<Sn, Dev>:
-    Display
-    + Sized
-    + Clone
-    + Send
-    + Sync
-    + Deref<Target = Device>
-    + TryFrom<DeviceInfo, Error = Error<Sn, Dev>>
-where
-    Sn: Display + AsRef<str>,
-    Dev: ThorlabsDevice<Sn, Dev>,
-{
-    fn new(serial_number: Sn) -> Result<Self, Error<Sn, Dev>> {
-        let usb_device_info = get_device(serial_number)?;
-        let thorlabs_device = Self::try_from(usb_device_info)?;
-        Ok(thorlabs_device)
-    }
-
-    /**
-    Each Thorlabs device has a unique serial number prefix.
-    For instance, all KDC101 devices have serial numbers beginning with "27".
-    The `check_serial_number` function uses the `Self::SERIAL_NUMBER_PREFIX` constant to prevent
-    users from accidentally opening a device using the incorrect struct.
-    */
-    const SERIAL_NUMBER_PREFIX: &'static str;
-
-    /**
-    Returns `Error::InvalidSerialNumber` if the serial number:
-    1. Does not match the serial number prefix for the target device type
-    2. Is not exactly eight-digits long
-    3. Contains non-numeric characters
-    */
-    fn check_serial_number(serial_number: Sn) -> Result<(), Error<Sn, Dev>> {
-        let sn = serial_number.as_ref();
-        if sn.starts_with(Self::SERIAL_NUMBER_PREFIX)
-            && sn.len() == 8
-            && sn.chars().all(|c| c.is_numeric())
-        {
-            Ok(())
-        } else {
-            Err(Error::InvalidSerialNumber(serial_number))
-        }
-    }
-}
+pub trait ThorlabsDevice: Display + Send + Sync + Deref<Target = Device> {}
