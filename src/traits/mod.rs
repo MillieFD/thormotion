@@ -30,8 +30,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+mod check_serial_number;
 mod thorlabs_device;
 mod unit_conversion;
 
+pub(crate) use check_serial_number::CheckSerialNumber;
 pub use thorlabs_device::ThorlabsDevice;
 pub(crate) use unit_conversion::*;
