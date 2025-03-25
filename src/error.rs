@@ -40,7 +40,16 @@ pub enum Error<'a, Sn>
 where
     Sn: AsRef<str> + Display,
 {
-    NUSB(nusb::Error),
+    /**
+    OS error returned from USB operations other than transfers.
+    Wrapper around `nusb::Error`.
+    */
+    UsbOperationError(nusb::Error),
+    /**
+    Error returned from USB transfers.
+    Wrapper around `nusb::transfer::TransferError`.
+    */
+    UsbTransferError(nusb::transfer::TransferError),
     InvalidSerialNumber(Sn),
     DeviceNotFound(Sn),
     MultipleDevicesFound(Sn),
@@ -58,7 +67,8 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::NUSB(err) => write!(f, "NUSB error: {}", err),
+            Error::UsbOperationError(err) => write!(f, "nusb::Error: {}", err),
+            Error::UsbTransferError(err) => write!(f, "nusb::transfer::TransferError: {}", err),
             Error::InvalidSerialNumber(sn) => write!(
                 f,
                 "{} is not a valid serial number for the requested Thorlabs device type.",
@@ -86,7 +96,16 @@ where
     Sn: AsRef<str> + Display,
 {
     fn from(err: nusb::Error) -> Self {
-        Error::NUSB(err)
+        Error::UsbOperationError(err)
+    }
+}
+
+impl<Sn> From<nusb::transfer::TransferError> for Error<'_, Sn>
+where
+    Sn: AsRef<str> + Display,
+{
+    fn from(err: nusb::transfer::TransferError) -> Self {
+        Error::UsbTransferError(err)
     }
 }
 
