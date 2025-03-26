@@ -30,16 +30,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use async_channel::{Receiver, Sender, bounded};
+use async_broadcast::{broadcast, Receiver, Sender};
 
 pub(crate) struct Channel {
-    pub(crate) sender: Sender<Box<[u8]>>,
-    pub(super) receiver: Receiver<Box<[u8]>>,
+    pub(crate) sender: Sender<Vec<u8>>,
+    pub(super) receiver: Receiver<Vec<u8>>,
 }
 
 impl Channel {
     pub(super) fn new() -> Self {
-        let (sender, receiver) = bounded(1);
+        let (sender, receiver) = broadcast(1);
         Self { sender, receiver }
     }
 }
