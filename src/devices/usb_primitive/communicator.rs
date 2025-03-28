@@ -30,13 +30,15 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::error::Error;
-use crate::messages::Dispatcher;
-use nusb::transfer::{ControlOut, ControlType, Queue, Recipient, RequestBuffer};
+use std::time::Duration;
+
 use nusb::Interface;
+use nusb::transfer::{ControlOut, ControlType, Queue, Recipient, RequestBuffer};
 use smol::future::FutureExt;
 use smol::{Task, Timer};
-use std::time::Duration;
+
+use crate::error::Error;
+use crate::messages::Dispatcher;
 
 const BUFFER_SIZE: usize = 255 + 6;
 const RESET_CONTROLLER: ControlOut = ControlOut {
@@ -120,17 +122,16 @@ pub(crate) struct Communicator {
 }
 
 impl Communicator {
-    pub(super) async fn new(interface: Interface, dispatcher: Dispatcher) -> Result<Self, Error> {
+    pub(super) async fn new(interface: Interface, dispatcher: Dispatcher) -> Self {
         const OUT_ENDPOINT: u8 = 0x02;
         Self::init(&interface).await;
         let incoming = Self::spawn(&interface, dispatcher);
         let outgoing = interface.interrupt_out_queue(OUT_ENDPOINT);
-        let communicator = Self {
+        Self {
             interface,
             incoming,
             outgoing,
-        };
-        Ok(communicator)
+        }
     }
 
     /**
@@ -181,7 +182,7 @@ impl Communicator {
                 queue.submit(RequestBuffer::new(BUFFER_SIZE));
                 let completion = queue.next_complete().await;
                 completion.status?;
-                dispatcher.dispatch(completion.data).await?;
+                dispatcher.dispatch(completion.data).await;
             }
         };
 
