@@ -29,6 +29,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 use crate::error::Error;
 use crate::messages::Dispatcher;
 use nusb::transfer::{ControlOut, ControlType, Queue, Recipient, RequestBuffer};
@@ -132,6 +133,39 @@ impl Communicator {
         Ok(communicator)
     }
 
+    /**
+    Initializes serial port settings according to Thorlabs APT protocol requirements:
+    - Baud rate 115200
+    - Eight data bits
+    - One stop bit
+    - No parity
+    - RTS/CTS flow control
+    */
+    async fn init(interface: &Interface) {
+        let mut i = 0;
+        let mut control_out = async |control_out: ControlOut| {
+            interface
+                .control_out(control_out)
+                .or(async {
+                    Timer::after(Duration::from_millis(50));
+                    panic!("Control transfer {i} timed out after 50ms [communicator.rs:172]")
+                })
+                .await
+                .status
+                .expect("Control transfer failed [communicator.rs:176]");
+            i += 1;
+        };
+        control_out(RESET_CONTROLLER).await;
+        control_out(BAUD_RATE).await;
+        control_out(EIGHT_DATA_ONE_STOP_NO_PARITY).await;
+        Timer::after(Duration::from_millis(50)).await; // Pre-purge dwell 50ms
+        control_out(PURGE_RX).await;
+        control_out(PURGE_TX).await;
+        Timer::after(Duration::from_millis(50)).await; // Post-purge dwell 50ms
+        control_out(FLOW_CONTROL).await;
+        control_out(RTS).await;
+    }
+
     fn handle_error(error: Error) {
         match error {
             _ => panic!("{}", error),
@@ -156,45 +190,6 @@ impl Communicator {
                 Self::handle_error(error);
             }
         })
-    }
-
-    /**
-    Initializes serial port settings according to Thorlabs APT protocol requirements:
-    - Baud rate 115200
-    - Eight data bits
-    - One stop bit
-    - No parity
-    - RTS/CTS flow control
-    */
-    async fn init(interface: &Interface) {
-        let mut i = 0;
-
-        let mut control_out = async |control_out: ControlOut| {
-            interface
-                .control_out(control_out)
-                .or(async {
-                    Timer::after(Duration::from_millis(50));
-                    panic!("Control transfer {i} timed out after 50ms [communicator.rs:172]")
-                })
-                .await
-                .status
-                .expect("Control transfer failed [communicator.rs:176]");
-            i += 1;
-        };
-
-        control_out(RESET_CONTROLLER).await;
-        control_out(BAUD_RATE).await;
-        control_out(EIGHT_DATA_ONE_STOP_NO_PARITY).await;
-
-        Timer::after(Duration::from_millis(50)).await;
-
-        control_out(PURGE_RX).await;
-        control_out(PURGE_TX).await;
-
-        Timer::after(Duration::from_millis(50)).await;
-
-        control_out(FLOW_CONTROL).await;
-        control_out(RTS).await;
     }
 
     fn send(&mut self, message: Vec<u8>) {
