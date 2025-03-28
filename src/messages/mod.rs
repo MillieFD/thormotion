@@ -30,11 +30,13 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-mod channel;
+mod dispatcher;
 mod message_format;
+mod proto_dispatcher;
 pub(crate) mod utils;
 
-use channel::Channel;
+pub(crate) use dispatcher::Dispatcher;
 pub(crate) use message_format::MsgFormat;
+pub(crate) use proto_dispatcher::ProtoDispatcher;
 
-include!(concat!(env!("OUT_DIR"), "/built_messages.rs"));
+type Sender = async_broadcast::Sender<std::sync::Arc<[u8]>>;
