@@ -36,6 +36,11 @@ use crate::error::{sn, usb};
 use crate::messages::{Communicator, Dispatcher};
 use nusb::DeviceInfo;
 
+enum Status {
+    Open(Communicator),
+    Closed,
+}
+
 pub struct UsbPrimitive {
     /**
     Information about a device that can be obtained without calling [`DeviceInfo::open`].
@@ -49,7 +54,7 @@ pub struct UsbPrimitive {
     Contains [`Communicator`] if the USB device is open, or [`None`] if the USB device is closed.
     Open the device by calling [`UsbPrimitive::open`]
     */
-    communicator: Option<Communicator>,
+    status: Status,
 }
 
 impl UsbPrimitive {
@@ -64,7 +69,10 @@ impl UsbPrimitive {
     }
 
     fn is_open(&self) -> bool {
-        self.communicator.is_some()
+        match self.status {
+            Status::Open(_) => true,
+            Status::Closed => false,
+        }
     }
 
     async fn open(&mut self) -> Result<(), usb::Error> {
@@ -74,8 +82,9 @@ impl UsbPrimitive {
         let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
         let dispatcher = self.dispatcher.clone();
         let communicator = Communicator::new(interface, dispatcher);
-        self.communicator.replace(communicator);
+        self.status = Status::Open(communicator);
         Ok(())
     }
+
     fn close(&self) {}
 }
