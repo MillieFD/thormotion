@@ -30,24 +30,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::utils::get_device;
-use crate::error::Error;
-use std::fmt::Display;
+use crate::error::{sn, Error};
 
-pub(crate) trait CheckSerialNumber<'a, Sn>:
-    Sized + TryFrom<nusb::DeviceInfo, Error = Error<'a, Sn>>
-where
-    Sn: AsRef<str> + Display,
-{
-    fn new(serial_number: Sn) -> Result<Self, Error<'a, Sn>>
-    where
-        Sn: AsRef<str> + Display,
-    {
-        let usb_device_info = get_device(serial_number)?;
-        let thorlabs_device = Self::try_from(usb_device_info)?;
-        Ok(thorlabs_device)
-    }
-
+pub(crate) trait CheckSerialNumber {
     /**
     Each Thorlabs device has a unique serial number prefix.
     For instance, all KDC101 devices have serial numbers beginning with "27".
@@ -62,15 +47,14 @@ where
     2. Is not exactly eight-digits long
     3. Contains non-numeric characters
     */
-    fn check_serial_number(serial_number: Sn) -> Result<(), Error<'a, Sn>> {
-        let sn = serial_number.as_ref();
-        if sn.starts_with(Self::SERIAL_NUMBER_PREFIX)
-            && sn.len() == 8
-            && sn.chars().all(|c| c.is_numeric())
+    fn check_serial_number(serial_number: String) -> Result<(), Error> {
+        if serial_number.starts_with(Self::SERIAL_NUMBER_PREFIX)
+            && serial_number.len() == 8
+            && serial_number.chars().all(|c| c.is_numeric())
         {
             Ok(())
         } else {
-            Err(Error::InvalidSerialNumber(serial_number))
+            Err(Error::SerialNumber(sn::Error::Invalid(serial_number)))
         }
     }
 }
