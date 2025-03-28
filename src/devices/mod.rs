@@ -31,8 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 mod kdc101;
-mod usb_device_primitive;
-pub(crate) mod utils;
+mod usb_primitive;
+mod utils;
 
 pub use kdc101::KDC101;
-pub(crate) use usb_device_primitive::UsbDevicePrimitive;
