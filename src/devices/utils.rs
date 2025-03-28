@@ -30,8 +30,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+use nusb::{DeviceInfo, list_devices};
+
 use crate::error::sn::Error;
-use nusb::{list_devices, DeviceInfo};
 
 fn get_devices() -> impl Iterator<Item = DeviceInfo> {
     list_devices()
