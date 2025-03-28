@@ -35,12 +35,29 @@ pub mod communicator;
 use crate::error::{sn, usb};
 use crate::messages::{Communicator, Dispatcher};
 use nusb::DeviceInfo;
+use std::fmt::Debug;
 
 enum Status {
     Open(Communicator),
     Closed,
 }
 
+impl Default for Status {
+    fn default() -> Self {
+        Self::Closed
+    }
+}
+
+impl Debug for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Open(_) => write!(f, "Status::Open"),
+            Self::Closed => write!(f, "Status::Closed"),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct UsbPrimitive {
     /**
     Information about a device that can be obtained without calling [`DeviceInfo::open`].
