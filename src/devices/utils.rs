@@ -39,7 +39,7 @@ fn get_devices() -> impl Iterator<Item = DeviceInfo> {
         .filter(|dev| dev.vendor_id() == 0x0403)
 }
 
-fn get_device(serial_number: String) -> Result<DeviceInfo, Error> {
+pub(crate) fn get_device(serial_number: String) -> Result<DeviceInfo, Error> {
     let mut devices =
         get_devices().filter(|dev| dev.serial_number().map_or(false, |sn| sn == serial_number));
     match (devices.next(), devices.next()) {
