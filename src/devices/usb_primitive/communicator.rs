@@ -164,7 +164,7 @@ impl Communicator {
     async fn initialize(interface: &Interface) {
         let mut i = 0;
 
-        let mut control_out = async |control_out: ControlOut<'_>| {
+        let mut control_out = async |control_out: ControlOut| {
             interface
                 .control_out(control_out)
                 .or(async {
