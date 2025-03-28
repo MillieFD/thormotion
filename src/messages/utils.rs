@@ -30,12 +30,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::durations::DEFAULT_LONG_TIMEOUT;
 use crate::error::Error;
-use crate::messages::{CHANNEL_MAP, Channel, LENGTH_MAP, MsgFormat};
-use async_channel::{Receiver, Sender};
-use async_std::future::timeout;
-use async_std::sync::RwLock;
+use crate::messages::MsgFormat;
 use std::fmt::Debug;
 
 const DEST: u8 = 0x50;
