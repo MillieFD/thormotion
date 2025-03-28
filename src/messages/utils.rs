@@ -107,64 +107,6 @@ pub(crate) fn pack_long_message(id: [u8; 2], length: usize) -> MsgFormat {
     MsgFormat::Long(data)
 }
 
-pub(crate) fn get_length<'a>(message_id: [u8; 2]) -> &'a usize {
-    LENGTH_MAP.get(&message_id).expect(&format!(
-        "Failed to get message length. {:?} does not correspond to a known message ID",
-        message_id
-    ))
-}
-
-pub(crate) fn get_channel<'a>(message_id: [u8; 2]) -> &'a RwLock<Option<Channel>> {
-    CHANNEL_MAP.get(&message_id).expect(&format!(
-        "Failed to get channel. {:?} does not correspond to a known message ID",
-        message_id
-    ))
-}
-
-pub(crate) async fn get_new_receiver<'a>(
-    message_id: [u8; 2],
-) -> Result<Receiver<Box<[u8]>>, Error> {
-    if let Some(existing_channel) = get_channel(message_id).read().await.as_ref() {
-        let _ = timeout(DEFAULT_LONG_TIMEOUT, existing_channel.receiver.recv()).await??;
-    }
-    let receiver = timeout(DEFAULT_LONG_TIMEOUT, get_channel(message_id).write())
-        .await?
-        .insert(Channel::new())
-        .receiver
-        .clone();
-    Ok(receiver)
-}
-
-pub(super) async fn get_any_receiver<'a>(
-    message_id: [u8; 2],
-) -> Result<Receiver<Box<[u8]>>, Error> {
-    let receiver = match timeout(DEFAULT_LONG_TIMEOUT, get_channel(message_id).read())
-        .await?
-        .as_ref()
-    {
-        Some(existing_channel) => existing_channel.receiver.clone(),
-        None => timeout(DEFAULT_LONG_TIMEOUT, get_channel(message_id).write())
-            .await?
-            .insert(Channel::new())
-            .receiver
-            .clone(),
-    };
-    Ok(receiver)
-}
-
-pub(super) async fn take_sender<'a>(
-    message_id: [u8; 2],
-) -> Result<Option<Sender<Box<[u8]>>>, Error> {
-    let channel = timeout(DEFAULT_LONG_TIMEOUT, get_channel(message_id).write())
-        .await?
-        .take();
-    let sender = match channel {
-        None => None,
-        Some(existing_channel) => Some(existing_channel.sender),
-    };
-    Ok(sender)
-}
-
 pub(crate) async fn wait_until_clear_to_send(message_id: [u8; 2]) -> Result<(), Error> {
     if let Some(existing_channel) = timeout(DEFAULT_LONG_TIMEOUT, get_channel(message_id).read())
         .await?
