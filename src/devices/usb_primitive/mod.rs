@@ -32,20 +32,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 pub mod communicator;
 
-use crate::error::{sn, usb};
-use crate::messages::{Communicator, Dispatcher};
-use nusb::DeviceInfo;
 use std::fmt::Debug;
+
+use communicator::Communicator;
+use nusb::DeviceInfo;
+
+use crate::devices::get_device;
+use crate::error::{sn, usb};
+use crate::messages::Dispatcher;
 
 enum Status {
     Open(Communicator),
     Closed,
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Self::Closed
-    }
 }
 
 impl Debug for Status {
@@ -75,6 +73,16 @@ pub struct UsbPrimitive {
 }
 
 impl UsbPrimitive {
+    fn new(serial_number: String, dispatcher: Dispatcher) -> Result<Self, sn::Error> {
+        let device_info = get_device(serial_number)?;
+        let device = Self {
+            device_info,
+            dispatcher,
+            status: Status::Closed,
+        };
+        Ok(device)
+    }
+
     fn into_device_info(self) -> DeviceInfo {
         self.device_info
     }
@@ -98,7 +106,7 @@ impl UsbPrimitive {
         }
         let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
         let dispatcher = self.dispatcher.clone();
-        let communicator = Communicator::new(interface, dispatcher);
+        let communicator = Communicator::new(interface, dispatcher).await;
         self.status = Status::Open(communicator);
         Ok(())
     }
