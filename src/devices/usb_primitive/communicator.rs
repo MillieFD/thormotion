@@ -29,9 +29,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
 use crate::error::Error;
-use crate::helper::EX;
 use crate::messages::Dispatcher;
 use nusb::transfer::{ControlOut, ControlType, Queue, Recipient, RequestBuffer};
 use nusb::Interface;
@@ -39,8 +37,6 @@ use smol::future::FutureExt;
 use smol::{Task, Timer};
 use std::time::Duration;
 
-const OUT_ENDPOINT: u8 = 0x02;
-const IN_ENDPOINT: u8 = 0x81;
 const BUFFER_SIZE: usize = 255 + 6;
 const RESET_CONTROLLER: ControlOut = ControlOut {
     control_type: ControlType::Vendor,
@@ -124,44 +120,53 @@ pub(crate) struct Communicator {
 
 impl Communicator {
     pub(super) async fn new(interface: Interface, dispatcher: Dispatcher) -> Result<Self, Error> {
-        Self::initialize(&interface).await;
-        let task = Self::spawn(interface.clone(), dispatcher);
+        const OUT_ENDPOINT: u8 = 0x02;
+        Self::init(&interface).await;
+        let incoming = Self::spawn(&interface, dispatcher);
         let outgoing = interface.interrupt_out_queue(OUT_ENDPOINT);
         let communicator = Self {
             interface,
-            incoming: task,
+            incoming,
             outgoing,
         };
         Ok(communicator)
     }
 
-    fn spawn(interface: Interface, dispatcher: Dispatcher) -> Task<()> {
-        async fn listen(interface: Interface, dispatcher: Dispatcher) -> Result<(), Error> {
-            let mut queue = interface.interrupt_in_queue(IN_ENDPOINT);
+    fn handle_error(error: Error) {
+        match error {
+            _ => panic!("{}", error),
+        }
+    }
+
+    fn spawn(interface: &Interface, dispatcher: Dispatcher) -> Task<()> {
+        const IN_ENDPOINT: u8 = 0x81;
+        let mut queue = interface.interrupt_in_queue(IN_ENDPOINT);
+
+        let mut listen = async move || -> Result<(), Error> {
             loop {
                 queue.submit(RequestBuffer::new(BUFFER_SIZE));
                 let completion = queue.next_complete().await;
                 completion.status?;
                 dispatcher.dispatch(completion.data).await?;
             }
-        }
+        };
 
-        fn handle_error(error: Error) {
-            match error {
-                _ => panic!("{}", error),
-            }
-        }
-
-        EX.spawn(async move {
-            if let Err(error) = listen(interface, dispatcher).await {
-                handle_error(error);
+        smol::spawn(async move {
+            if let Err(error) = listen().await {
+                Self::handle_error(error);
             }
         })
     }
 
-    #[doc = "Initializes serial port settings according to the requirements described in the Thorlabs APT protocol."]
-    // #[doc = errors_doc!(NUSB)]
-    async fn initialize(interface: &Interface) {
+    /**
+    Initializes serial port settings according to Thorlabs APT protocol requirements:
+    - Baud rate 115200
+    - Eight data bits
+    - One stop bit
+    - No parity
+    - RTS/CTS flow control
+    */
+    async fn init(interface: &Interface) {
         let mut i = 0;
 
         let mut control_out = async |control_out: ControlOut| {
