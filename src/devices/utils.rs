@@ -30,82 +30,28 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::UsbDevicePrimitive;
-use crate::error::Error;
-use rusb::DeviceList;
-use std::time::Duration;
+use crate::error::sn::Error;
+use nusb::{list_devices, DeviceInfo};
 
-const VENDOR_ID: u16 = 0x0403;
+fn get_devices() -> impl Iterator<Item = DeviceInfo> {
+    list_devices()
+        .expect("Failed to list devices due to OS error")
+        .filter(|dev| dev.vendor_id() == 0x0403)
+}
 
-/**
-Finds a specific `UsbDevicePrimitive` using its serial number.
+fn get_device(serial_number: String) -> Result<DeviceInfo, Error> {
+    let mut devices =
+        get_devices().filter(|dev| dev.serial_number().map_or(false, |sn| sn == serial_number));
+    match (devices.next(), devices.next()) {
+        (None, _) => Err(Error::NotFound(serial_number)),
+        (Some(device), None) => Ok(device),
+        (Some(_), Some(_)) => Err(Error::Multiple(serial_number)),
+    }
+}
 
-This function is only intended for internal use, and should not be called directly by end users.
-It finds any `rusb::Device` instances with the Thorlabs `VENDOR_ID` and the specified
-serial number. It does not check that the specified serial number is valid for any particular
-Thorlabs device type. It returns `Ok(UsbDevicePrimitive)` if exactly one matching device is found.
-The `UsbDevicePrimitive` is not wrapped in a Thorlabs device struct,
-so does not have access to any Thorlabs APT Protocol internal.
-
-# Errors
-
-This function can return three different `Error` variants:
-- `DeviceNotFound`: A USB device with the specified serial number cannot be found.
-- `MultipleDevicesFound`: More than one device matches the specified serial number,
-leading to ambiguity.
-- `RusbError`: If `rusb` is unable to read the device descriptor, open the device,
-or fetch its serial number.
-
-# Steps
-
-1. Enumerates all connected USB devices.
-2. Filters devices by the Thorlabs vendor ID (`VENDOR_ID`).
-3. Compares the serial number of each device against the provided string.
-4. If a single match is found, constructs and returns a `UsbDevicePrimitive`.
-
-# Examples
-
-```rust
-let serial = "123456";
-match get_device_primitive(serial) {
-    Ok(usb_device_primitive) => println!("Device found: {}", usb_device_primitive),
-    Err(e) => eprintln!("Error: {}", e),
-};
-```
-*/
-pub(crate) fn get_usb_device_primitive<A>(serial_number: A) -> Result<UsbDevicePrimitive, Error>
-where
-    A: Into<String> + Clone,
-{
-    let devices: Vec<UsbDevicePrimitive> = DeviceList::new()?
-        .iter()
-        .filter_map(|rusb_device| {
-            let descriptor = rusb_device.device_descriptor().ok()?;
-            if descriptor.vendor_id() != VENDOR_ID {
-                return None;
-            }
-            let handle = rusb_device.open().ok()?;
-            let language = handle
-                .read_languages(Duration::from_millis(500))
-                .ok()?
-                .get(0)
-                .copied()?;
-            let device_serial_number = handle
-                .read_serial_number_string(language, &descriptor, Duration::from_millis(500))
-                .ok()?;
-            if device_serial_number != serial_number.clone().into() {
-                return None;
-            }
-            let usb_device_primitive = UsbDevicePrimitive::new(handle, descriptor, language);
-            Some(usb_device_primitive)
-        })
-        .collect();
-    match devices.len() {
-        0 => Err(Error::DeviceNotFound(serial_number.into())),
-        1 => Ok(devices
-            .into_iter()
-            .next()
-            .ok_or(Error::DeviceNotFound(serial_number.into()))?),
-        _ => Err(Error::MultipleDevicesFound(serial_number.into())),
+fn show_devices() {
+    let devices = get_devices();
+    for device in devices {
+        println!("{:?}\n", device);
     }
 }
