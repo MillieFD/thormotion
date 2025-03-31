@@ -41,7 +41,6 @@ use crate::messages::Dispatcher;
 const BUFFER_SIZE: usize = 255 + 6;
 
 /// Handles all incoming and outgoing messages between the host and a specific USB [`Interface`].
-// #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub(super) struct Communicator {
     /// A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
     dispatcher: Dispatcher,
