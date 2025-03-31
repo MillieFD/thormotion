@@ -47,7 +47,7 @@ use crate::messages::Dispatcher;
 // #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub(super) enum Status {
     Open(Communicator),
-    Closed,
+    Closed(Dispatcher),
 }
 
 impl Status {
