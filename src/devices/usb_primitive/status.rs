@@ -51,14 +51,14 @@ pub(super) enum Status {
 }
 
 impl Status {
-    async fn open(self, interface: Interface) -> Self {
+    pub(super) async fn open(self, interface: Interface) -> Self {
         match self {
             Self::Open(_) => self,
             Self::Closed(dispatcher) => Self::Open(Communicator::new(interface, dispatcher).await),
         }
     }
 
-    fn close(self) -> Self {
+    pub(super) fn close(self) -> Self {
         match self {
             Status::Open(communicator) => Self::Closed(communicator.close()),
             Status::Closed(_) => self,
