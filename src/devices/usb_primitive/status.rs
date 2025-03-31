@@ -52,7 +52,7 @@ pub(super) enum Status {
 }
 
 impl Status {
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         match self {
             Self::Open(_) => "Open",
             Self::Closed(_) => "Closed",
