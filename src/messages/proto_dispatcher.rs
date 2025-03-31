@@ -31,7 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 use rustc_hash::FxBuildHasher;
 use smol::lock::Mutex;
@@ -51,12 +50,6 @@ pub(crate) struct ProtoDispatcher {
     /// Since cryptographic hashing is not required,
     /// we can use the faster [`fxhash`][`rustc_hash::FxHasher`] algorithm.
     pub(super) inner: HashMap<[u8; 2], Mutex<Option<Sender>>, FxBuildHasher>,
-    /**
-    [`PhantomData`] causes the compiler to treat [`ProtoDispatcher`] as though it owns a raw
-    `*const` pointer, even though [`PhantomData`] itself does not allocate memory.
-    This marker ensures that [`ProtoDispatcher`] is neither [`Send`] nor [`Sync`].
-    */
-    phantom: PhantomData<*const ()>,
 }
 
 impl ProtoDispatcher {
@@ -66,7 +59,6 @@ impl ProtoDispatcher {
     fn new() -> Self {
         Self {
             inner: HashMap::with_hasher(FxBuildHasher),
-            phantom: Default::default(),
         }
     }
 
