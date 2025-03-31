@@ -40,26 +40,14 @@ use crate::messages::Dispatcher;
 
 const BUFFER_SIZE: usize = 255 + 6;
 
-/**
-Handles all incoming and outgoing messages between the host and a specific USB [`Interface`].
-*/
+/// Handles all incoming and outgoing messages between the host and a specific USB [`Interface`].
 // #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub(super) struct Communicator {
-    /**
-    A claimed open [`Interface`] for communicating with the USB device.
-    */
-    interface: Interface,
-    /**
-    A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
-    */
+    /// A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
     dispatcher: Dispatcher,
-    /**
-    An async background task that handles a stream of incoming messages from the USB [`Interface`].
-    */
+    /// An async background task that handles a stream of incoming messages from the [`Interface`].
     incoming: Task<()>,
-    /**
-    A [`Queue`] that handles a stream of outgoing messages to the USB [`Interface`].
-    */
+    ///A [`Queue`] that handles a stream of outgoing messages to the USB [`Interface`].
     outgoing: Queue<Vec<u8>>,
 }
 
@@ -67,10 +55,11 @@ impl Communicator {
     pub(super) async fn new(interface: Interface, dispatcher: Dispatcher) -> Self {
         const OUT_ENDPOINT: u8 = 0x02;
         init(&interface).await;
-        let incoming = Self::spawn(&interface, dispatcher);
+        let dsp = dispatcher.clone(); // Inexpensive Arc Clone
         let outgoing = interface.interrupt_out_queue(OUT_ENDPOINT);
+        let incoming = Self::spawn(interface, dsp);
         Self {
-            interface,
+            dispatcher,
             incoming,
             outgoing,
         }
@@ -82,7 +71,7 @@ impl Communicator {
         }
     }
 
-    fn spawn(interface: &Interface, dispatcher: Dispatcher) -> Task<()> {
+    fn spawn(interface: Interface, dispatcher: Dispatcher) -> Task<()> {
         const IN_ENDPOINT: u8 = 0x81;
         let mut queue = interface.interrupt_in_queue(IN_ENDPOINT);
 
@@ -106,5 +95,7 @@ impl Communicator {
         self.outgoing.submit(message);
     }
 
-    fn close(self) {}
+    pub(super) fn get_dispatcher(&self) -> Dispatcher {
+        self.dispatcher.clone() // Inexpensive Arc Clone
+    }
 }
