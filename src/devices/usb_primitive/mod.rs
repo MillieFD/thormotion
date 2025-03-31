@@ -31,66 +31,51 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 pub mod communicator;
+mod status;
 
-use std::fmt::Debug;
+use std::io;
 
 use communicator::Communicator;
 use nusb::DeviceInfo;
+use status::Status;
 
 use crate::devices::get_device;
-use crate::error::{sn, usb};
+use crate::error::sn;
 use crate::messages::Dispatcher;
 
-enum Status {
-    Open(Communicator),
-    Closed,
-}
-
-impl Debug for Status {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Open(_) => write!(f, "Status::Open"),
-            Self::Closed => write!(f, "Status::Closed"),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct UsbPrimitive {
+pub(super) struct UsbPrimitive {
     /**
-    Information about a device that can be obtained without calling [`DeviceInfo::open`].
+    Information about a device that can be obtained without calling [`open`][`DeviceInfo::open`].
     */
-    pub(super) device_info: DeviceInfo,
+    device_info: DeviceInfo,
     /**
-    A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
+    A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
     */
     dispatcher: Dispatcher,
-    /**
-    Contains [`Communicator`] if the USB device is open, or [`None`] if the USB device is closed.
-    Open the device by calling [`UsbPrimitive::open`]
-    */
+    /// The current device status.
+    /// Can be [`Open`][`Status::Open`] or [`Closed`][`Status::Closed`].
+    /// Open the device by calling [`open`][`UsbPrimitive::open`]
     status: Status,
 }
 
 impl UsbPrimitive {
-    fn new(serial_number: String, dispatcher: Dispatcher) -> Result<Self, sn::Error> {
-        let device_info = get_device(serial_number)?;
-        let device = Self {
-            device_info,
-            dispatcher,
+    pub(super) fn new(serial_number: String, ids: &[[u8; 2]]) -> Result<Self, sn::Error> {
+        Ok(Self {
+            device_info: get_device(serial_number)?,
             status: Status::Closed,
-        };
-        Ok(device)
+            dispatcher: Dispatcher::from(ids),
+        })
     }
 
-    fn into_device_info(self) -> DeviceInfo {
-        self.device_info
-    }
-
-    pub(super) fn serial_number(&self) -> Result<&str, sn::Error> {
-        self.device_info
-            .serial_number()
-            .ok_or(sn::Error::Unknown(self.device_info.clone()))
+    pub(super) fn serial_number(&self) -> &str {
+        self.device_info.serial_number().unwrap_or_else(|| {
+            // SAFETY: The USB device must report its serial number during enumeration with
+            // devices::utils::get_device. Thus, DeviceInfo::serial_number should never fail.
+            panic!(
+                "Serial number could not be read from device {:?}",
+                self.device_info
+            )
+        })
     }
 
     fn is_open(&self) -> bool {
@@ -100,16 +85,25 @@ impl UsbPrimitive {
         }
     }
 
-    async fn open(&mut self) -> Result<(), usb::Error> {
-        if self.is_open() {
-            return Ok(());
+    async fn open(&mut self) -> Result<(), io::Error> {
+        match &self.status {
+            Status::Open(_) => Ok(()),
+            Status::Closed => {
+                let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
+                let dispatcher = self.dispatcher.clone();
+                self.status = Status::Open(Communicator::new(interface, dispatcher).await);
+                Ok(())
+            }
         }
-        let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
-        let dispatcher = self.dispatcher.clone();
-        let communicator = Communicator::new(interface, dispatcher).await;
-        self.status = Status::Open(communicator);
-        Ok(())
     }
 
-    fn close(&self) {}
+    fn close(&mut self) -> Result<(), io::Error> {
+        match &mut self.status {
+            Status::Open(_) => {
+                self.status = Status::Closed;
+                Ok(())
+            }
+            Status::Closed => Ok(()),
+        }
+    }
 }
