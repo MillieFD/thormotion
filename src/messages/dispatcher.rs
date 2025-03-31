@@ -59,6 +59,8 @@ impl Dispatcher {
         }
     }
 
+    // SAFETY: Using Dispatcher::get outside this impl block may allow a channel to remain in the
+    // Dispatcher::map after sending a message. Use Dispatcher::take instead.
     async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
         self.map
             .get(id)
@@ -76,11 +78,12 @@ impl Dispatcher {
         let id: &[u8] = &data[..2];
         if let Some(sender) = self.take(id).await {
             sender.broadcast(data).await.unwrap_or_else(|err| {
+                // Sender::broadcast returns an error if either:
+                //  1. The channel is closed
+                //  2. The channel has no active receivers & Sender::await_active is False
                 panic!(
-                    "Failed to broadcast message:\n\n\tThis error is returned from \
-                     `Sender::broadcast` if either:\n\t\t- The channel is closed\n\t\t- The \
-                     channel has no active receivers and `Sender::await_active` is \
-                     `false`\n\n\tUnsent message: {:?}",
+                    "Failed to broadcast message. This may be an bug. Please open a GitHub issue \
+                     and report all relevant information.\n\nUnsent message: {:?}",
                     err.0
                 )
             });
