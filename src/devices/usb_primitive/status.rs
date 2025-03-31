@@ -38,13 +38,16 @@ use crate::messages::Dispatcher;
 
 /// The current device status.
 ///
-/// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
 /// - [`Open`][`Status::Open`] → Contains an active [`Communicator`]
+/// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
 ///
 /// Open the device by calling [`open`][`UsbPrimitive::open`]
-// #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub(super) enum Status {
+    /// The [`Interface`][nusb::Interface] is [`open`][`crate::devices::UsbPrimitive::open`] and
+    /// communicating. This enum variant contains an active [`Communicator`].
     Open(Communicator),
+    /// The [`Interface`][nusb::Interface] is [`closed`][`crate::devices::UsbPrimitive::close`].
+    /// This enum variant contains an idle [`Dispatcher`].
     Closed(Dispatcher),
 }
 
