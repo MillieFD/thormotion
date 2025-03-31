@@ -34,6 +34,8 @@ pub mod communicator;
 mod serial_port;
 mod status;
 
+use std::fmt::{Debug, Display};
+use std::hash::Hash;
 use std::io;
 
 use communicator::Communicator;
@@ -44,14 +46,13 @@ use crate::devices::get_device;
 use crate::error::sn;
 use crate::messages::Dispatcher;
 
-// #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub(super) struct UsbPrimitive {
     /// Information about a device that can be obtained without calling [`DeviceInfo::open`].
     device_info: DeviceInfo,
     /// The current device status.
     ///
-    /// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
     /// - [`Open`][`Status::Open`] → Contains an active [`Communicator`]
+    /// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
     ///
     /// Open the device by calling [`open`][`UsbPrimitive::open`]
     status: Status,
@@ -64,6 +65,10 @@ impl UsbPrimitive {
             device_info: get_device(serial_number)?,
             status: Status::Closed(dispatcher),
         })
+    }
+
+    fn to_str(&self) -> &str {
+        format!("{:?} | {}", self.device_info, self.status.as_str()).as_str()
     }
 
     pub(super) fn serial_number(&self) -> &str {
@@ -84,7 +89,7 @@ impl UsbPrimitive {
         }
     }
 
-    async fn open(&mut self) -> Result<(), io::Error> {
+    pub(super) async fn open(&mut self) -> Result<(), io::Error> {
         match &self.status {
             Status::Open(_) => Ok(()), // No-op: Nothing to do here
             Status::Closed(dsp) => {
@@ -105,5 +110,36 @@ impl UsbPrimitive {
             }
             Status::Closed(_) => Ok(()), // No-op: Nothing to do here
         }
+    }
+}
+
+impl PartialEq<UsbPrimitive> for UsbPrimitive {
+    fn eq(&self, other: &Self) -> bool {
+        self.device_info.vendor_id() == other.device_info.vendor_id()
+            && self.device_info.product_id() == other.device_info.product_id()
+            && self.device_info.serial_number().unwrap_or("")
+                == other.device_info.serial_number().unwrap_or("")
+    }
+}
+
+impl Eq for UsbPrimitive {}
+
+impl Hash for UsbPrimitive {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.device_info.vendor_id().hash(state);
+        self.device_info.product_id().hash(state);
+        self.device_info.serial_number().unwrap_or("").hash(state);
+    }
+}
+
+impl Debug for UsbPrimitive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_str())
+    }
+}
+
+impl Display for UsbPrimitive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_str())
     }
 }
