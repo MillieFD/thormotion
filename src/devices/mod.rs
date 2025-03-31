@@ -35,5 +35,4 @@ mod usb_primitive;
 mod utils;
 
 pub use kdc101::KDC101;
-pub(crate) use usb_primitive::UsbPrimitive;
-pub(crate) use utils::get_device;
+use utils::get_device;
