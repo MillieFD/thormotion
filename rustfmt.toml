@@ -3,6 +3,7 @@ edition = "2024"
 unstable_features = true
 
 # Start tidy alphabetical list
+comment_width = 100
 condense_wildcard_suffixes = true
 format_code_in_doc_comments = true
 format_strings = true
