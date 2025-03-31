@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+use rustc_hash::FxBuildHasher;
 use smol::lock::Mutex;
 
 use crate::messages::{Dispatcher, Sender};
@@ -42,13 +43,14 @@ A mutable precursor used to build a message dispatch [`HashMap`].
 */
 #[derive(Debug)]
 pub(crate) struct ProtoDispatcher {
-    /**
-    The supported APT protocol commands are predetermined by the Thorlabs device type,
-    meaning we do not need to add nor remove [`HashMap`] entries during operation.
-    Wrapping the entire HashMap with synchronization primitives is therefore unnecessary.
-    Instead, we can wrap each [`Option<Sender>`] value in its own [`Mutex`] to minimize contention.
-    */
-    pub(super) inner: HashMap<[u8; 2], Mutex<Option<Sender>>>,
+    /// The supported APT protocol commands are predetermined by the Thorlabs device type,
+    /// meaning we do not need to add nor remove [`HashMap`] entries during operation.
+    /// Wrapping the entire HashMap with synchronization primitives is therefore unnecessary.
+    /// Instead, we can wrap each [`Sender`] value in its own [`Mutex`] to minimize contention.
+    ///
+    /// Since cryptographic hashing is not required,
+    /// we can use the faster [`fxhash`][`rustc_hash::FxHasher`] algorithm.
+    pub(super) inner: HashMap<[u8; 2], Mutex<Option<Sender>>, FxBuildHasher>,
     /**
     [`PhantomData`] causes the compiler to treat [`ProtoDispatcher`] as though it owns a raw
     `*const` pointer, even though [`PhantomData`] itself does not allocate memory.
@@ -63,7 +65,7 @@ impl ProtoDispatcher {
     */
     fn new() -> Self {
         Self {
-            inner: HashMap::new(),
+            inner: HashMap::with_hasher(FxBuildHasher),
             phantom: Default::default(),
         }
     }
