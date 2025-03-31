@@ -34,7 +34,7 @@ pub mod communicator;
 mod serial_port;
 mod status;
 
-use std::io::Error;
+use std::io;
 
 use communicator::Communicator;
 use nusb::DeviceInfo;
@@ -84,7 +84,7 @@ impl UsbPrimitive {
         }
     }
 
-    async fn open(&mut self) -> Result<(), Error> {
+    async fn open(&mut self) -> Result<(), io::Error> {
         match &self.status {
             Status::Open(_) => Ok(()), // No-op: Nothing to do here
             Status::Closed(dsp) => {
@@ -96,7 +96,7 @@ impl UsbPrimitive {
         }
     }
 
-    fn close(&mut self) -> Result<(), Error> {
+    fn close(&mut self) -> Result<(), io::Error> {
         match &mut self.status {
             Status::Open(communicator) => {
                 let dispatcher = communicator.get_dispatcher();
