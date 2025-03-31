@@ -38,6 +38,12 @@ use nusb::Interface;
 use super::communicator::Communicator;
 use crate::messages::Dispatcher;
 
+/// The current device status.
+///
+/// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
+/// - [`Open`][`Status::Open`] → Contains an active [`Communicator`]
+///
+/// Open the device by calling [`open`][`UsbPrimitive::open`]
 // #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub(super) enum Status {
     Open(Communicator),
