@@ -33,9 +33,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use smol::lock::{Mutex, MutexGuard};
 
-use crate::messages::{ProtoDispatcher, Sender};
+use crate::messages::Sender;
 
 /**
 A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
@@ -44,20 +45,24 @@ The [`Dispatcher`] is released when all clones are dropped.
  */
 #[derive(Debug, Clone)]
 pub(crate) struct Dispatcher {
-    inner: Arc<HashMap<[u8; 2], Mutex<Option<Sender>>>>,
+    map: Arc<FxHashMap<[u8; 2], Mutex<Option<Sender>>>>, // todo is Arc necessary?
 }
 
 impl Dispatcher {
-    pub(super) fn new(dispatch_map: ProtoDispatcher) -> Self {
+    pub(super) fn new(ids: &[[u8; 2]]) -> Self {
+        let mut fxmap = HashMap::with_hasher(FxBuildHasher);
+        for id in ids {
+            fxmap.insert(*id, Mutex::new(None));
+        }
         Self {
-            inner: Arc::new(dispatch_map.inner),
+            map: Arc::new(fxmap),
         }
     }
 
     async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
-        self.inner
+        self.map
             .get(id)
-            .unwrap_or_else(|| panic!("Dispatcher does not contain command ID {:?}", id))
+            .unwrap_or_else(|| panic!("Dispatcher does not contain command ID {:?}", id)) //todo ensure "Command ID" terminology is used consistently
             .lock()
             .await
     }
@@ -91,8 +96,8 @@ impl Dispatcher {
     }
 }
 
-impl From<ProtoDispatcher> for Dispatcher {
-    fn from(dispatch_map: ProtoDispatcher) -> Self {
-        Self::new(dispatch_map)
+impl From<&[[u8; 2]]> for Dispatcher {
+    fn from(ids: &[[u8; 2]]) -> Self {
+        Self::new(ids)
     }
 }
