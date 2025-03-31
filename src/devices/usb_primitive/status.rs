@@ -33,8 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use std::fmt;
 use std::fmt::Display;
 
-use nusb::Interface;
-
 use super::communicator::Communicator;
 use crate::messages::Dispatcher;
 
@@ -51,20 +49,6 @@ pub(super) enum Status {
 }
 
 impl Status {
-    pub(super) async fn open(self, interface: Interface) -> Self {
-        match self {
-            Self::Open(_) => self,
-            Self::Closed(dispatcher) => Self::Open(Communicator::new(interface, dispatcher).await),
-        }
-    }
-
-    pub(super) fn close(self) -> Self {
-        match self {
-            Status::Open(communicator) => Self::Closed(communicator.close()),
-            Status::Closed(_) => self,
-        }
-    }
-
     fn as_str(&self) -> &str {
         match self {
             Self::Open(_) => "Open",
