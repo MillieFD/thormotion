@@ -42,7 +42,7 @@ mod device_manager;
 mod usb_primitive;
 mod utils;
 
-/* ---------------------------------------------------------------------------------- Re-Exports */
+/* -------------------------------------------------------------------------- Private Re-Exports */
 
 pub(crate) use usb_primitive::UsbPrimitive;
 pub(crate) use utils::{BUG_MESSAGE, abort};
