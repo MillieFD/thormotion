@@ -40,7 +40,7 @@ pub trait ThorlabsDevice: Display + Send + Sync {
     fn inner(&self) -> &UsbPrimitive;
 
     /// Returns a `String` representing the device name, serial number, and current status.
-    fn string(&self) -> &str;
+    fn string(&self) -> String;
 
     /// Safely brings the [`USB Device`][UsbPrimitive] to a resting state and releases the claimed
     /// [`Interface`][nusb::Interface].
