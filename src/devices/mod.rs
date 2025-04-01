@@ -30,10 +30,20 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-mod KDC101;
+#![allow(non_snake_case)]
+
+/* ------------------------------------------------------------------------------ Public Modules */
+
+pub mod KDC101;
+
+/* ----------------------------------------------------------------------------- Private Modules */
+
 mod device_manager;
 mod usb_primitive;
 mod utils;
 
-use usb_primitive::UsbPrimitive;
-use utils::get_device;
+/* ---------------------------------------------------------------------------------- Re-Exports */
+
+pub(crate) use usb_primitive::UsbPrimitive;
+pub(crate) use utils::{BUG_MESSAGE, abort};
+use utils::{device_manager, get_device};
