@@ -30,29 +30,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::collections::HashSet;
 use std::sync::{Arc, OnceLock};
 
-use rustc_hash::{FxBuildHasher, FxHashSet};
-use smol::lock::{Mutex, MutexGuard};
+use rustc_hash::FxHashSet;
+use smol::lock::Mutex;
 
 use crate::traits::ThorlabsDevice;
 
 /// For convenience, a global [`DeviceManager`] is lazily initialized on first use.
 /// It is protected by an asynchronous [`Mutex`] for thread-safe concurrent access.
-static DEVICE_MANAGER: OnceLock<Mutex<DeviceManager>> = OnceLock::new();
-
-/// Returns a locked [`MutexGuard`] containing the [Global Device Manager][`DEVICE_MANAGER`]
-pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
-    DEVICE_MANAGER
-        .get_or_init(|| {
-            Mutex::new(DeviceManager {
-                devices: HashSet::with_hasher(FxBuildHasher::default()),
-            })
-        })
-        .lock()
-        .await
-}
+pub(super) static DEVICE_MANAGER: OnceLock<Mutex<DeviceManager>> = OnceLock::new();
 
 /// Manages a [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
 /// [Thorlabs Device][ThorlabsDevice].
@@ -62,10 +49,10 @@ pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
 /// If an error occurs anywhere in the program, this is sent to the Global Device Manager, which
 /// can then safely [`abort`] all devices.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-struct DeviceManager {
+pub(super) struct DeviceManager {
     /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
     /// [Thorlabs Device][ThorlabsDevice].
-    devices: FxHashSet<Arc<dyn ThorlabsDevice>>,
+    pub(super) devices: FxHashSet<Arc<dyn ThorlabsDevice>>,
 }
 
 impl DeviceManager {
@@ -80,22 +67,4 @@ impl DeviceManager {
     pub(super) fn remove(&mut self, device: Arc<dyn ThorlabsDevice>) {
         self.devices.remove(&device);
     }
-}
-
-/// Safely stops all [Thorlabs devices][ThorlabsDevice], cleans up resources, and terminates
-/// the program with an error message.
-///
-/// Internally, this function iterates over the [Global Device Manager][`DEVICE_MANAGER`] and calls
-/// the respective `abort` function for each device.
-///
-/// ### Panics
-///
-/// This function always panics.
-///
-/// This is intended behaviour to safely unwind and free resources.
-pub(super) async fn abort(message: &str) {
-    for device in device_manager().await.devices.iter() {
-        device.abort();
-    }
-    panic!("Abort due to error : {}", message);
 }
