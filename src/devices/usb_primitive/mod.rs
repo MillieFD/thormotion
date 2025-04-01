@@ -77,7 +77,8 @@ impl UsbPrimitive {
         .as_str()
     }
 
-    pub(super) fn serial_number(&self) -> &str {
+    /// Returns the serial number of the device as a `&str`.
+    pub(crate) fn serial_number(&self) -> &str {
         self.device_info.serial_number().unwrap_or_else(|| {
             // SAFETY: The USB device must report its serial number during enumeration with
             // devices::utils::get_device. Thus, DeviceInfo::serial_number should never fail.
