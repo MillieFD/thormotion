@@ -30,7 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 
 use rustc_hash::FxHashSet;
 use smol::lock::Mutex;
@@ -48,17 +48,16 @@ pub(super) static DEVICE_MANAGER: OnceLock<Mutex<DeviceManager>> = OnceLock::new
 ///
 /// If an error occurs anywhere in the program, this is sent to the Global Device Manager, which
 /// can then safely [`abort`] all devices.
-#[derive(Clone, PartialEq, Eq, Default)]
 pub(super) struct DeviceManager {
     /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
     /// [Thorlabs Device][ThorlabsDevice].
-    pub(super) devices: FxHashSet<Arc<dyn ThorlabsDevice>>,
+    pub(super) devices: FxHashSet<Box<dyn ThorlabsDevice>>,
 }
 
 impl DeviceManager {
     /// Adds a new [Thorlabs Device][`ThorlabsDevice`] to the
     /// [Global Device Manager][`DEVICE_MANAGER`].
-    pub(super) fn add(&mut self, device: Arc<dyn ThorlabsDevice>) {
+    pub(super) fn add(&mut self, device: Box<dyn ThorlabsDevice>) {
         self.devices.insert(device);
     }
 
