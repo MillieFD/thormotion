@@ -48,7 +48,7 @@ pub(super) static DEVICE_MANAGER: OnceLock<Mutex<DeviceManager>> = OnceLock::new
 ///
 /// If an error occurs anywhere in the program, this is sent to the Global Device Manager, which
 /// can then safely [`abort`] all devices.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, Default)]
 pub(super) struct DeviceManager {
     /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
     /// [Thorlabs Device][ThorlabsDevice].
