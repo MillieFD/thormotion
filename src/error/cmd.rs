@@ -30,16 +30,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use async_broadcast::{broadcast, Receiver, Sender};
+use std::fmt::{Display, Formatter};
 
-pub(crate) struct Channel {
-    pub(crate) sender: Sender<Vec<u8>>,
-    pub(super) receiver: Receiver<Vec<u8>>,
+#[derive(Debug)]
+pub enum Error {
+    DeviceClosed,
 }
 
-impl Channel {
-    pub(super) fn new() -> Self {
-        let (sender, receiver) = broadcast(1);
-        Self { sender, receiver }
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::DeviceClosed => write!(f, "Cannot send command to closed device"),
+        }
     }
 }
+
+impl std::error::Error for Error {}
