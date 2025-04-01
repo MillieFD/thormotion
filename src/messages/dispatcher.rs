@@ -38,6 +38,7 @@ use async_broadcast::broadcast;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use smol::lock::{Mutex, MutexGuard};
 
+use crate::devices::{BUG_MESSAGE, abort};
 use crate::messages::{Receiver, Sender};
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
@@ -50,6 +51,7 @@ pub(crate) struct Dispatcher {
 }
 
 impl Dispatcher {
+    /// Constructs a new [`Dispatcher`] from the provided array of command ID bytes.
     pub(crate) fn new(ids: &[[u8; 2]]) -> Self {
         let mut fxmap = HashMap::with_hasher(FxBuildHasher);
         for id in ids {
@@ -62,6 +64,7 @@ impl Dispatcher {
 
     // SAFETY: Using Dispatcher::get outside this impl block may allow a channel to remain in the
     // Dispatcher::map after sending a message. Use Dispatcher::take instead.
+    #[doc(hidden)]
     async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
         self.map
             .get(id)
@@ -73,14 +76,30 @@ impl Dispatcher {
     // SAFETY: Using Dispatcher::insert outside this impl block may cause an existing sender to
     // drop before it has broadcast. Any existing receivers will await indefinitely.
     /// Creates a new [`broadcast`] channel.
-    /// Inserts the [`Sender`] into the [`HashMap`][FxHashMap] and returns the [`Receiver`].
+    /// Inserts the [`Sender`] into the [`HashMap`][1] and returns the [`Receiver`].
+    ///
+    /// [1]: FxHashMap
+    #[doc(hidden)]
     fn insert(opt: &mut MutexGuard<Option<Sender>>) -> Receiver {
         let (tx, rx) = broadcast(1);
         opt.replace(tx);
         rx
     }
 
-    async fn any_receiver(&self, id: &[u8]) -> Receiver {
+    /// Returns a receiver for the given command ID.
+    ///
+    /// If the [`HashMap`] already contains a [`Sender`] for the given command ID, a new
+    /// [`Receiver`] is created using [`Sender::new_receiver`] and returned.
+    ///
+    /// If a [`Sender`] does not exist for the given command ID, a new broadcast channel is created
+    /// using [`broadcast`]. The new [`Sender`] is inserted into the [`HashMap`] and the new
+    /// [`Receiver`] is returned.
+    ///
+    /// If you need to guarantee that the device is not currently executing the command for the
+    /// given ID, use [`new_receiver`][1].
+    ///
+    /// [1]: Dispatcher::new_receiver
+    pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
         let mut opt = self.get(id).await;
         match opt.deref() {
             None => Self::insert(&mut opt),
@@ -88,35 +107,52 @@ impl Dispatcher {
         }
     }
 
-    async fn new_receiver(&self, id: &[u8]) -> Receiver {
+    /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not
+    /// currently executing the command for the given ID.
+    ///
+    /// See also [`any_receiver`][1].
+    ///
+    /// [1]: Dispatcher::any_receiver
+    pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
         let mut opt = self.get(id).await;
         match opt.deref() {
             None => Self::insert(&mut opt),
             Some(existing) => {
-                let _ = existing.new_receiver().recv().await; // No need to read the response
+                // Wait for the pending command to complete. No need to read the response
+                let _ = existing.new_receiver().recv().await;
+                // Then call new_receiver recursively to check again.
                 Box::pin(async { self.new_receiver(id).await }).await
             }
         }
     }
 
-    async fn take(&self, id: &[u8]) -> Option<Sender> {
+    /// Removes the [`HashMap`][1] entry for the given command ID.
+    ///
+    /// - Returns a [`Sender`] if functions are awaiting the command response.
+    /// - Returns [`None`] if no functions are awaiting the command response.
+    ///
+    /// [1]: FxHashMap
+    #[doc(hidden)]
+    pub(crate) async fn take(&self, id: &[u8]) -> Option<Sender> {
         self.get(id).await.take()
     }
 
-    pub(crate) async fn dispatch(&self, message: Vec<u8>) {
-        let data: Arc<[u8]> = Arc::from(message);
+    /// [`Broadcasts`][1] the command response to any waiting receivers.
+    ///
+    /// [1]: Sender::broadcast
+    pub(crate) async fn dispatch(&self, command: Vec<u8>) {
+        let data: Arc<[u8]> = Arc::from(command);
         let id: &[u8] = &data[..2];
         if let Some(sender) = self.take(id).await {
-            sender.broadcast(data).await.unwrap_or_else(|err| {
-                // Sender::broadcast returns an error if either:
-                //  1. The channel is closed
-                //  2. The channel has no active receivers & Sender::await_active is False
-                panic!(
-                    "Failed to broadcast message. This may be an bug. Please open a GitHub issue \
-                     and report all relevant information.\n\nUnsent message: {:?}",
-                    err.0
-                )
-            });
+            // Sender::broadcast returns an error if either:
+            //  1. The channel is closed
+            //  2. The channel has no active receivers & Sender::await_active is False
+            match sender.broadcast_direct(data).await {
+                Ok(_) => {} // No-op: Nothing to do here
+                Err(error) => {
+                    abort(format!("Broadcast failed\n\n{}\n\n{}", error, BUG_MESSAGE)).await
+                }
+            }
         }
     }
 
