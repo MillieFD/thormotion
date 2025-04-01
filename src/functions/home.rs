@@ -30,11 +30,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::{BUG_MESSAGE, abort};
+use crate::devices::{abort, BUG_MESSAGE};
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
-pub(crate) async fn __home<A>(device: A, channel: u8)
+pub(crate) async fn __home<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
 {
