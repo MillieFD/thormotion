@@ -30,7 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-pub mod communicator;
+mod communicator;
 mod serial_port;
 mod status;
 
@@ -42,11 +42,11 @@ use communicator::Communicator;
 use nusb::DeviceInfo;
 use status::Status;
 
-use crate::devices::get_device;
-use crate::error::sn;
-use crate::messages::Dispatcher;
+use crate::devices::{abort, get_device};
+use crate::error::{cmd, sn};
+use crate::messages::{Dispatcher, Receiver};
 
-pub(super) struct UsbPrimitive {
+pub(crate) struct UsbPrimitive {
     /// Information about a device that can be obtained without calling [`DeviceInfo::open`].
     device_info: DeviceInfo,
     /// The current device status.
@@ -55,7 +55,7 @@ pub(super) struct UsbPrimitive {
     /// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
     ///
     /// Open the device by calling [`open`][`UsbPrimitive::open`]
-    status: Status,
+    pub(super) status: Status,
 }
 
 impl UsbPrimitive {
@@ -67,28 +67,38 @@ impl UsbPrimitive {
         })
     }
 
+    /// Returns a `&str` containing information about the device serial number and current status.
     fn to_str(&self) -> &str {
-        format!("{:?} | {}", self.device_info, self.status.as_str()).as_str()
+        format!(
+            "Thormotion USB Primitive (Serial number : {} | Status : {})",
+            self.serial_number(),
+            self.status.as_str()
+        )
+        .as_str()
     }
 
     pub(super) fn serial_number(&self) -> &str {
         self.device_info.serial_number().unwrap_or_else(|| {
             // SAFETY: The USB device must report its serial number during enumeration with
             // devices::utils::get_device. Thus, DeviceInfo::serial_number should never fail.
-            panic!(
+            abort(format!(
                 "Serial number could not be read from device {:?}",
                 self.device_info
-            )
+            ))
         })
     }
 
-    fn is_open(&self) -> bool {
+    /// Returns `True` if the device is open.
+    pub(super) fn is_open(&self) -> bool {
         match self.status {
             Status::Open(_) => true,
             Status::Closed(_) => false,
         }
     }
 
+    /// Opens an [`Interface`][nusb::Interface] to the [`USB Device`][UsbPrimitive].
+    ///
+    /// No action is taken if the device [`Status`] is already [`Open`][Status::Open].
     pub(super) async fn open(&mut self) -> Result<(), io::Error> {
         match &self.status {
             Status::Open(_) => Ok(()), // No-op: Nothing to do here
@@ -101,7 +111,10 @@ impl UsbPrimitive {
         }
     }
 
-    fn close(&mut self) -> Result<(), io::Error> {
+    /// Releases the claimed [`Interface`][nusb::Interface] to the [`USB Device`][UsbPrimitive].
+    ///
+    /// No action is taken if the device [`Status`] is already [`Closed`][Status::Closed].
+    pub(super) fn close(&mut self) -> Result<(), io::Error> {
         match &mut self.status {
             Status::Open(communicator) => {
                 let dispatcher = communicator.get_dispatcher();
@@ -109,6 +122,38 @@ impl UsbPrimitive {
                 Ok(())
             }
             Status::Closed(_) => Ok(()), // No-op: Nothing to do here
+        }
+    }
+
+    /// Returns a receiver for the given command ID.
+    ///
+    /// If the [`HashMap`][FxHashMap] already contains a [`Sender`][Sender] for the given command
+    /// ID, a new [`Receiver`] is created using [`Sender::new_receiver`][new_receiver] and returned.
+    ///
+    /// If a [`Sender`][Sender] does not exist for the given command ID, a new broadcast channel
+    /// is [created][async_broadcast::broadcast]. The new [`Sender`][Sender] is inserted into the
+    /// [`HashMap`][FxHashMap] and the new [`Receiver`] is returned.
+    ///
+    /// If you need to guarantee that the device is not currently executing the command for the
+    /// given ID, use [`UsbPrimitive::new_receiver`].
+    ///
+    /// [Sender]: crate::messages::Sender
+    /// [new_receiver]: async_broadcast::Sender::new_receiver
+    pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
+        self.status.dispatcher().any_receiver(id).await
+    }
+
+    /// Returns a receiver for the given command ID. Guarantees that the device is not currently
+    /// executing the command for the given ID.
+    pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
+        self.status.dispatcher().new_receiver(id).await
+    }
+
+    /// Send a command to the device.
+    pub(crate) fn send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
+        match &self.status {
+            Status::Open(mut communicator) => Ok(communicator.send(command)),
+            Status::Closed(_) => Err(cmd::Error::DeviceClosed),
         }
     }
 }
