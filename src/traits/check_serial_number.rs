@@ -30,31 +30,25 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::error::{sn, Error};
+use crate::error::sn::Error;
 
 pub(crate) trait CheckSerialNumber {
-    /**
-    Each Thorlabs device has a unique serial number prefix.
-    For instance, all KDC101 devices have serial numbers beginning with "27".
-    The `check_serial_number` function uses the `Self::SERIAL_NUMBER_PREFIX` constant to prevent
-    users from accidentally opening a device using the incorrect struct.
-    */
+    /// The unique serial number prefix for the implementing Thorlabs device type.
+    /// See the Thorlabs APT Protocol, Issue 38, Page 32.
     const SERIAL_NUMBER_PREFIX: &'static str;
 
-    /**
-    Returns `Error::InvalidSerialNumber` if the serial number:
-    1. Does not match the serial number prefix for the target device type
-    2. Is not exactly eight-digits long
-    3. Contains non-numeric characters
-    */
-    fn check_serial_number(serial_number: String) -> Result<(), Error> {
+    /// Returns [`Error::Invalid`] if the serial number:
+    /// 1. Does not match the serial number prefix for the target device type
+    /// 2. Is not exactly eight-digits long
+    /// 3. Contains non-numeric characters
+    fn check_serial_number(serial_number: &String) -> Result<(), Error> {
         if serial_number.starts_with(Self::SERIAL_NUMBER_PREFIX)
             && serial_number.len() == 8
             && serial_number.chars().all(|c| c.is_numeric())
         {
             Ok(())
         } else {
-            Err(Error::SerialNumber(sn::Error::Invalid(serial_number)))
+            Err(Error::Invalid(serial_number.to_string()))
         }
     }
 }
