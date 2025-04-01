@@ -45,7 +45,11 @@ static DEVICE_MANAGER: OnceLock<Mutex<DeviceManager>> = OnceLock::new();
 /// Returns a locked [`MutexGuard`] containing the [Global Device Manager][`DEVICE_MANAGER`]
 pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
     DEVICE_MANAGER
-        .get_or_init(|| Mutex::new(DeviceManager::new()))
+        .get_or_init(|| {
+            Mutex::new(DeviceManager {
+                devices: HashSet::with_hasher(FxBuildHasher::default()),
+            })
+        })
         .lock()
         .await
 }
@@ -60,12 +64,6 @@ struct DeviceManager {
 }
 
 impl DeviceManager {
-    fn new() -> Self {
-        Self {
-            devices: HashSet::with_hasher(FxBuildHasher::default()),
-        }
-    }
-
     /// Adds a new [Thorlabs Device][`ThorlabsDevice`] to the
     /// [Global Device Manager][`DEVICE_MANAGER`].
     pub(super) fn add(&mut self, device: Arc<dyn ThorlabsDevice>) {
