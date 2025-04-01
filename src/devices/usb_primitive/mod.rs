@@ -51,10 +51,14 @@ pub(crate) struct UsbPrimitive {
     device_info: DeviceInfo,
     /// The current device status.
     ///
-    /// - [`Open`][`Status::Open`] → Contains an active [`Communicator`]
-    /// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
+    /// - [`Open`][1] → Contains an active [`Communicator`]
+    /// - [`Closed`][2] → Contains an idle [`Dispatcher`]
     ///
-    /// Open the device by calling [`open`][`UsbPrimitive::open`]
+    /// Open the device by calling [`open`][3]
+    ///
+    /// [1]: Status::Open
+    /// [2]: Status::Closed
+    /// [3]: UsbPrimitive::open
     pub(super) status: Status,
 }
 
@@ -97,9 +101,13 @@ impl UsbPrimitive {
         }
     }
 
-    /// Opens an [`Interface`][nusb::Interface] to the [`USB Device`][UsbPrimitive].
+    /// Opens an [`Interface`][1] to the [`USB Device`][2].
     ///
-    /// No action is taken if the device [`Status`] is already [`Open`][Status::Open].
+    /// No action is taken if the device [`Status`] is already [`Open`][3].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: Status::Open
     pub(super) async fn open(&mut self) -> Result<(), io::Error> {
         match &self.status {
             Status::Open(_) => Ok(()), // No-op: Nothing to do here
@@ -112,9 +120,13 @@ impl UsbPrimitive {
         }
     }
 
-    /// Releases the claimed [`Interface`][nusb::Interface] to the [`USB Device`][UsbPrimitive].
+    /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
     ///
-    /// No action is taken if the device [`Status`] is already [`Closed`][Status::Closed].
+    /// No action is taken if the device [`Status`] is already [`Closed`][3].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: Status::Closed
     pub(super) fn close(&mut self) -> Result<(), io::Error> {
         match &mut self.status {
             Status::Open(communicator) => {
@@ -128,24 +140,26 @@ impl UsbPrimitive {
 
     /// Returns a receiver for the given command ID.
     ///
-    /// If the [`HashMap`][FxHashMap] already contains a [`Sender`][Sender] for the given command
-    /// ID, a new [`Receiver`] is created using [`Sender::new_receiver`][new_receiver] and returned.
+    /// If the [`HashMap`][1] already contains a [`Sender`][2] for the given command ID, a new
+    /// [`Receiver`] is created using [`Sender::new_receiver`][3] and returned.
     ///
     /// If a [`Sender`][Sender] does not exist for the given command ID, a new broadcast channel
-    /// is [created][async_broadcast::broadcast]. The new [`Sender`][Sender] is inserted into the
-    /// [`HashMap`][FxHashMap] and the new [`Receiver`] is returned.
+    /// is [created][4]. The new [`Sender`][2] is inserted into the [`HashMap`][1] and the new
+    /// [`Receiver`] is returned.
     ///
     /// If you need to guarantee that the device is not currently executing the command for the
     /// given ID, use [`UsbPrimitive::new_receiver`].
     ///
-    /// [Sender]: crate::messages::Sender
-    /// [new_receiver]: async_broadcast::Sender::new_receiver
+    /// [1]: rustc_hash::FxHashMap
+    /// [2]: crate::messages::Sender
+    /// [3]: async_broadcast::Sender::new_receiver
+    /// [4]: async_broadcast::broadcast
     pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
         self.status.dispatcher().any_receiver(id).await
     }
 
-    /// Returns a receiver for the given command ID. Guarantees that the device is not currently
-    /// executing the command for the given ID.
+    /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not
+    /// currently executing the command for the given ID.
     pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
         self.status.dispatcher().new_receiver(id).await
     }
