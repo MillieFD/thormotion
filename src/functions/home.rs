@@ -38,7 +38,7 @@ pub(crate) async fn __home<A>(device: A, channel: u8)
 where
     A: ThorlabsDevice,
 {
-    const ID: [u8; 2] = [0x43, 0x04];
+    const ID: [u8; 2] = [0x44, 0x04];
     let mut rx = device.inner().new_receiver(&ID).await;
     let data = short(ID, channel, 0);
     device
