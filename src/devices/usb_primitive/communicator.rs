@@ -107,7 +107,7 @@ impl Communicator {
     }
 
     /// Send a command to the device.
-    fn send(&mut self, command: Vec<u8>) {
+    pub(super) fn send(&mut self, command: Vec<u8>) {
         self.outgoing.submit(command);
     }
 
