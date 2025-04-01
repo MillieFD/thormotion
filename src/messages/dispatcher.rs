@@ -31,25 +31,26 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 
+use async_broadcast::broadcast;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use smol::lock::{Mutex, MutexGuard};
 
-use crate::messages::Sender;
+use crate::messages::{Receiver, Sender};
 
-/**
-A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
-This type includes an internal [`Arc`] to enable inexpensive cloning.
-The [`Dispatcher`] is released when all clones are dropped.
- */
-#[derive(Debug, Clone)]
+/// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
+///
+/// This type includes an internal [`Arc`] to enable inexpensive cloning.
+/// The [`Dispatcher`] is released when all clones are dropped.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub(crate) struct Dispatcher {
-    map: Arc<FxHashMap<[u8; 2], Mutex<Option<Sender>>>>, // todo is Arc necessary?
+    map: Arc<FxHashMap<[u8; 2], Mutex<Option<Sender>>>>,
 }
 
 impl Dispatcher {
-    pub(super) fn new(ids: &[[u8; 2]]) -> Self {
+    pub(crate) fn new(ids: &[[u8; 2]]) -> Self {
         let mut fxmap = HashMap::with_hasher(FxBuildHasher);
         for id in ids {
             fxmap.insert(*id, Mutex::new(None));
@@ -64,9 +65,38 @@ impl Dispatcher {
     async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
         self.map
             .get(id)
-            .unwrap_or_else(|| panic!("Dispatcher does not contain command ID {:?}", id)) //todo ensure "Command ID" terminology is used consistently
+            .unwrap_or_else(|| panic!("Dispatcher does not contain command ID {:?}", id)) // todo! abort instead of panic
             .lock()
             .await
+    }
+
+    // SAFETY: Using Dispatcher::insert outside this impl block may cause an existing sender to
+    // drop before it has broadcast. Any existing receivers will await indefinitely.
+    /// Creates a new [`broadcast`] channel.
+    /// Inserts the [`Sender`] into the [`HashMap`][FxHashMap] and returns the [`Receiver`].
+    fn insert(opt: &mut MutexGuard<Option<Sender>>) -> Receiver {
+        let (tx, rx) = broadcast(1);
+        opt.replace(tx);
+        rx
+    }
+
+    async fn any_receiver(&self, id: &[u8]) -> Receiver {
+        let mut opt = self.get(id).await;
+        match opt.deref() {
+            None => Self::insert(&mut opt),
+            Some(existing) => existing.new_receiver(),
+        }
+    }
+
+    async fn new_receiver(&self, id: &[u8]) -> Receiver {
+        let mut opt = self.get(id).await;
+        match opt.deref() {
+            None => Self::insert(&mut opt),
+            Some(existing) => {
+                let _ = existing.new_receiver().recv().await; // No need to read the response
+                Box::pin(async { self.new_receiver(id).await }).await
+            }
+        }
     }
 
     async fn take(&self, id: &[u8]) -> Option<Sender> {
