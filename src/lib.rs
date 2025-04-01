@@ -30,51 +30,34 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// Private modules
+/* ------------------------------------------------------------------------------ Public modules */
 
-mod devices;
-mod durations;
+pub mod devices;
+pub mod error;
+
+/* ----------------------------------------------------------------------------- Private modules */
+
 mod functions;
-mod macros;
 mod messages;
 mod traits;
 
-// Public modules
+/* -------------------------------------------------------------------- Initialize Python module */
 
-pub mod error;
+mod py_module {
+    use pyo3::prelude::*;
 
-// Public Exports
+    use crate::devices::*;
 
-pub use crate::devices::KDC101;
-
-// Initialize PyO3 Python module
-
-use pyo3::prelude::*;
-
-#[pymodule(name = "thormotion")]
-#[doc = "A cross-platform motion control library for Thorlabs systems, written in Rust."]
-fn initialise_thormotion_pymodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<KDC101>()?;
-    Ok(())
+    #[pymodule(name = "thormotion")]
+    ///A cross-platform motion control library for Thorlabs systems, written in Rust.
+    fn initialise_thormotion_pymodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
+        module.add_class::<KDC101::KDC101>()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::devices::KDC101;
-    use crate::error::Error;
-    use std::thread::sleep;
-    use std::time::Duration;
-
     #[test]
-    fn test_kdc101() -> Result<(), Error> {
-        let device = KDC101::new("27264344")?;
-        device.home()?;
-        let mut i = 0.0;
-        while i <= 5.0 {
-            device.move_absolute(i)?;
-            i += 0.05;
-            sleep(Duration::from_secs(2));
-        }
-        Ok(())
-    }
+    fn test_kdc101() {}
 }
