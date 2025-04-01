@@ -39,6 +39,11 @@ pub trait ThorlabsDevice: Display + Send + Sync {
     /// Returns a borrow which dereferences to the inner [`UsbPrimitive`]
     fn inner(&self) -> &UsbPrimitive;
 
+    /// Returns the serial number of the device as a `&str`.
+    fn serial_number(&self) -> &str {
+        self.inner().serial_number()
+    }
+
     /// Returns a `String` representing the device name, serial number, and current status.
     fn string(&self) -> String;
 
