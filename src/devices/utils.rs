@@ -46,7 +46,7 @@ fn get_devices() -> impl Iterator<Item = DeviceInfo> {
         .filter(|dev| dev.vendor_id() == 0x0403)
 }
 
-/// Returns a Thorlabs device with the specified serial number.
+/// Returns [`DeviceInfo`] for the Thorlabs device with the specified serial number.
 ///
 /// Returns [`Error::NotFound`] if the specified device is not connected.
 ///
