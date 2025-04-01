@@ -30,16 +30,27 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use nusb::{DeviceInfo, list_devices};
+use std::collections::HashSet;
 
+use nusb::{DeviceInfo, list_devices};
+use rustc_hash::FxBuildHasher;
+use smol::lock::{Mutex, MutexGuard};
+
+use crate::devices::device_manager::DeviceManager;
 use crate::error::sn::Error;
 
+/// Returns an iterator over all connected Thorlabs devices.
 fn get_devices() -> impl Iterator<Item = DeviceInfo> {
     list_devices()
         .expect("Failed to list devices due to OS error")
         .filter(|dev| dev.vendor_id() == 0x0403)
 }
 
+/// Returns a Thorlabs device with the specified serial number.
+///
+/// Returns [`Error::NotFound`] if the specified device is not connected.
+///
+/// Returns [`Error::Multiple`] if more than one device with the specified serial number is found.
 pub(super) fn get_device(serial_number: String) -> Result<DeviceInfo, Error> {
     let mut devices =
         get_devices().filter(|dev| dev.serial_number().map_or(false, |sn| sn == serial_number));
@@ -50,9 +61,43 @@ pub(super) fn get_device(serial_number: String) -> Result<DeviceInfo, Error> {
     }
 }
 
+/// For convenience, this function prints a list of connected devices to stdout.
 fn show_devices() {
     let devices = get_devices();
     for device in devices {
         println!("{:?}\n", device);
     }
 }
+
+/// Returns a locked [`MutexGuard`] containing the [Global Device Manager][`DEVICE_MANAGER`]
+pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
+    crate::devices::device_manager::DEVICE_MANAGER
+        .get_or_init(|| {
+            Mutex::new(DeviceManager {
+                devices: HashSet::with_hasher(FxBuildHasher::default()),
+            })
+        })
+        .lock()
+        .await
+}
+
+/// Safely stops all [Thorlabs devices][ThorlabsDevice], cleans up resources, and terminates
+/// the program with an error message.
+///
+/// Internally, this function iterates over the [Global Device Manager][`DEVICE_MANAGER`] and calls
+/// the respective `abort` function for each device.
+///
+/// ### Panics
+///
+/// This function always panics.
+///
+/// This is intended behaviour to safely unwind and free resources.
+pub(crate) async fn abort(message: String) {
+    for device in device_manager().await.devices.iter() {
+        let _ = device.abort();
+    }
+    panic!("Abort due to error : {}", message);
+}
+
+pub(crate) const BUG_MESSAGE: &str =
+    "This is a bug. Please open a GitHub issue and report the relevant details";
