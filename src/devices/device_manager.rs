@@ -54,11 +54,17 @@ pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
         .await
 }
 
+/// Manages a [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
+/// [Thorlabs Device][ThorlabsDevice].
+///
+/// For convenience, a [Global Device Manager][`DEVICE_MANAGER`] is lazily initialized on first use.
+///
+/// If an error occurs anywhere in the program, this is sent to the Global Device Manager, which
+/// can then safely [`abort`] all devices.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 struct DeviceManager {
-    /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each [Thorlabs Device][ThorlabsDevice].
-    ///
-    /// [open]: crate::devices::UsbPrimitive::open
+    /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
+    /// [Thorlabs Device][ThorlabsDevice].
     devices: FxHashSet<Arc<dyn ThorlabsDevice>>,
 }
 
@@ -74,4 +80,22 @@ impl DeviceManager {
     pub(super) fn remove(&mut self, device: Arc<dyn ThorlabsDevice>) {
         self.devices.remove(&device);
     }
+}
+
+/// Safely stops all [Thorlabs devices][ThorlabsDevice], cleans up resources, and terminates
+/// the program with an error message.
+///
+/// Internally, this function iterates over the [Global Device Manager][`DEVICE_MANAGER`] and calls
+/// the respective `abort` function for each device.
+///
+/// ### Panics
+///
+/// This function always panics.
+///
+/// This is intended behaviour to safely unwind and free resources.
+pub(super) async fn abort(message: &str) {
+    for device in device_manager().await.devices.iter() {
+        device.abort();
+    }
+    panic!("Abort due to error : {}", message);
 }
