@@ -43,19 +43,29 @@ use crate::messages::Dispatcher;
 ///
 /// Open the device by calling [`open`][`UsbPrimitive::open`]
 pub(super) enum Status {
-    /// The [`Interface`][nusb::Interface] is [`open`][`crate::devices::UsbPrimitive::open`] and
-    /// communicating. This enum variant contains an active [`Communicator`].
+    /// The [`Interface`][nusb::Interface] is [`open`][`nusb::DeviceInfo::open`] and communicating.
+    ///
+    /// This enum variant contains an active [`Communicator`].
     Open(Communicator),
-    /// The [`Interface`][nusb::Interface] is [`closed`][`crate::devices::UsbPrimitive::close`].
+    /// The [`Interface`][nusb::Interface] is [`closed`][`nusb::DeviceInfo::close`].
+    ///
     /// This enum variant contains an idle [`Dispatcher`].
     Closed(Dispatcher),
 }
 
 impl Status {
-    pub fn as_str(&self) -> &str {
+    pub(super) fn as_str(&self) -> &str {
         match self {
             Self::Open(_) => "Open",
             Self::Closed(_) => "Closed",
+        }
+    }
+
+    /// Returns the [`Dispatcher`] wrapped in an [`Arc`][std::sync::Arc].
+    pub(super) fn dispatcher(&self) -> Dispatcher {
+        match self {
+            Status::Open(communicator) => communicator.get_dispatcher(),
+            Status::Closed(dispatcher) => dispatcher.clone(), // Inexpensive Arc Clone
         }
     }
 }
