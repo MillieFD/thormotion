@@ -56,8 +56,7 @@ pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 struct DeviceManager {
-    /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each [open][open]
-    /// [Thorlabs Device][ThorlabsDevice].
+    /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each [Thorlabs Device][ThorlabsDevice].
     ///
     /// [open]: crate::devices::UsbPrimitive::open
     devices: FxHashSet<Arc<dyn ThorlabsDevice>>,
