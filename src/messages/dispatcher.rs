@@ -45,7 +45,7 @@ use crate::messages::{Receiver, Sender};
 ///
 /// This type includes an internal [`Arc`] to enable inexpensive cloning.
 /// The [`Dispatcher`] is released when all clones are dropped.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct Dispatcher {
     map: Arc<FxHashMap<[u8; 2], Mutex<Option<Sender>>>>,
 }
@@ -68,7 +68,7 @@ impl Dispatcher {
     async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
         self.map
             .get(id)
-            .unwrap_or_else(|| panic!("Dispatcher does not contain command ID {:?}", id)) // todo! abort instead of panic
+            .unwrap_or_else(|| abort(format!("Dispatcher does not contain command ID {:?}", id)))
             .lock()
             .await
     }
@@ -147,12 +147,9 @@ impl Dispatcher {
             // Sender::broadcast returns an error if either:
             //  1. The channel is closed
             //  2. The channel has no active receivers & Sender::await_active is False
-            match sender.broadcast_direct(data).await {
-                Ok(_) => {} // No-op: Nothing to do here
-                Err(error) => {
-                    abort(format!("Broadcast failed\n\n{}\n\n{}", error, BUG_MESSAGE)).await
-                }
-            }
+            sender.broadcast_direct(data).await.unwrap_or_else(|err| {
+                abort(format!("Broadcast failed\n\n{}\n\n{}", err, BUG_MESSAGE))
+            });
         }
     }
 
