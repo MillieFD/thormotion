@@ -62,9 +62,8 @@ impl DeviceManager {
         self.devices.insert(device);
     }
 
-    /// Remove a [Thorlabs Device][`ThorlabsDevice`] from the
-    /// [Global Device Manager][`DEVICE_MANAGER`].
-    pub(super) fn remove(&mut self, device: Arc<dyn ThorlabsDevice>) {
-        self.devices.remove(&device);
+    /// Remove a [`ThorlabsDevice`] from the global [`DeviceManager`].
+    pub(super) fn remove(&mut self, serial_number: String) {
+        self.devices.retain(|d| d.serial_number() != serial_number);
     }
 }
