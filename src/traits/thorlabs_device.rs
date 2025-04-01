@@ -32,21 +32,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 
 use crate::devices::UsbPrimitive;
 
 pub trait ThorlabsDevice: Display + Send + Sync {
     /// Returns a borrow which dereferences to the inner [`UsbPrimitive`]
     fn inner(&self) -> &UsbPrimitive;
-
-    /// Returns an [`Arc`] wrapping a dynamic trait object.
-    ///
-    /// This simplifies dynamic dispatch for code which can act on any
-    /// [`Thorlabs Device`][ThorlabsDevice] type.
-    fn as_dyn(&self) -> Arc<dyn ThorlabsDevice> {
-        Arc::clone(self)
-    }
 
     /// Returns a `&str` representing the device name, serial number, and current status.
     fn as_str(&self) -> &str;
@@ -76,7 +67,7 @@ impl Hash for dyn ThorlabsDevice {
 
 impl PartialEq for dyn ThorlabsDevice {
     fn eq(&self, other: &Self) -> bool {
-        self.inner().serial_number() == other.serial_number()
+        self.inner().serial_number() == other.inner().serial_number()
     }
 }
 
