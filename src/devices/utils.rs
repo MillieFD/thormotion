@@ -92,10 +92,12 @@ pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
 /// This function always panics.
 ///
 /// This is intended behaviour to safely unwind and free resources.
-pub(crate) async fn abort(message: String) {
-    for device in device_manager().await.devices.iter() {
-        let _ = device.abort();
-    }
+pub(crate) fn abort(message: String) -> ! {
+    smol::block_on(async {
+        for device in device_manager().await.devices.iter() {
+            let _ = device.abort();
+        }
+    });
     panic!("Abort due to error : {}", message);
 }
 
