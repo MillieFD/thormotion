@@ -81,10 +81,10 @@ pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
         .await
 }
 
-/// Safely stops all [Thorlabs devices][ThorlabsDevice], cleans up resources, and terminates
+/// Safely stops all [Thorlabs devices][1], cleans up resources, and terminates
 /// the program with an error message.
 ///
-/// Internally, this function iterates over the [Global Device Manager][`DEVICE_MANAGER`] and calls
+/// Internally, this function iterates over the global [DeviceManager] and calls
 /// the respective `abort` function for each device.
 ///
 /// ### Panics
@@ -92,6 +92,8 @@ pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
 /// This function always panics.
 ///
 /// This is intended behaviour to safely unwind and free resources.
+///
+/// [1]: crate::traits::ThorlabsDevice
 pub(crate) fn abort(message: String) -> ! {
     smol::block_on(async {
         for device in device_manager().await.devices.iter() {
