@@ -63,7 +63,7 @@ impl DeviceManager {
     }
 
     /// Remove a [`ThorlabsDevice`] from the global [`DeviceManager`].
-    pub(super) fn remove(&mut self, serial_number: String) {
+    pub(super) fn remove(&mut self, serial_number: &str) {
         self.devices.retain(|d| d.serial_number() != serial_number);
     }
 }
