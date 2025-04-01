@@ -30,8 +30,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::time::Duration;
+#![allow(non_snake_case)]
 
-pub(crate) const DEFAULT_LONG_TIMEOUT: Duration = Duration::from_secs(100);
-pub(crate) const DEFAULT_SHORT_TIMEOUT: Duration = Duration::from_millis(500);
-pub(crate) const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(200);
+/* ------------------------------------------------------------------------------ Public Modules */
+
+pub mod cmd;
+pub mod sn;
