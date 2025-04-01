@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use nusb::Interface;
 use nusb::transfer::{Queue, RequestBuffer, TransferError};
 use smol::Task;
+use smol::lock::Mutex;
 
 use crate::devices::abort;
 use crate::devices::usb_primitive::serial_port::init;
@@ -50,7 +51,7 @@ pub(super) struct Communicator {
     /// An async background task that handles a stream of incoming commands from the [`Interface`].
     incoming: Task<()>,
     ///A [`Queue`] that handles a stream of outgoing commands to the USB [`Interface`].
-    pub(super) outgoing: Queue<Vec<u8>>,
+    pub(super) outgoing: Mutex<Queue<Vec<u8>>>,
 }
 
 impl Communicator {
@@ -58,7 +59,7 @@ impl Communicator {
         const OUT_ENDPOINT: u8 = 0x02;
         init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
-        let outgoing = interface.interrupt_out_queue(OUT_ENDPOINT);
+        let outgoing = Mutex::new(interface.interrupt_out_queue(OUT_ENDPOINT));
         let incoming = Self::spawn(interface, dsp);
         Self {
             dispatcher,
@@ -106,11 +107,12 @@ impl Communicator {
         })
     }
 
-    /// Send a command to the device.
-    pub(super) fn send(&mut self, command: Vec<u8>) {
-        self.outgoing.submit(command);
+    /// Send a command to the device [`Interface`].
+    pub(super) async fn send(&self, command: Vec<u8>) {
+        self.outgoing.lock().await.submit(command);
     }
 
+    /// Returns the [`Dispatcher`] wrapped in an [`Arc`][std::sync::Arc].
     pub(super) fn get_dispatcher(&self) -> Dispatcher {
         self.dispatcher.clone() // Inexpensive Arc Clone
     }
