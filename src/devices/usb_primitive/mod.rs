@@ -63,6 +63,12 @@ pub(crate) struct UsbPrimitive {
 }
 
 impl UsbPrimitive {
+    /// Constructs a new [`UsbPrimitive`] for a Thorlabs device with the specified serial number.
+    ///
+    /// Returns [`Error::NotFound`] if the specified device is not connected.
+    ///
+    /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
+    /// found.
     pub(super) fn new(serial_number: String, ids: &[[u8; 2]]) -> Result<Self, sn::Error> {
         let dispatcher = Dispatcher::new(ids);
         Ok(Self {
@@ -71,14 +77,13 @@ impl UsbPrimitive {
         })
     }
 
-    /// Returns a `&str` containing information about the device serial number and current status.
-    fn to_str(&self) -> &str {
+    /// Returns a `String` containing information about the device serial number and current status.
+    fn string(&self) -> String {
         format!(
             "Thormotion USB Primitive (Serial number : {} | Status : {})",
             self.serial_number(),
             self.status.as_str()
         )
-        .as_str()
     }
 
     /// Returns the serial number of the device as a `&str`.
@@ -165,9 +170,9 @@ impl UsbPrimitive {
     }
 
     /// Send a command to the device.
-    pub(crate) fn send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
+    pub(crate) async fn send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
         match &self.status {
-            Status::Open(mut communicator) => Ok(communicator.send(command)),
+            Status::Open(communicator) => Ok(communicator.send(command).await),
             Status::Closed(_) => Err(cmd::Error::DeviceClosed),
         }
     }
@@ -194,12 +199,12 @@ impl Hash for UsbPrimitive {
 
 impl Debug for UsbPrimitive {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.to_str())
+        f.write_str(self.string().as_str())
     }
 }
 
 impl Display for UsbPrimitive {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.to_str())
+        f.write_str(self.string().as_str())
     }
 }
