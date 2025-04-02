@@ -44,20 +44,29 @@ mod traits;
 /* -------------------------------------------------------------------- Initialize Python module */
 
 mod py_module {
-    use pyo3::prelude::*;
-
     use crate::devices::*;
+    use pyo3::prelude::*;
 
     #[pymodule(name = "thormotion")]
     ///A cross-platform motion control library for Thorlabs systems, written in Rust.
     fn initialise_thormotion_pymodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
-        module.add_class::<KDC101::KDC101>()?;
+        module.add_class::<KDC101>()?;
         Ok(())
     }
 }
 
+/* --------------------------------------------------------------------------------------- Tests */
+
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_kdc101() {}
+    fn identify_kdc101() {
+        use crate::devices::KDC101;
+        smol::block_on(async {
+            let serial_number = String::from("27xxxxxx");
+            let mut device = KDC101::new(serial_number).await.unwrap();
+            device.open().await.unwrap();
+            device.identify().await;
+        })
+    }
 }
