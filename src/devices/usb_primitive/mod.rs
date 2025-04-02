@@ -58,7 +58,7 @@ pub(crate) struct UsbPrimitive {
     /// - [`Open`][1] → Contains an active [`Communicator`]
     /// - [`Closed`][2] → Contains an idle [`Dispatcher`]
     ///
-    /// Open the device by calling [`open`][3]
+    /// Open the device by calling [`open`][3].
     ///
     /// [1]: Status::Open
     /// [2]: Status::Closed
@@ -118,10 +118,6 @@ impl UsbPrimitive {
     /// [2]: UsbPrimitive
     /// [3]: Status::Open
     pub(super) async fn open(&self) -> Result<(), io::Error> {
-        if self.is_open().await {
-            return Ok(()); // No-op: Nothing to do here
-        };
-        // SPEED: Only get write guard if necessary
         let mut guard = self.status.write().await;
         if let Status::Closed(dsp) = guard.deref() {
             let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
@@ -140,12 +136,7 @@ impl UsbPrimitive {
     /// [2]: UsbPrimitive
     /// [3]: Status::Closed
     pub(super) async fn close(&self) -> Result<(), io::Error> {
-        if !self.is_open().await {
-            return Ok(()); // No-op: Nothing to do here
-        }
-        // SPEED: Only get write guard if necessary
         let mut guard = self.status.write().await;
-
         if let Status::Open(communicator) = guard.deref() {
             let dispatcher = communicator.get_dispatcher();
             *guard = Status::Closed(dispatcher);
@@ -199,9 +190,13 @@ impl UsbPrimitive {
     }
 
     /// Send a command to the device.
+    ///
+    /// Returns an [`Error`][1] if the device is closed.
+    ///
+    /// [1]: cmd::Error
     pub(crate) async fn send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
-        let mut guard = self.status.write().await;
-        match &mut *guard {
+        let guard = self.status.read().await;
+        match &*guard {
             Status::Open(communicator) => {
                 communicator.send(command).await;
                 Ok(())
