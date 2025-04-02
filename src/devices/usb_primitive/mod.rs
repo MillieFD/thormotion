@@ -34,15 +34,19 @@ mod communicator;
 mod serial_port;
 mod status;
 
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::io;
+use std::ops::Deref;
 
 use communicator::Communicator;
 use nusb::DeviceInfo;
+use smol::block_on;
+use smol::lock::RwLock;
 use status::Status;
 
-use crate::devices::{abort, get_device};
+use crate::devices::device_manager::device_manager;
+use crate::devices::{abort, get_device, BUG};
 use crate::error::{cmd, sn};
 use crate::messages::{Dispatcher, Receiver};
 
@@ -59,7 +63,7 @@ pub(crate) struct UsbPrimitive {
     /// [1]: Status::Open
     /// [2]: Status::Closed
     /// [3]: UsbPrimitive::open
-    pub(super) status: Status,
+    status: RwLock<Status>,
 }
 
 impl UsbPrimitive {
@@ -69,20 +73,20 @@ impl UsbPrimitive {
     ///
     /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
     /// found.
-    pub(super) fn new(serial_number: String, ids: &[[u8; 2]]) -> Result<Self, sn::Error> {
+    pub(super) fn new(serial_number: &String, ids: &[[u8; 2]]) -> Result<Self, sn::Error> {
         let dispatcher = Dispatcher::new(ids);
         Ok(Self {
             device_info: get_device(serial_number)?,
-            status: Status::Closed(dispatcher),
+            status: RwLock::new(Status::Closed(dispatcher)),
         })
     }
 
     /// Returns a `String` containing information about the device serial number and current status.
-    fn string(&self) -> String {
+    async fn string(&self) -> String {
         format!(
             "Thormotion USB Primitive (Serial number : {} | Status : {})",
             self.serial_number(),
-            self.status.as_str()
+            self.status.read().await.as_str()
         )
     }
 
@@ -92,15 +96,15 @@ impl UsbPrimitive {
             // SAFETY: The USB device must report its serial number during enumeration with
             // devices::utils::get_device. Thus, DeviceInfo::serial_number should never fail.
             abort(format!(
-                "Serial number could not be read from device {:?}",
-                self.device_info
+                "Serial number could not be read from device {:?}\n{}",
+                self.device_info, BUG
             ))
         })
     }
 
     /// Returns `True` if the device is open.
-    pub(super) fn is_open(&self) -> bool {
-        match self.status {
+    pub(super) async fn is_open(&self) -> bool {
+        match *self.status.read().await {
             Status::Open(_) => true,
             Status::Closed(_) => false,
         }
@@ -113,16 +117,19 @@ impl UsbPrimitive {
     /// [1]: nusb::Interface
     /// [2]: UsbPrimitive
     /// [3]: Status::Open
-    pub(super) async fn open(&mut self) -> Result<(), io::Error> {
-        match &self.status {
-            Status::Open(_) => Ok(()), // No-op: Nothing to do here
-            Status::Closed(dsp) => {
-                let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
-                let dispatcher = dsp.clone(); // Inexpensive Arc Clone
-                self.status = Status::Open(Communicator::new(interface, dispatcher).await);
-                Ok(())
-            }
+    pub(super) async fn open(&self) -> Result<(), io::Error> {
+        if self.is_open().await {
+            return Ok(()); // No-op: Nothing to do here
+        };
+        // SPEED: Only get write guard if necessary
+        let mut guard = self.status.write().await;
+        if let Status::Closed(dsp) = guard.deref() {
+            let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
+            let dispatcher = dsp.clone(); // Inexpensive Arc Clone
+            let communicator = Communicator::new(interface, dispatcher).await;
+            *guard = Status::Open(communicator);
         }
+        Ok(())
     }
 
     /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
@@ -132,15 +139,37 @@ impl UsbPrimitive {
     /// [1]: nusb::Interface
     /// [2]: UsbPrimitive
     /// [3]: Status::Closed
-    pub(super) fn close(&mut self) -> Result<(), io::Error> {
-        match &mut self.status {
-            Status::Open(communicator) => {
-                let dispatcher = communicator.get_dispatcher();
-                self.status = Status::Closed(dispatcher);
-                Ok(())
-            }
-            Status::Closed(_) => Ok(()), // No-op: Nothing to do here
+    pub(super) async fn close(&self) -> Result<(), io::Error> {
+        if !self.is_open().await {
+            return Ok(()); // No-op: Nothing to do here
         }
+        // SPEED: Only get write guard if necessary
+        let mut guard = self.status.write().await;
+
+        if let Status::Open(communicator) = guard.deref() {
+            let dispatcher = communicator.get_dispatcher();
+            *guard = Status::Closed(dispatcher);
+        }
+        Ok(())
+    }
+
+    /// Safely brings the [`USB Device`][UsbPrimitive] to a resting state and releases the claimed
+    /// [`Interface`][nusb::Interface].
+    ///
+    /// No action is taken if the device [`Status`] is already [`Closed`][1].
+    ///
+    /// Does not remove the device from the [`Global Device Manager`][2].
+    /// You can use [`open`][3] to resume communication.
+    ///
+    /// To release the claimed [`Interface`][nusb::Interface] without bringing the device to a
+    /// resting state, use [`close`][4].
+    ///
+    /// [1]: Status::Closed
+    /// [2]: crate::devices::device_manager::DeviceManager
+    /// [3]: UsbPrimitive::open
+    /// [4]: UsbPrimitive::close
+    fn abort() {
+        // todo()!
     }
 
     /// Returns a receiver for the given command ID.
@@ -160,19 +189,23 @@ impl UsbPrimitive {
     /// [3]: async_broadcast::Sender::new_receiver
     /// [4]: async_broadcast::broadcast
     pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
-        self.status.dispatcher().any_receiver(id).await
+        self.status.read().await.dispatcher().any_receiver(id).await
     }
 
     /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not
     /// currently executing the command for the given ID.
     pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
-        self.status.dispatcher().new_receiver(id).await
+        self.status.read().await.dispatcher().new_receiver(id).await
     }
 
     /// Send a command to the device.
     pub(crate) async fn send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
-        match &self.status {
-            Status::Open(communicator) => Ok(communicator.send(command).await),
+        let mut guard = self.status.write().await;
+        match &mut *guard {
+            Status::Open(communicator) => {
+                communicator.send(command).await;
+                Ok(())
+            }
             Status::Closed(_) => Err(cmd::Error::DeviceClosed),
         }
     }
@@ -198,13 +231,31 @@ impl Hash for UsbPrimitive {
 }
 
 impl Debug for UsbPrimitive {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.string().as_str())
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "Thormotion USB Primitive (Serial number : {})",
+            self.serial_number(),
+        ))
     }
 }
 
 impl Display for UsbPrimitive {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.string().as_str())
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&block_on(async {
+            format!(
+                "Thormotion USB Primitive (Serial number : {} | Status : {})",
+                self.serial_number(),
+                self.status.read().await.as_str()
+            )
+        }))
+    }
+}
+
+impl Drop for UsbPrimitive {
+    fn drop(&mut self) {
+        Self::abort();
+        block_on(async {
+            device_manager().await.remove(self.serial_number());
+        })
     }
 }
