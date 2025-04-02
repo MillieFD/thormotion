@@ -30,13 +30,14 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use nusb::Interface;
 use nusb::transfer::{Queue, RequestBuffer, TransferError};
-use smol::Task;
+use nusb::Interface;
+use smol::future::yield_now;
 use smol::lock::Mutex;
+use smol::Task;
 
-use crate::devices::abort;
 use crate::devices::usb_primitive::serial_port::init;
+use crate::devices::{abort, BUG};
 use crate::messages::Dispatcher;
 
 // SAFETY: Currently, no data packet exceeds 255 bytes (Thorlabs APT Protocol, Issue 38, Page 35).
@@ -49,6 +50,7 @@ pub(super) struct Communicator {
     /// A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
     dispatcher: Dispatcher,
     /// An async background task that handles a stream of incoming commands from the [`Interface`].
+    #[allow(unused)]
     incoming: Task<()>,
     ///A [`Queue`] that handles a stream of outgoing commands to the USB [`Interface`].
     pub(super) outgoing: Mutex<Queue<Vec<u8>>>,
@@ -94,9 +96,21 @@ impl Communicator {
         let mut listen = async move || -> Result<(), TransferError> {
             loop {
                 queue.submit(RequestBuffer::new(BUFFER_SIZE));
-                let completion = queue.next_complete().await;
-                completion.status?;
-                dispatcher.dispatch(completion.data).await;
+                let mut completion = queue.next_complete().await;
+                match completion.data.len() {
+                    ..2 => abort(format!(
+                        "Received {}-byte command from USB device\n{}",
+                        completion.data.len(),
+                        BUG
+                    )),
+                    2 => {} // Command contains framing bytes only. Proceed to the yield point.
+                    3.. => {
+                        completion.status?;
+                        completion.data.drain(..2); // Drop the framing bytes
+                        dispatcher.dispatch(completion.data).await;
+                    }
+                }
+                yield_now().await;
             }
         };
 
