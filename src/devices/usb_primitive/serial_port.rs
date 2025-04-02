@@ -32,9 +32,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::time::Duration;
 
-use nusb::Interface;
 use nusb::transfer::{ControlOut, ControlType, Recipient};
+use nusb::Interface;
 use smol::Timer;
+
+use crate::devices::abort;
 
 const RESET_CONTROLLER: ControlOut = ControlOut {
     control_type: ControlType::Vendor,
@@ -110,7 +112,7 @@ pub(super) async fn init(interface: &Interface) {
             .control_out(control_out)
             .await
             .status
-            .expect("Control transfer failed");
+            .unwrap_or_else(|e| abort(format!("Control transfer failed : {}", e)))
     };
     control_out(RESET_CONTROLLER).await;
     control_out(BAUD_RATE).await;
