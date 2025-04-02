@@ -22,3 +22,4 @@ smol = "*"
 async-broadcast = "*"
 pyo3 = { version = "0.24.0", features = ["experimental-async"] }
 rustc-hash = "*"
+papaya = "*"
