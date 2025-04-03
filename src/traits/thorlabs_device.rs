@@ -30,12 +30,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
 use crate::devices::UsbPrimitive;
 
-pub trait ThorlabsDevice: Display + Send + Sync {
+pub trait ThorlabsDevice: Display + Debug + Send + Sync {
     /// Returns a borrow which dereferences to the inner [`UsbPrimitive`]
     fn inner(&self) -> &UsbPrimitive;
 
@@ -44,23 +44,22 @@ pub trait ThorlabsDevice: Display + Send + Sync {
         self.inner().serial_number()
     }
 
-    /// Returns a `String` representing the device name, serial number, and current status.
-    fn string(&self) -> String;
-
-    /// Safely brings the [`USB Device`][UsbPrimitive] to a resting state and releases the claimed
-    /// [`Interface`][nusb::Interface].
+    /// Safely brings the [`Thorlabs Device`][1] to a resting state and releases the claimed
+    /// [`Interface`][2].
     ///
-    /// No action is taken if the device [`Status`][1] is already [`Closed`][2].
+    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
     ///
-    /// Does not remove the device from the [`Global Device Manager`][3].
+    /// Does not remove the device from the [`Global Device Manager`][5].
     /// You can use `open` to resume communication.
     ///
-    /// To release the claimed [`Interface`][nusb::Interface] without bringing the device to a
-    /// resting state, use `close`.
+    /// To release the claimed [`Interface`][2] without bringing the device to a resting state,
+    /// use `close`.
     ///
-    /// [1]: crate::devices::usb_primitive::status::Status
-    /// [2]: crate::devices::usb_primitive::status::Status::Closed
-    /// [3]: crate::devices::device_manager::DeviceManager
+    /// [1]: UsbPrimitive
+    /// [2]: nusb::Interface
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Closed
+    /// [5]: crate::devices::device_manager::DeviceManager
     fn abort(&self);
 }
 
