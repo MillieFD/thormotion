@@ -20,5 +20,8 @@ crate-type = ["lib"]
 nusb = "0.1.13"
 smol = "*"
 async-broadcast = "*"
-pyo3 = { version = "0.24.0", features = ["experimental-async"] }
-rustc-hash = "*"
+ahash = "*"
+
+[dependencies.pyo3]
+version = "0.24.0"
+features = ["experimental-async"]
