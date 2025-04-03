@@ -81,15 +81,6 @@ impl UsbPrimitive {
         })
     }
 
-    /// Returns a `String` containing information about the device serial number and current status.
-    async fn string(&self) -> String {
-        format!(
-            "Thormotion USB Primitive (Serial number : {} | Status : {})",
-            self.serial_number(),
-            self.status.read().await.as_str()
-        )
-    }
-
     /// Returns the serial number of the device as a `&str`.
     pub(crate) fn serial_number(&self) -> &str {
         self.device_info.serial_number().unwrap_or_else(|| {
@@ -227,10 +218,13 @@ impl Hash for UsbPrimitive {
 
 impl Debug for UsbPrimitive {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!(
-            "Thormotion USB Primitive (Serial number : {})",
-            self.serial_number(),
-        ))
+        f.write_str(&block_on(async {
+            format!(
+                "Serial number : {} | Status : {}",
+                self.serial_number(),
+                self.status.read().await.as_str()
+            )
+        }))
     }
 }
 
