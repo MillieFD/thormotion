@@ -30,73 +30,76 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::durations::{DEFAULT_LONG_TIMEOUT, DEFAULT_SHORT_TIMEOUT};
-use crate::error::Error;
-use crate::macros::*;
-use crate::messages::utils::{get_new_receiver, pack_short_message, wait_until_clear_to_send};
+use crate::devices::{BUG, global_abort};
+use crate::messages::Provenance;
+use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
-use async_std::future::timeout;
-use async_std::task::sleep;
 
+/// Returns `True` if the specified device channel is enabled.
 #[doc(hidden)]
-#[doc = "Returns `True` if the specified device channel is enabled."]
-#[doc = apt_doc!(async, "MOD_REQ_CHANENABLESTATE", "MOD_GET_CHANENABLESTATE", RUSB, Timeout, FatalError)]
-pub(crate) async fn __get_channel_enable_state_async<A>(
-    device: &A,
-    channel: i32,
-) -> Result<bool, Error>
+pub(crate) async fn __req_channel_enable_state<A>(device: &A, channel: u8) -> bool
 where
     A: ThorlabsDevice,
 {
-    const ID: [u8; 2] = [0x11, 0x02];
-    let receiver = get_new_receiver(ID).await?;
-    let data = pack_short_message(ID, channel.clone(), 0);
-    device.write(&data)?;
-    let response = timeout(DEFAULT_LONG_TIMEOUT, receiver.recv()).await??;
-    if response[2] != data[2] {
-        return Err(Error::wrong_channel(device, channel, data[2]));
-    };
-    let enable_state = match response[3] {
+    const REQ: [u8; 2] = [0x11, 0x02];
+    const GET: [u8; 2] = [0x12, 0x02];
+    let mut rx = device.inner().new_receiver(&GET).await;
+    let command = short(REQ, channel, 0);
+    device.inner().send(command).await;
+    let response = rx.recv_direct().await.unwrap_or_else(|e| {
+        global_abort(format!(
+            "{} failed to receive GET_CHANENABLESTATE command : {} : {}",
+            device, e, BUG
+        ))
+    });
+    if response[2] != channel {
+        global_abort(format!(
+            "{} GET_CHANENABLESTATE command contained invalid channel number : {}",
+            device, response[2]
+        ));
+    }
+    match response[3] {
         0x01 => true,
         0x02 => false,
-        _ => {
-            return Err(Error::unsuccessful_command(
-                device,
-                format!(
-                    "Response contained invalid channel enable state: {}",
-                    response[3]
-                ),
-            ));
-        }
-    };
-    Ok(enable_state)
+        _ => global_abort(format!(
+            "{} GET_CHANENABLESTATE command contained invalid channel enable state : {}",
+            device, response[3]
+        )),
+    }
 }
 
+/// Enables or disables the specified device channel.
 #[doc(hidden)]
-#[doc = "Enables or disables the specified device channel."]
-#[doc = apt_doc!(async, "MOD_SET_CHANENABLESTATE", "MOD_REQ_CHANENABLESTATE", "MOD_GET_CHANENABLESTATE", RUSB, Timeout, FatalError)]
-pub(crate) async fn __set_channel_enable_state_async<A>(
-    device: &A,
-    channel: i32,
-    enable: bool,
-) -> Result<(), Error>
+pub(crate) async fn __set_channel_enable_state<A>(device: &A, channel: u8, enable: bool)
 where
     A: ThorlabsDevice,
 {
-    const ID: [u8; 2] = [0x10, 0x02];
+    const SET: [u8; 2] = [0x10, 0x02];
+    const GET: [u8; 2] = [0x12, 0x02];
+
     let enable_byte: u8 = if enable { 0x01 } else { 0x02 };
-    wait_until_clear_to_send(ID).await?;
-    let data = pack_short_message(ID, channel.clone(), enable_byte);
-    device.write(&data)?;
-    sleep(DEFAULT_SHORT_TIMEOUT).await;
-    if __get_channel_enable_state_async(device, channel.clone()).await? != enable {
-        return Err(Error::unsuccessful_command(
-            device,
-            format!(
-                "Failed to set channel number {:?} enable state to {}",
-                channel, enable
-            ),
-        ));
-    };
-    Ok(())
+    match device.inner().receiver(&GET).await {
+        Provenance::New(_) => {
+            let command = short(SET, channel, 0);
+            device.inner().send(command).await;
+            if !__req_channel_enable_state(device, channel).await && enable {
+                global_abort(format!(
+                    "{} SET_CHANENABLESTATE command failed to set channel {} to {}",
+                    device, channel, enable
+                ));
+            }
+        }
+        Provenance::Existing(mut rx) => {
+            let response = rx.recv_direct().await.unwrap_or_else(|e| {
+                global_abort(format!(
+                    "{} failed to receive GET_CHANENABLESTATE command : {} : {}",
+                    device, e, BUG
+                ))
+            });
+            if response[2] == channel && response[3] == enable_byte {
+                return; // No-op: Nothing to do here
+            }
+            Box::pin(__set_channel_enable_state(device, channel, enable)).await;
+        }
+    }
 }
