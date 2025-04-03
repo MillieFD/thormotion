@@ -30,13 +30,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::collections::HashSet;
+use nusb::{list_devices, DeviceInfo};
 
-use nusb::{DeviceInfo, list_devices};
-use rustc_hash::FxBuildHasher;
-use smol::lock::{Mutex, MutexGuard};
-
-use crate::devices::device_manager::DeviceManager;
+use crate::devices::device_manager::device_manager;
 use crate::error::sn::Error;
 
 /// Returns an iterator over all connected Thorlabs devices.
@@ -51,13 +47,13 @@ fn get_devices() -> impl Iterator<Item = DeviceInfo> {
 /// Returns [`Error::NotFound`] if the specified device is not connected.
 ///
 /// Returns [`Error::Multiple`] if more than one device with the specified serial number is found.
-pub(super) fn get_device(serial_number: String) -> Result<DeviceInfo, Error> {
+pub(super) fn get_device(serial_number: &String) -> Result<DeviceInfo, Error> {
     let mut devices =
         get_devices().filter(|dev| dev.serial_number().map_or(false, |sn| sn == serial_number));
     match (devices.next(), devices.next()) {
-        (None, _) => Err(Error::NotFound(serial_number)),
+        (None, _) => Err(Error::NotFound(serial_number.clone())),
         (Some(device), None) => Ok(device),
-        (Some(_), Some(_)) => Err(Error::Multiple(serial_number)),
+        (Some(_), Some(_)) => Err(Error::Multiple(serial_number.clone())),
     }
 }
 
@@ -67,18 +63,6 @@ fn show_devices() {
     for device in devices {
         println!("{:?}\n", device);
     }
-}
-
-/// Returns a locked [`MutexGuard`] containing the [Global Device Manager][`DEVICE_MANAGER`]
-pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
-    crate::devices::device_manager::DEVICE_MANAGER
-        .get_or_init(|| {
-            Mutex::new(DeviceManager {
-                devices: HashSet::with_hasher(FxBuildHasher::default()),
-            })
-        })
-        .lock()
-        .await
 }
 
 /// Safely stops all [Thorlabs devices][1], cleans up resources, and terminates
@@ -96,12 +80,15 @@ pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager> {
 /// [1]: crate::traits::ThorlabsDevice
 pub(crate) fn abort(message: String) -> ! {
     smol::block_on(async {
-        for device in device_manager().await.devices.iter() {
-            let _ = device.abort();
+        for serial_number in device_manager().await.devices.keys() {
+            if let Some(f) = device_manager().await.devices.remove(serial_number) {
+                f()
+            }
         }
     });
-    panic!("Abort due to error : {}", message);
+    panic!("\nAbort due to error : {}\n", message);
 }
 
-pub(crate) const BUG_MESSAGE: &str =
-    "This is a bug. Please open a GitHub issue and report the relevant details";
+#[doc(hidden)]
+pub(crate) const BUG: &str = "This is a bug. If you are able to reproduce this issue, please open \
+                              a new GitHub issue and report the relevant details";
