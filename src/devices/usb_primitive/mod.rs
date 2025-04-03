@@ -45,12 +45,13 @@ use smol::block_on;
 use smol::lock::RwLock;
 use status::Status;
 
-use crate::devices::device_manager::device_manager;
-use crate::devices::{abort, get_device, BUG};
+use crate::devices::{abort_device, drop_device, get_device, global_abort};
 use crate::error::{cmd, sn};
 use crate::messages::{Dispatcher, Receiver};
 
 pub(crate) struct UsbPrimitive {
+    /// A unique eight-digit serial number which is printed on the Thorlabs device.
+    serial_number: String,
     /// Information about a device that can be obtained without calling [`DeviceInfo::open`].
     device_info: DeviceInfo,
     /// The current device status.
@@ -73,24 +74,18 @@ impl UsbPrimitive {
     ///
     /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
     /// found.
-    pub(super) fn new(serial_number: &String, ids: &[[u8; 2]]) -> Result<Self, sn::Error> {
-        let dispatcher = Dispatcher::new(ids);
+    pub(super) fn new(serial_number: String, ids: &[[u8; 2]]) -> Result<Self, sn::Error> {
+        let device_info = get_device(&serial_number)?;
         Ok(Self {
-            device_info: get_device(serial_number)?,
-            status: RwLock::new(Status::Closed(dispatcher)),
+            serial_number,
+            device_info,
+            status: RwLock::new(Status::Closed(Dispatcher::new(ids))),
         })
     }
 
     /// Returns the serial number of the device as a `&str`.
     pub(crate) fn serial_number(&self) -> &str {
-        self.device_info.serial_number().unwrap_or_else(|| {
-            // SAFETY: The USB device must report its serial number during enumeration with
-            // devices::utils::get_device. Thus, DeviceInfo::serial_number should never fail.
-            abort(format!(
-                "Serial number could not be read from device {:?}\n{}",
-                self.device_info, BUG
-            ))
-        })
+        &self.serial_number
     }
 
     /// Returns `True` if the device is open.
@@ -135,23 +130,27 @@ impl UsbPrimitive {
         Ok(())
     }
 
-    /// Safely brings the [`USB Device`][UsbPrimitive] to a resting state and releases the claimed
-    /// [`Interface`][nusb::Interface].
+    /// Safely brings the [`USB Device`][1] to a resting state and releases the claimed
+    /// [`Interface`][2].
     ///
-    /// No action is taken if the device [`Status`] is already [`Closed`][1].
+    /// If the device [`Status`] is [`Closed`][3], a temporary [`Interface`][2] is [`Opened`][4]
+    /// to send the abort command.
     ///
-    /// Does not remove the device from the [`Global Device Manager`][2].
-    /// You can use [`open`][3] to resume communication.
+    /// Does not remove the device from the global [`DEVICES`][5] [`HashMap`][6]. You can use
+    /// [`Open`][4] to resume communication.
     ///
-    /// To release the claimed [`Interface`][nusb::Interface] without bringing the device to a
-    /// resting state, use [`close`][4].
+    /// To release the claimed [`Interface`][2] without bringing the device to a resting state,
+    /// use [`close`][7].
     ///
-    /// [1]: Status::Closed
-    /// [2]: crate::devices::device_manager::DeviceManager
-    /// [3]: UsbPrimitive::open
-    /// [4]: UsbPrimitive::close
-    fn abort() {
-        // todo()!
+    /// [1]: UsbPrimitive
+    /// [2]: nusb::Interface
+    /// [3]: Status::Closed
+    /// [4]: UsbPrimitive::open
+    /// [5]: crate::devices::utils::DEVICES
+    /// [6]: ahash::HashMap
+    /// [7]: UsbPrimitive::close
+    async fn abort(&self) {
+        abort_device(self.serial_number()).await
     }
 
     /// Returns a receiver for the given command ID.
@@ -182,9 +181,9 @@ impl UsbPrimitive {
 
     /// Sends a command to the device.
     pub(crate) async fn send(&self, command: Vec<u8>) {
-        self.try_send(command)
-            .await
-            .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", self, e)));
+        self.try_send(command).await.unwrap_or_else(|e| {
+            global_abort(format!("Failed to send command to {} : {}", self, e))
+        });
     }
 
     /// Sends a command to the device.
@@ -249,9 +248,8 @@ impl Display for UsbPrimitive {
 
 impl Drop for UsbPrimitive {
     fn drop(&mut self) {
-        Self::abort();
         block_on(async {
-            device_manager().await.remove(self.serial_number());
-        })
+            drop_device(self.serial_number()).await;
+        });
     }
 }

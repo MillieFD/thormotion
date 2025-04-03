@@ -36,7 +36,7 @@ use nusb::transfer::{ControlOut, ControlType, Recipient};
 use nusb::Interface;
 use smol::Timer;
 
-use crate::devices::abort;
+use crate::devices::global_abort;
 
 const RESET_CONTROLLER: ControlOut = ControlOut {
     control_type: ControlType::Vendor,
@@ -112,7 +112,7 @@ pub(super) async fn init(interface: &Interface) {
             .control_out(control_out)
             .await
             .status
-            .unwrap_or_else(|e| abort(format!("Control transfer failed : {}", e)))
+            .unwrap_or_else(|e| global_abort(format!("Control transfer failed : {}", e)))
     };
     control_out(RESET_CONTROLLER).await;
     control_out(BAUD_RATE).await;
