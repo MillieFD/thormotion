@@ -30,39 +30,65 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use rustc_hash::FxHashSet;
-use smol::lock::Mutex;
-
-use crate::traits::ThorlabsDevice;
+use rustc_hash::{FxBuildHasher, FxHashMap};
+use smol::lock::{Mutex, MutexGuard};
 
 /// For convenience, a global [`DeviceManager`] is lazily initialized on first use.
 /// It is protected by an asynchronous [`Mutex`] for thread-safe concurrent access.
 pub(super) static DEVICE_MANAGER: OnceLock<Mutex<DeviceManager>> = OnceLock::new();
 
-/// Manages a [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
-/// [Thorlabs Device][ThorlabsDevice].
+/// Manages a [`HashMap`] containing the `serial number` (key) and `abort function` (value) for
+/// each connected [`Thorlabs Device`][1].
 ///
-/// For convenience, a [Global Device Manager][`DEVICE_MANAGER`] is lazily initialized on first use.
+/// For convenience, a [`Global Device Manager`][2] is lazily initialized on first use.
 ///
 /// If an error occurs anywhere in the program, this is sent to the Global Device Manager, which
-/// can then safely [`abort`] all devices.
-pub(super) struct DeviceManager {
-    /// A [`HashSet`][`FxHashSet`] containing an [`Arc`] to each connected
-    /// [Thorlabs Device][ThorlabsDevice].
-    pub(super) devices: FxHashSet<Box<dyn ThorlabsDevice>>,
+/// can then safely [`abort`][3] all devices, bringing the system to a controlled stop.
+///
+/// [1]: crate::devices::UsbPrimitive
+/// [2]: DEVICE_MANAGER
+/// [3]: crate::traits::ThorlabsDevice::abort
+#[derive(Default)]
+pub(super) struct DeviceManager<'a> {
+    /// A [`HashMap`] containing the `serial number` (key) and `abort function` (value) for each
+    /// connected [`Thorlabs Device`][1].
+    ///
+    /// [1]: crate::devices::UsbPrimitive
+    pub(super) devices: FxHashMap<String, Box<dyn FnOnce() + Send + 'a>>,
 }
 
-impl DeviceManager {
-    /// Adds a new [Thorlabs Device][`ThorlabsDevice`] to the
-    /// [Global Device Manager][`DEVICE_MANAGER`].
-    pub(super) fn add(&mut self, device: Box<dyn ThorlabsDevice>) {
-        self.devices.insert(device);
+impl<'a> DeviceManager<'a> {
+    /// Adds a new [Thorlabs Device][1] `serial number` (key) and corresponding  `abort function`
+    /// (value) to the [Global Device Manager][2].
+    ///
+    /// [1]: crate::devices::UsbPrimitive
+    /// [2]: DEVICE_MANAGER
+    pub(super) fn add<Fn>(&mut self, serial_number: String, f: Fn)
+    where
+        Fn: FnOnce() + Send + 'a,
+    {
+        self.devices.insert(serial_number, Box::new(f));
     }
 
-    /// Remove a [`ThorlabsDevice`] from the global [`DeviceManager`].
+    /// Removes a [`ThorlabsDevice`] from the global [`DeviceManager`].
     pub(super) fn remove(&mut self, serial_number: &str) {
-        self.devices.retain(|d| d.serial_number() != serial_number);
+        let _ = self.devices.remove(serial_number);
     }
+}
+
+/// Returns a locked [`MutexGuard`] containing the [Global Device Manager][1].
+///
+/// [1]: DEVICE_MANAGER
+pub(super) async fn device_manager<'a>() -> MutexGuard<'a, DeviceManager<'static>> {
+    DEVICE_MANAGER
+        .get_or_init(|| {
+            Mutex::new(DeviceManager {
+                devices: HashMap::with_hasher(FxBuildHasher::default()),
+            })
+        })
+        .lock()
+        .await
 }
