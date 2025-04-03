@@ -30,10 +30,98 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use nusb::{list_devices, DeviceInfo};
+use std::sync::OnceLock;
 
-use crate::devices::device_manager::device_manager;
+use ahash::{HashMap, HashMapExt};
+use nusb::{list_devices, DeviceInfo};
+use smol::lock::Mutex;
+
 use crate::error::sn::Error;
+
+/// A lazily initialized [`HashMap`] containing the `serial number` (key) and [`abort function`][1]
+/// (value) for each connected [`Thorlabs Device`][2]. It is protected by an async [`Mutex`] for
+/// thread-safe concurrent access.
+///
+/// The [`HashMap`] is only accessed when connecting or disconnecting [`Thorlabs Devices`][2]. The
+/// [`HashMap`] is not required when [`opening`][3], [`closing`][4], or [`sending`][5] commands to
+/// the device. As such, lock contention does not affect device latency.
+///
+/// If an irrecoverable error occurs anywhere in the program, this triggers the [`global_abort`]
+/// function which safely [`aborts`][1] each device, bringing the system to a controlled stop.
+///
+/// [1]: crate::traits::ThorlabsDevice::abort
+/// [2]: crate::traits::ThorlabsDevice
+/// [3]: crate::devices::UsbPrimitive::open
+/// [4]: crate::devices::UsbPrimitive::close
+/// [5]: crate::devices::UsbPrimitive::send
+#[doc(hidden)]
+pub(super) static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn FnOnce() + Send + 'static>>>> =
+    OnceLock::new();
+
+#[doc(hidden)]
+pub(crate) const BUG: &str = "This is a bug. If you are able to reproduce this issue, please open \
+                              a new GitHub issue and report the relevant details";
+
+/// Adds a new [`Thorlabs Device`][1] `serial number` (key) and corresponding [`abort`][2] function
+/// (value) to the global [`DEVICES`][3] [`HashMap`].
+///
+/// [1]: crate::traits::ThorlabsDevice
+/// [2]: crate::traits::ThorlabsDevice::abort
+/// [3]: DEVICES
+#[doc(hidden)]
+pub(super) async fn add<Fn>(serial_number: String, f: Fn)
+where
+    Fn: FnOnce() + Send + 'static,
+{
+    DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+        .insert(serial_number, Box::new(f));
+}
+
+/// Removes a [`Thorlabs Device`][1] from the global [`DEVICES`][2] [`HashMap`].
+///
+/// [1]: crate::traits::ThorlabsDevice
+/// [2]: DEVICES
+#[doc(hidden)]
+pub(super) async fn remove(serial_number: String) {
+    DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+        .remove(&serial_number);
+}
+
+/// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
+/// an error message.
+///
+/// Internally, this function iterates over the global [`DEVICES`][2] [`HashMap`] and calls the
+/// respective [`abort`][3] function for each device.
+///
+/// ### Panics
+///
+/// This function always panics.
+///
+/// This is intended behaviour to safely unwind and free resources.
+///
+/// [1]: crate::traits::ThorlabsDevice
+/// [2]: DEVICES
+/// [3]: crate::traits::ThorlabsDevice::abort
+#[doc(hidden)]
+pub(crate) fn global_abort(message: String) -> ! {
+    smol::block_on(async {
+        DEVICES
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .await
+            .drain()
+            .for_each(|(_, f)| {
+                f();
+            });
+    });
+    panic!("\nAbort due to error : {}\n", message);
+}
 
 /// Returns an iterator over all connected Thorlabs devices.
 fn get_devices() -> impl Iterator<Item = DeviceInfo> {
@@ -64,31 +152,3 @@ fn show_devices() {
         println!("{:?}\n", device);
     }
 }
-
-/// Safely stops all [Thorlabs devices][1], cleans up resources, and terminates
-/// the program with an error message.
-///
-/// Internally, this function iterates over the global [DeviceManager] and calls
-/// the respective `abort` function for each device.
-///
-/// ### Panics
-///
-/// This function always panics.
-///
-/// This is intended behaviour to safely unwind and free resources.
-///
-/// [1]: crate::traits::ThorlabsDevice
-pub(crate) fn abort(message: String) -> ! {
-    smol::block_on(async {
-        for serial_number in device_manager().await.devices.keys() {
-            if let Some(f) = device_manager().await.devices.remove(serial_number) {
-                f()
-            }
-        }
-    });
-    panic!("\nAbort due to error : {}\n", message);
-}
-
-#[doc(hidden)]
-pub(crate) const BUG: &str = "This is a bug. If you are able to reproduce this issue, please open \
-                              a new GitHub issue and report the relevant details";
