@@ -30,16 +30,31 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::Arc;
 
+use ahash::HashMap;
 use async_broadcast::broadcast;
-use rustc_hash::FxHashMap;
 use smol::lock::{Mutex, MutexGuard};
 
-use crate::devices::{abort, BUG};
+use crate::devices::{global_abort, BUG};
 use crate::messages::{Receiver, Sender};
+
+/// Indicates whether the wrapped [`Receiver`] is bound to a [`New`][1] or [`Existing`][2]
+/// [`Sender`]
+///
+/// [1]: Provenance::New
+/// [2]: Provenance::Existing
+pub(crate) enum Provenance {
+    /// If a [`Sender`] does not exist for the given command ID, a new [`broadcast`] channel is
+    /// created. The new [`Sender`] is inserted into the [`Dispatcher`] [`HashMap`] and the new
+    /// [`Receiver`] is returned wrapped in [`Provenance::New`].
+    New(Receiver),
+    /// If the [`Dispatcher`] [`HashMap`] already contains a [`Sender`] for the given command ID,
+    /// a [`new_receiver`][1] is created and returned wrapped in [`Provenance::Existing`].
+    ///
+    /// [1]: Sender::new_receiver
+    Existing(Receiver),
+}
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
 ///
@@ -47,7 +62,7 @@ use crate::messages::{Receiver, Sender};
 /// The [`Dispatcher`] is released when all clones are dropped.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Dispatcher {
-    map: Arc<FxHashMap<[u8; 2], Mutex<Option<Sender>>>>,
+    map: Arc<HashMap<[u8; 2], Mutex<Option<Sender>>>>,
 }
 
 impl Dispatcher {
@@ -66,7 +81,9 @@ impl Dispatcher {
     async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
         self.map
             .get(id)
-            .unwrap_or_else(|| abort(format!("Dispatcher does not contain command ID {:?}", id)))
+            .unwrap_or_else(|| {
+                global_abort(format!("Dispatcher does not contain command ID {:?}", id))
+            })
             .lock()
             .await
     }
@@ -74,14 +91,36 @@ impl Dispatcher {
     // SAFETY: Using Dispatcher::insert outside this impl block may cause an existing sender to
     // drop before it has broadcast. Any existing receivers will await indefinitely.
     /// Creates a new [`broadcast`] channel.
-    /// Inserts the [`Sender`] into the [`HashMap`][1] and returns the [`Receiver`].
-    ///
-    /// [1]: FxHashMap
+    /// Inserts the [`Sender`] into the [`HashMap`] and returns the [`Receiver`].
     #[doc(hidden)]
     fn insert(opt: &mut MutexGuard<Option<Sender>>) -> Receiver {
         let (tx, rx) = broadcast(1);
         opt.replace(tx);
         rx
+    }
+
+    /// Returns a receiver for the given command ID, wrapped in the [`Provenance`] enum. This is
+    /// useful for pattern matching.
+    ///
+    /// - [`New`][1] → A [`Sender`] does not exist for the given command ID. A new broadcast channel
+    ///   is created.
+    ///
+    /// - [`Existing`][2] → The system is already waiting for a response from the Thorlabs device
+    ///   for this command
+    ///
+    /// If pattern matching is not required, see [`any_receiver`][3] and [`new_receiver`][4] for
+    /// simpler alternatives.
+    ///
+    /// [1]: Provenance::New
+    /// [2]: Provenance::Existing
+    /// [3]: Dispatcher::any_receiver
+    /// [4]: Dispatcher::new_receiver
+    pub(crate) async fn get_receiver(&self, id: &[u8]) -> Provenance {
+        let mut opt = self.get(id).await;
+        match &*opt {
+            None => Provenance::New(Self::insert(&mut opt)),
+            Some(existing) => Provenance::Existing(existing.new_receiver()),
+        }
     }
 
     /// Returns a receiver for the given command ID.
@@ -99,7 +138,7 @@ impl Dispatcher {
     /// [1]: Dispatcher::new_receiver
     pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
         let mut opt = self.get(id).await;
-        match opt.deref() {
+        match &*opt {
             None => Self::insert(&mut opt),
             Some(existing) => existing.new_receiver(),
         }
@@ -113,7 +152,7 @@ impl Dispatcher {
     /// [1]: Dispatcher::any_receiver
     pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
         let mut opt = self.get(id).await;
-        match opt.deref() {
+        match &*opt {
             None => Self::insert(&mut opt),
             Some(existing) => {
                 // Wait for the pending command to complete. No need to read the response
@@ -124,12 +163,10 @@ impl Dispatcher {
         }
     }
 
-    /// Removes the [`HashMap`][1] entry for the given command ID.
+    /// Removes the [`HashMap`] entry for the given command ID.
     ///
     /// - Returns a [`Sender`] if functions are awaiting the command response.
     /// - Returns [`None`] if no functions are awaiting the command response.
-    ///
-    /// [1]: FxHashMap
     #[doc(hidden)]
     pub(crate) async fn take(&self, id: &[u8]) -> Option<Sender> {
         self.get(id).await.take()
@@ -148,7 +185,7 @@ impl Dispatcher {
             sender
                 .broadcast_direct(data)
                 .await
-                .unwrap_or_else(|e| abort(format!("Broadcast failed\n\n{}\n\n{}", e, BUG)));
+                .unwrap_or_else(|e| global_abort(format!("Broadcast failed\n\n{}\n\n{}", e, BUG)));
         }
     }
 }
