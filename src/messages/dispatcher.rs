@@ -115,7 +115,7 @@ impl Dispatcher {
     /// [2]: Provenance::Existing
     /// [3]: Dispatcher::any_receiver
     /// [4]: Dispatcher::new_receiver
-    pub(crate) async fn get_receiver(&self, id: &[u8]) -> Provenance {
+    pub(crate) async fn receiver(&self, id: &[u8]) -> Provenance {
         let mut opt = self.get(id).await;
         match &*opt {
             None => Provenance::New(Self::insert(&mut opt)),

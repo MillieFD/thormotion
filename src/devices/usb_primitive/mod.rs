@@ -47,7 +47,7 @@ use status::Status;
 
 use crate::devices::{abort_device, drop_device, get_device, global_abort};
 use crate::error::{cmd, sn};
-use crate::messages::{Dispatcher, Receiver};
+use crate::messages::{Dispatcher, Provenance, Receiver};
 
 pub(crate) struct UsbPrimitive {
     /// A unique eight-digit serial number which is printed on the Thorlabs device.
@@ -151,6 +151,26 @@ impl UsbPrimitive {
     /// [7]: UsbPrimitive::close
     async fn abort(&self) {
         abort_device(self.serial_number()).await
+    }
+
+    /// Returns a receiver for the given command ID, wrapped in the [`Provenance`] enum. This is
+    /// useful for pattern matching.
+    ///
+    /// - [`New`][1] → A [`Sender`] does not exist for the given command ID. A new broadcast channel
+    ///   is created.
+    ///
+    /// - [`Existing`][2] → The system is already waiting for a response from the Thorlabs device
+    ///   for this command
+    ///
+    /// If pattern matching is not required, see [`any_receiver`][3] and [`new_receiver`][4] for
+    /// simpler alternatives.
+    ///
+    /// [1]: Provenance::New
+    /// [2]: Provenance::Existing
+    /// [3]: Dispatcher::any_receiver
+    /// [4]: Dispatcher::new_receiver
+    pub(crate) async fn receiver(&self, id: &[u8]) -> Provenance {
+        self.status.read().await.dispatcher().receiver(id).await
     }
 
     /// Returns a receiver for the given command ID.
