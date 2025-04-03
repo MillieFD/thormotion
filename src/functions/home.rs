@@ -30,7 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::{abort, BUG};
+use crate::devices::{global_abort, BUG};
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
@@ -46,5 +46,5 @@ where
     device.inner().send(command).await;
     rx.recv_direct()
         .await
-        .unwrap_or_else(|e| abort(format!("Failed to receive message from {} : {}", e, BUG)));
+        .unwrap_or_else(|e| global_abort(format!("Failed to receive message from {} : {}", e, BUG)));
 }
