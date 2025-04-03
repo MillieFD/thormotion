@@ -108,6 +108,17 @@ pub(super) async fn abort_device(serial_number: &str) {
     }
 }
 
+pub(super) async fn drop_device(serial_number: &str) {
+    if let Some(f) = DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+        .remove(serial_number)
+    {
+        f()
+    }
+}
+
 /// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
 /// an error message.
 ///
