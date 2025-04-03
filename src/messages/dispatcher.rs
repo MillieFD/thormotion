@@ -148,7 +148,7 @@ impl Dispatcher {
             sender
                 .broadcast_direct(data)
                 .await
-                .unwrap_or_else(|err| abort(format!("Broadcast failed\n\n{}\n\n{}", err, BUG)));
+                .unwrap_or_else(|e| abort(format!("Broadcast failed\n\n{}\n\n{}", e, BUG)));
         }
     }
 }
