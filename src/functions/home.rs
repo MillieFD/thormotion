@@ -44,7 +44,10 @@ where
     let mut rx = device.inner().new_receiver(&HOMED).await;
     let command = short(HOME, channel, 0);
     device.inner().send(command).await;
-    rx.recv_direct()
-        .await
-        .unwrap_or_else(|e| global_abort(format!("Failed to receive message from {} : {}", e, BUG)));
+    rx.recv_direct().await.unwrap_or_else(|e| {
+        global_abort(format!(
+            "{} failed to receive HOMED command : {} : {}",
+            device, e, BUG
+        ))
+    });
 }
