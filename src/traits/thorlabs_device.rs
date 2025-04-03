@@ -44,13 +44,14 @@ pub trait ThorlabsDevice: Display + Debug + Send + Sync {
         self.inner().serial_number()
     }
 
-    /// Safely brings the [`Thorlabs Device`][1] to a resting state and releases the claimed
+    /// Safely brings the [`USB Device`][1] to a resting state and releases the claimed
     /// [`Interface`][2].
     ///
-    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
+    /// If the device [`Status`][3] is [`Closed`][4], a temporary [`Interface`][2] is [`Opened`][5]
+    /// to send the abort command.
     ///
-    /// Does not remove the device from the [`Global Device Manager`][5].
-    /// You can use `open` to resume communication.
+    /// Does not remove the device from the global [`DEVICES`][6] [`HashMap`][7]. You can use
+    /// [`Open`][5] to resume communication.
     ///
     /// To release the claimed [`Interface`][2] without bringing the device to a resting state,
     /// use `close`.
@@ -59,7 +60,9 @@ pub trait ThorlabsDevice: Display + Debug + Send + Sync {
     /// [2]: nusb::Interface
     /// [3]: crate::devices::usb_primitive::status::Status
     /// [4]: crate::devices::usb_primitive::status::Status::Closed
-    /// [5]: crate::devices::device_manager::DeviceManager
+    /// [5]: UsbPrimitive::open
+    /// [6]: crate::devices::utils::DEVICES
+    /// [7]: ahash::HashMap
     fn abort(&self);
 }
 
