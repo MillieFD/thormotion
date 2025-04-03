@@ -137,7 +137,7 @@ impl Dispatcher {
 
     /// [`Broadcasts`][1] the command response to any waiting receivers.
     ///
-    /// [1]: Sender::broadcast
+    /// [1]: Sender::broadcast_direct
     pub(crate) async fn dispatch(&self, command: Vec<u8>) {
         let data: Arc<[u8]> = Arc::from(command);
         let id: &[u8] = &data[..2];
@@ -150,14 +150,6 @@ impl Dispatcher {
                 .await
                 .unwrap_or_else(|err| abort(format!("Broadcast failed\n\n{}\n\n{}", err, BUG)));
         }
-    }
-
-    async fn is_some(&self, id: &[u8]) -> bool {
-        self.get(id).await.is_some()
-    }
-
-    async fn is_none(&self, id: &[u8]) -> bool {
-        self.get(id).await.is_none()
     }
 }
 
