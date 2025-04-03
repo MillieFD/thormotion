@@ -30,26 +30,25 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::{abort, BUG_MESSAGE};
+use crate::devices::{abort, BUG};
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
+/// Homes the specified device channel.
 pub(crate) async fn __home<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
 {
-    const ID: [u8; 2] = [0x44, 0x04];
-    let mut rx = device.inner().new_receiver(&ID).await;
-    let data = short(ID, channel, 0);
+    const HOME: [u8; 2] = [0x43, 0x04];
+    const HOMED: [u8; 2] = [0x44, 0x04];
+    let mut rx = device.inner().new_receiver(&HOMED).await;
+    let command = short(HOME, channel, 0);
     device
         .inner()
-        .send(data)
+        .send(command)
         .await
-        .unwrap_or_else(|err| abort(format!("Failed to send command\n\n{}\n\n{}", device, err)));
-    rx.recv_direct().await.unwrap_or_else(|err| {
-        abort(format!(
-            "Failed to receive message\n\n{}\n\n{}",
-            err, BUG_MESSAGE
-        ))
-    });
+        .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", device, e)));
+    rx.recv_direct()
+        .await
+        .unwrap_or_else(|e| abort(format!("Failed to receive message from {} : {}", e, BUG)));
 }
