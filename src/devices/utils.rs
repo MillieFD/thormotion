@@ -55,8 +55,7 @@ use crate::error::sn::Error;
 /// [4]: crate::devices::UsbPrimitive::close
 /// [5]: crate::devices::UsbPrimitive::send
 #[doc(hidden)]
-static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn FnOnce() + Send + 'static>>>> =
-    OnceLock::new();
+static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn Fn() + Send + 'static>>>> = OnceLock::new();
 
 /// Adds a new [`Thorlabs Device`][1] `serial number` (key) and corresponding [`abort`][2] function
 /// (value) to the global [`DEVICES`][3] [`HashMap`].
@@ -65,9 +64,9 @@ static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn FnOnce() + Send + 'static
 /// [2]: crate::traits::ThorlabsDevice::abort
 /// [3]: DEVICES
 #[doc(hidden)]
-pub(super) async fn add_device<Fn>(serial_number: String, f: Fn)
+pub(super) async fn add_device<F>(serial_number: String, f: F)
 where
-    Fn: FnOnce() + Send + 'static,
+    F: Fn() + Send + 'static,
 {
     DEVICES
         .get_or_init(|| Mutex::new(HashMap::new()))
@@ -87,6 +86,26 @@ pub(super) async fn remove_device(serial_number: &str) {
         .lock()
         .await
         .remove(serial_number);
+}
+
+/// Calls the [`abort`][1] function for the specified [`Thorlabs Device`][1].
+///
+/// The device is not removed from the global [`DEVICES`][2] [`HashMap`]. You can use
+/// [`Open`][3] to resume communication.
+///
+/// [1]: crate::traits::ThorlabsDevice::abort
+/// [2]: DEVICES
+/// [3]: crate::devices::UsbPrimitive::open
+#[doc(hidden)]
+pub(super) async fn abort_device(serial_number: &str) {
+    if let Some(f) = DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+        .get(serial_number)
+    {
+        f()
+    }
 }
 
 /// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
