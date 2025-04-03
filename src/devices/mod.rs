@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* ----------------------------------------------------------------------------- Private Modules */
 
-mod device_manager;
 mod kdc101;
 mod usb_primitive;
 mod utils;
@@ -40,10 +39,10 @@ mod utils;
 /* --------------------------------------------------------------------------- Public Re-Exports */
 
 pub use kdc101::KDC101;
+pub use utils::show_devices;
 
 /* -------------------------------------------------------------------------- Private Re-Exports */
 
-use device_manager::device_manager;
 pub(crate) use usb_primitive::UsbPrimitive;
-use utils::get_device;
-pub(crate) use utils::{abort, BUG};
+use utils::{get_device, remove_device};
+pub(crate) use utils::{global_abort, BUG};

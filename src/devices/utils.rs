@@ -34,7 +34,7 @@ use std::sync::OnceLock;
 
 use ahash::{HashMap, HashMapExt};
 use nusb::{list_devices, DeviceInfo};
-use smol::lock::{Mutex, MutexGuard};
+use smol::lock::Mutex;
 
 use crate::error::sn::Error;
 
@@ -58,13 +58,6 @@ use crate::error::sn::Error;
 static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn FnOnce() + Send + 'static>>>> =
     OnceLock::new();
 
-pub(super) async fn devices<'a>() -> MutexGuard<'a, HashMap<String, Box<dyn FnOnce() + Send>>> {
-    DEVICES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await
-}
-
 /// Adds a new [`Thorlabs Device`][1] `serial number` (key) and corresponding [`abort`][2] function
 /// (value) to the global [`DEVICES`][3] [`HashMap`].
 ///
@@ -76,7 +69,11 @@ pub(super) async fn add_device<Fn>(serial_number: String, f: Fn)
 where
     Fn: FnOnce() + Send + 'static,
 {
-    devices().await.insert(serial_number, Box::new(f));
+    DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+        .insert(serial_number, Box::new(f));
 }
 
 /// Removes a [`Thorlabs Device`][1] from the global [`DEVICES`][2] [`HashMap`].
@@ -84,8 +81,12 @@ where
 /// [1]: crate::traits::ThorlabsDevice
 /// [2]: DEVICES
 #[doc(hidden)]
-pub(super) async fn remove_device(serial_number: String) {
-    devices().await.remove(&serial_number);
+pub(super) async fn remove_device(serial_number: &str) {
+    DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+        .remove(serial_number);
 }
 
 /// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
@@ -145,7 +146,7 @@ pub(super) fn get_device(serial_number: &String) -> Result<DeviceInfo, Error> {
 }
 
 /// For convenience, this function prints a list of connected devices to stdout.
-fn show_devices() {
+pub fn show_devices() {
     let devices = get_devices();
     for device in devices {
         println!("{:?}\n", device);
