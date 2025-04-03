@@ -36,7 +36,7 @@ use std::sync::Arc;
 
 use smol::block_on;
 
-use crate::devices::{add_device, UsbPrimitive};
+use crate::devices::{UsbPrimitive, add_device};
 use crate::error::sn;
 use crate::functions::*;
 use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion};
@@ -48,9 +48,10 @@ pub struct KDC101 {
 }
 
 impl KDC101 {
-    const IDS: [[u8; 2]; 2] = [
+    const IDS: [[u8; 2]; 3] = [
         // MOD
         [0x23, 0x02], // IDENTIFY
+        [0x12, 0x02], // GET_CHANENABLESTATE
         // MOT
         [0x44, 0x04], // MOVE_HOMED
     ];
@@ -66,35 +67,57 @@ impl KDC101 {
         Ok(device)
     }
 
+    /// Returns `True` if the [`USB Interface`][1] is open.
+    ///
+    /// [1]: nusb::Interface
     async fn is_open(&self) -> bool {
         self.inner.is_open().await
     }
 
-    /// todo Opens a connection to the device
+    /// Opens an [`Interface`][1] to the [`USB Device`][2].
+    ///
+    /// No action is taken if the device [`Status`][3] is already [`Open`][4].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Open
     pub async fn open(&mut self) -> Result<(), Error> {
         self.inner.open().await
     }
 
-    /// todo Closes the connection to the device
-    /// Releases the claimed interface
-    /// Does not stop the device's current action (use abort instead)
+    /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
     ///
-    /// Does not stop the device's current action.
+    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
     ///
-    /// For example, you can tell the
-    /// device to `HOME` and then `close` the interface without waiting for the task to complete.
-    /// The device will continue to `HOME` after losing the connection. Once homing is complete,
-    /// the device will send the `HOMED` command to the closed buffer.
+    /// This does not stop the device's current action. If you need to safely bring the
+    /// [`USB Device`][2] to a resting state, see [`abort`][5].
     ///
-    /// To stop the device's current action, use [`Self::abort`]
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Closed
+    /// [5]: ThorlabsDevice::abort
     async fn close(&mut self) -> Result<(), Error> {
         self.inner.close().await
     }
 
+    /// Identifies the device by flashing the front panel LED.
     pub async fn identify(&self) {
-        __identify(self, 0).await;
+        __identify(self, 1).await;
     }
 
+    /// Returns `True` if the specified device channel is enabled.
+    pub async fn get_channel_enable_state(&self) {
+        __req_channel_enable_state(self, 1).await;
+    }
+
+    /// Enables or disables the specified device channel.
+    pub async fn set_channel_enable_state(&self, enable: bool) {
+        __set_channel_enable_state(self, 1, enable).await;
+    }
+
+    /// Homes the specified device channel.
     pub async fn home(&self) {
         __home(self, 0).await;
     }
