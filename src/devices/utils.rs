@@ -34,7 +34,7 @@ use std::sync::OnceLock;
 
 use ahash::{HashMap, HashMapExt};
 use nusb::{list_devices, DeviceInfo};
-use smol::lock::Mutex;
+use smol::lock::{Mutex, MutexGuard};
 
 use crate::error::sn::Error;
 
@@ -55,12 +55,15 @@ use crate::error::sn::Error;
 /// [4]: crate::devices::UsbPrimitive::close
 /// [5]: crate::devices::UsbPrimitive::send
 #[doc(hidden)]
-pub(super) static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn FnOnce() + Send + 'static>>>> =
+static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn FnOnce() + Send + 'static>>>> =
     OnceLock::new();
 
-#[doc(hidden)]
-pub(crate) const BUG: &str = "This is a bug. If you are able to reproduce this issue, please open \
-                              a new GitHub issue and report the relevant details";
+pub(super) async fn devices<'a>() -> MutexGuard<'a, HashMap<String, Box<dyn FnOnce() + Send>>> {
+    DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .await
+}
 
 /// Adds a new [`Thorlabs Device`][1] `serial number` (key) and corresponding [`abort`][2] function
 /// (value) to the global [`DEVICES`][3] [`HashMap`].
@@ -69,15 +72,11 @@ pub(crate) const BUG: &str = "This is a bug. If you are able to reproduce this i
 /// [2]: crate::traits::ThorlabsDevice::abort
 /// [3]: DEVICES
 #[doc(hidden)]
-pub(super) async fn add<Fn>(serial_number: String, f: Fn)
+pub(super) async fn add_device<Fn>(serial_number: String, f: Fn)
 where
     Fn: FnOnce() + Send + 'static,
 {
-    DEVICES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await
-        .insert(serial_number, Box::new(f));
+    devices().await.insert(serial_number, Box::new(f));
 }
 
 /// Removes a [`Thorlabs Device`][1] from the global [`DEVICES`][2] [`HashMap`].
@@ -85,12 +84,8 @@ where
 /// [1]: crate::traits::ThorlabsDevice
 /// [2]: DEVICES
 #[doc(hidden)]
-pub(super) async fn remove(serial_number: String) {
-    DEVICES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await
-        .remove(&serial_number);
+pub(super) async fn remove_device(serial_number: String) {
+    devices().await.remove(&serial_number);
 }
 
 /// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
@@ -122,6 +117,10 @@ pub(crate) fn global_abort(message: String) -> ! {
     });
     panic!("\nAbort due to error : {}\n", message);
 }
+
+#[doc(hidden)]
+pub(crate) const BUG: &str = "This is a bug. If you are able to reproduce this issue, please open \
+                              a new GitHub issue and report the relevant details";
 
 /// Returns an iterator over all connected Thorlabs devices.
 fn get_devices() -> impl Iterator<Item = DeviceInfo> {
