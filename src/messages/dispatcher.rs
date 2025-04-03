@@ -35,10 +35,10 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use async_broadcast::broadcast;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::FxHashMap;
 use smol::lock::{Mutex, MutexGuard};
 
-use crate::devices::{BUG_MESSAGE, abort};
+use crate::devices::{abort, BUG};
 use crate::messages::{Receiver, Sender};
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
@@ -53,12 +53,10 @@ pub(crate) struct Dispatcher {
 impl Dispatcher {
     /// Constructs a new [`Dispatcher`] from the provided array of command ID bytes.
     pub(crate) fn new(ids: &[[u8; 2]]) -> Self {
-        let mut fxmap = HashMap::with_hasher(FxBuildHasher);
-        for id in ids {
-            fxmap.insert(*id, Mutex::new(None));
-        }
         Self {
-            map: Arc::new(fxmap),
+            map: Arc::new(HashMap::from_iter(
+                ids.iter().map(|id| (*id, Mutex::new(None))),
+            )),
         }
     }
 
@@ -147,9 +145,10 @@ impl Dispatcher {
             // Sender::broadcast returns an error if either:
             //  1. The channel is closed
             //  2. The channel has no active receivers & Sender::await_active is False
-            sender.broadcast_direct(data).await.unwrap_or_else(|err| {
-                abort(format!("Broadcast failed\n\n{}\n\n{}", err, BUG_MESSAGE))
-            });
+            sender
+                .broadcast_direct(data)
+                .await
+                .unwrap_or_else(|err| abort(format!("Broadcast failed\n\n{}\n\n{}", err, BUG)));
         }
     }
 
