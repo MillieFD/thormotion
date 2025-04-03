@@ -43,11 +43,7 @@ where
     const HOMED: [u8; 2] = [0x44, 0x04];
     let mut rx = device.inner().new_receiver(&HOMED).await;
     let command = short(HOME, channel, 0);
-    device
-        .inner()
-        .send(command)
-        .await
-        .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", device, e)));
+    device.inner().send(command).await;
     rx.recv_direct()
         .await
         .unwrap_or_else(|e| abort(format!("Failed to receive message from {} : {}", e, BUG)));

@@ -30,7 +30,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::abort;
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
@@ -40,10 +39,6 @@ where
     A: ThorlabsDevice,
 {
     const ID: [u8; 2] = [0x23, 0x02];
-    let data = short(ID, channel, 0);
-    device
-        .inner()
-        .send(data)
-        .await
-        .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", device, e)));
+    let command = short(ID, channel, 0);
+    device.inner().send(command).await
 }

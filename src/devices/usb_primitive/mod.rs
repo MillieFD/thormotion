@@ -180,12 +180,19 @@ impl UsbPrimitive {
         self.status.read().await.dispatcher().new_receiver(id).await
     }
 
-    /// Send a command to the device.
+    /// Sends a command to the device.
+    pub(crate) async fn send(&self, command: Vec<u8>) {
+        self.try_send(command)
+            .await
+            .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", self, e)));
+    }
+
+    /// Sends a command to the device.
     ///
     /// Returns an [`Error`][1] if the device is closed.
     ///
     /// [1]: cmd::Error
-    pub(crate) async fn send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
+    pub(crate) async fn try_send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
         let guard = self.status.read().await;
         match &*guard {
             Status::Open(communicator) => {
