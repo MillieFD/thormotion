@@ -37,9 +37,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 mod dispatcher;
 pub(crate) mod utils;
 
-pub(crate) use dispatcher::Dispatcher;
-
 /* --------------------------------------------------------------------------- Public Re-Exports */
 
 pub type Sender = async_broadcast::Sender<std::sync::Arc<[u8]>>;
 pub type Receiver = async_broadcast::Receiver<std::sync::Arc<[u8]>>;
+
+/* -------------------------------------------------------------------------- Private Re-Exports */
+
+pub(crate) use dispatcher::{Dispatcher, Provenance};
