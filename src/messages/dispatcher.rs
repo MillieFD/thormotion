@@ -36,7 +36,7 @@ use ahash::HashMap;
 use async_broadcast::broadcast;
 use smol::lock::{Mutex, MutexGuard};
 
-use crate::devices::{global_abort, BUG};
+use crate::devices::{BUG, global_abort};
 use crate::messages::{Receiver, Sender};
 
 /// Indicates whether the wrapped [`Receiver`] is bound to a [`New`][1] or [`Existing`][2]
@@ -54,6 +54,15 @@ pub(crate) enum Provenance {
     ///
     /// [1]: Sender::new_receiver
     Existing(Receiver),
+}
+
+impl Provenance {
+    fn unwrap(self) -> Receiver {
+        match self {
+            Provenance::New(rx) => rx,
+            Provenance::Existing(rx) => rx,
+        }
+    }
 }
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
@@ -90,8 +99,10 @@ impl Dispatcher {
 
     // SAFETY: Using Dispatcher::insert outside this impl block may cause an existing sender to
     // drop before it has broadcast. Any existing receivers will await indefinitely.
-    /// Creates a new [`broadcast`] channel.
+    /// Creates a new [`broadcast channel`][1].
     /// Inserts the [`Sender`] into the [`HashMap`] and returns the [`Receiver`].
+    ///
+    /// [1]: broadcast
     #[doc(hidden)]
     fn insert(opt: &mut MutexGuard<Option<Sender>>) -> Receiver {
         let (tx, rx) = broadcast(1);
@@ -125,38 +136,36 @@ impl Dispatcher {
 
     /// Returns a receiver for the given command ID.
     ///
-    /// If the [`HashMap`] already contains a [`Sender`] for the given command ID, a new
-    /// [`Receiver`] is created using [`Sender::new_receiver`] and returned.
+    /// If the [`HashMap`] already contains a [`Sender`] for the given command ID, a
+    /// [`new_receiver`][1] is created.
     ///
-    /// If a [`Sender`] does not exist for the given command ID, a new broadcast channel is created
-    /// using [`broadcast`]. The new [`Sender`] is inserted into the [`HashMap`] and the new
-    /// [`Receiver`] is returned.
+    /// If a [`Sender`] does not exist for the given command ID, a new [`broadcast channel`][2] is
+    /// created. The new [`Sender`] is inserted into the [`HashMap`] and the new [`Receiver`] is
+    /// returned.
     ///
     /// If you need to guarantee that the device is not currently executing the command for the
-    /// given ID, use [`new_receiver`][1].
+    /// given ID, use [`new_receiver`][3]. If you need pattern matching, see [`receiver`][4].
     ///
-    /// [1]: Dispatcher::new_receiver
+    /// [1]: Sender::new_receiver
+    /// [2]: broadcast
+    /// [3]: Dispatcher::new_receiver
+    /// [4]: Dispatcher::receiver
     pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
-        let mut opt = self.get(id).await;
-        match &*opt {
-            None => Self::insert(&mut opt),
-            Some(existing) => existing.new_receiver(),
-        }
+        self.receiver(id).await.unwrap()
     }
 
-    /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not
-    /// currently executing the command for the given ID.
+    /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not currently
+    /// executing the command for the given ID.
     ///
     /// See also [`any_receiver`][1].
     ///
     /// [1]: Dispatcher::any_receiver
     pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
-        let mut opt = self.get(id).await;
-        match &*opt {
-            None => Self::insert(&mut opt),
-            Some(existing) => {
+        match self.receiver(id).await {
+            Provenance::New(rx) => rx,
+            Provenance::Existing(rx) => {
                 // Wait for the pending command to complete. No need to read the response
-                let _ = existing.new_receiver().recv().await;
+                let _ = rx.new_receiver().recv().await;
                 // Then call new_receiver recursively to check again.
                 Box::pin(async { self.new_receiver(id).await }).await
             }
@@ -185,7 +194,7 @@ impl Dispatcher {
             sender
                 .broadcast_direct(data)
                 .await
-                .unwrap_or_else(|e| global_abort(format!("Broadcast failed\n\n{}\n\n{}", e, BUG)));
+                .unwrap_or_else(|e| global_abort(format!("Broadcast failed : {} : {}", e, BUG)));
         }
     }
 }
