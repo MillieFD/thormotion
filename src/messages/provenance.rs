@@ -41,7 +41,7 @@ use crate::messages::Receiver;
 /// [1]: Provenance::New
 /// [2]: Provenance::Existing
 /// [3]: crate::messages::Sender
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub(crate) enum Provenance {
     /// If a [`Sender`][1] does not exist for the given command ID, a new [`broadcast`][2] channel
     /// is created. The new [`Sender`][1] is inserted into the [`Dispatcher`][3] [`HashMap`][4]
