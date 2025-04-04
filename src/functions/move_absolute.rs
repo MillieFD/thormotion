@@ -31,34 +31,34 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 use crate::messages::utils::{long, short};
-use crate::traits::ThorlabsDevice;
+use crate::traits::{ThorlabsDevice, UnitConversion};
 
 const MOVE: [u8; 2] = [0x53, 0x04];
 const MOVED: [u8; 2] = [0x64, 0x04];
 
 /// Moves the specified device channel to an absolute position.
 #[doc(hidden)]
-pub(crate) async fn __move_absolute<A>(device: &A, channel: u8, position: f32)
+pub(crate) async fn __move_absolute<A>(device: &A, channel: u8, position: f64)
 where
-    A: ThorlabsDevice,
+    A: ThorlabsDevice + UnitConversion,
 {
     device.check_channel(channel);
     let rx = device.inner().receiver(&MOVED).await;
     if rx.is_new() {
-        let mut command = long(MOVE, 12);
-        command.push(0);
-        command.push(channel);
-        command.extend(position.to_le_bytes());
+        let ch = (channel as u16).to_le_bytes();
+        let pos = A::DISTANCE_ANGLE.to_le_bytes(position);
+        let data = [ch[0], ch[1], pos[0], pos[1], pos[2], pos[3]];
+        let command = long(MOVE, &data);
         device.inner().send(command).await;
     }
     let response = rx.receive().await;
-    match response[2] == channel && response[8..12] == position.to_le_bytes() {
-        true => {} // No-op: Move was completed successfully
-        false => Box::pin(__move_absolute(device, channel, position)).await,
-    }
+    // match response[6] == channel && response[8..12] == position.to_le_bytes() { todo
+    //     true => {} // No-op: Move was completed successfully
+    //     false => Box::pin(__move_absolute(device, channel, position)).await,
+    // }
 }
 
-/// Moves the specified device channel to an absolute position (mm) using pre-set parameters
+/// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
 #[doc(hidden)]
 pub(crate) async fn __move_absolute_from_params<A>(device: &A, channel: u8) -> f32
 where
