@@ -30,8 +30,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::{BUG, global_abort};
-use crate::messages::Provenance;
+use crate::devices::global_abort;
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
@@ -43,28 +42,25 @@ where
 {
     const REQ: [u8; 2] = [0x11, 0x02];
     const GET: [u8; 2] = [0x12, 0x02];
-    let mut rx = device.inner().new_receiver(&GET).await;
-    let command = short(REQ, channel, 0);
-    device.inner().send(command).await;
-    let response = rx.recv_direct().await.unwrap_or_else(|e| {
-        global_abort(format!(
-            "{} failed to receive GET_CHANENABLESTATE command : {} : {}",
-            device, e, BUG
-        ))
-    });
-    if response[2] != channel {
-        global_abort(format!(
-            "{} GET_CHANENABLESTATE command contained invalid channel number : {}",
-            device, response[2]
-        ));
+    
+    device.check_channel(channel);
+    let rx = device.inner().receiver(&GET).await;
+    if rx.is_new() {
+        let command = short(REQ, channel, 0);
+        device.inner().send(command).await;
     }
-    match response[3] {
-        0x01 => true,
-        0x02 => false,
-        _ => global_abort(format!(
-            "{} GET_CHANENABLESTATE command contained invalid channel enable state : {}",
-            device, response[3]
-        )),
+    let response = rx.receive().await;
+    if channel == response[2] {
+        match response[3] {
+            0x01 => true,
+            0x02 => false,
+            _ => global_abort(format!(
+                "{} GET_CHANENABLESTATE contained invalid channel enable state : {}",
+                device, response[3]
+            )),
+        }
+    } else {
+        Box::pin(async { __req_channel_enable_state(device, channel).await }).await
     }
 }
 
@@ -75,30 +71,22 @@ where
     A: ThorlabsDevice,
 {
     const SET: [u8; 2] = [0x10, 0x02];
+    const REQ: [u8; 2] = [0x11, 0x02];
     const GET: [u8; 2] = [0x12, 0x02];
 
+    device.check_channel(channel);
     let enable_byte: u8 = if enable { 0x01 } else { 0x02 };
-    match device.inner().receiver(&GET).await {
-        Provenance::New(_) => {
-            let command = short(SET, channel, 0);
-            device.inner().send(command).await;
-            if !__req_channel_enable_state(device, channel).await && enable {
-                global_abort(format!(
-                    "{} SET_CHANENABLESTATE command failed to set channel {} to {}",
-                    device, channel, enable
-                ));
-            }
-        }
-        Provenance::Existing(mut rx) => {
-            let response = rx.recv_direct().await.unwrap_or_else(|e| {
-                global_abort(format!(
-                    "{} failed to receive GET_CHANENABLESTATE command : {} : {}",
-                    device, e, BUG
-                ))
-            });
-            if response[2] == channel && response[3] == enable_byte {
-                return; // No-op: Nothing to do here
-            }
+    let rx = device.inner().receiver(&GET).await;
+    if rx.is_new() {
+        let set = short(SET, channel, enable_byte);
+        device.inner().send(set).await;
+        let req = short(REQ, channel, 0);
+        device.inner().send(req).await;
+    }
+    let response = rx.receive().await;
+    match response[2] == channel && response[3] == enable_byte {
+        true => {} // No-op: Enable state was set successfully
+        false => {
             Box::pin(__set_channel_enable_state(device, channel, enable)).await;
         }
     }
