@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
-use crate::devices::UsbPrimitive;
+use crate::devices::{UsbPrimitive, global_abort};
 
 pub trait ThorlabsDevice: Display + Debug + Send + Sync {
     /// Returns a borrow which dereferences to the inner [`UsbPrimitive`]
@@ -42,6 +42,21 @@ pub trait ThorlabsDevice: Display + Debug + Send + Sync {
     /// Returns the serial number of the device as a `&str`.
     fn serial_number(&self) -> &str {
         self.inner().serial_number()
+    }
+
+    /// Returns the number of device channels.
+    fn channels(&self) -> u8;
+
+    /// No action if the specified channel is valid.
+    ///
+    /// Aborts if the specified channel is outside the valid range.
+    fn check_channel(&self, channel: u8) {
+        if channel <= 0 || channel > self.channels() {
+            global_abort(format!(
+                "Channel number {} is not valid for {}",
+                channel, self
+            ));
+        }
     }
 
     /// Safely brings the [`USB Device`][1] to a resting state and releases the claimed
