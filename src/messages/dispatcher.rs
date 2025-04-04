@@ -37,33 +37,7 @@ use async_broadcast::broadcast;
 use smol::lock::{Mutex, MutexGuard};
 
 use crate::devices::{BUG, global_abort};
-use crate::messages::{Receiver, Sender};
-
-/// Indicates whether the wrapped [`Receiver`] is bound to a [`New`][1] or [`Existing`][2]
-/// [`Sender`]
-///
-/// [1]: Provenance::New
-/// [2]: Provenance::Existing
-pub(crate) enum Provenance {
-    /// If a [`Sender`] does not exist for the given command ID, a new [`broadcast`] channel is
-    /// created. The new [`Sender`] is inserted into the [`Dispatcher`] [`HashMap`] and the new
-    /// [`Receiver`] is returned wrapped in [`Provenance::New`].
-    New(Receiver),
-    /// If the [`Dispatcher`] [`HashMap`] already contains a [`Sender`] for the given command ID,
-    /// a [`new_receiver`][1] is created and returned wrapped in [`Provenance::Existing`].
-    ///
-    /// [1]: Sender::new_receiver
-    Existing(Receiver),
-}
-
-impl Provenance {
-    fn unwrap(self) -> Receiver {
-        match self {
-            Provenance::New(rx) => rx,
-            Provenance::Existing(rx) => rx,
-        }
-    }
-}
+use crate::messages::{Provenance, Receiver, Sender};
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
 ///
@@ -151,7 +125,7 @@ impl Dispatcher {
     /// [3]: Dispatcher::new_receiver
     /// [4]: Dispatcher::receiver
     pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
-        self.receiver(id).await.unwrap()
+        self.receiver(id).await.unpack()
     }
 
     /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not currently
