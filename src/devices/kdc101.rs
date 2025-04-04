@@ -128,10 +128,6 @@ impl ThorlabsDevice for KDC101 {
         &self.inner
     }
 
-    fn channels(&self) -> u8 {
-        1
-    }
-
     fn abort(&self) {
         // todo()!
     }
