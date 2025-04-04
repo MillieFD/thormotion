@@ -47,10 +47,10 @@ pub struct KDC101 {
     inner: Arc<UsbPrimitive>,
 }
 
+// #[pyo3::pymethods]
 impl KDC101 {
-    const IDS: [[u8; 2]; 4] = [
+    const IDS: [[u8; 2]; 3] = [
         // MOD
-        [0x23, 0x02], // IDENTIFY
         [0x12, 0x02], // GET_CHANENABLESTATE
         // MOT
         [0x44, 0x04], // MOVE_HOMED
@@ -120,7 +120,17 @@ impl KDC101 {
 
     /// Homes the specified device channel.
     pub async fn home(&self) {
-        __home(self, 0).await;
+        __home(self, 1).await;
+    }
+
+    /// Moves the specified device channel to an absolute position.
+    pub async fn move_absolute(&self, position: f64) {
+        __move_absolute(self, 1, position).await;
+    }
+
+    /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
+    pub async fn move_absolute_from_params(&self) {
+        __move_absolute_from_params(self, 1).await;
     }
 }
 
@@ -143,9 +153,9 @@ impl CheckSerialNumber for KDC101 {
 }
 
 impl UnitConversion for KDC101 {
+    const ACCELERATION_SCALE_FACTOR: f64 = 263.8443072;
     const DISTANCE_ANGLE_SCALE_FACTOR: f64 = 34554.96;
     const VELOCITY_SCALE_FACTOR: f64 = 772981.3692;
-    const ACCELERATION_SCALE_FACTOR: f64 = 263.8443072;
 }
 
 impl Display for KDC101 {
