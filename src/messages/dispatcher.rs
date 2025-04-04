@@ -43,7 +43,7 @@ use crate::messages::{Provenance, Receiver, Sender};
 ///
 /// This type includes an internal [`Arc`] to enable inexpensive cloning.
 /// The [`Dispatcher`] is released when all clones are dropped.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct Dispatcher {
     map: Arc<HashMap<[u8; 2], Mutex<Option<Sender>>>>,
 }
