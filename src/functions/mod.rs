@@ -35,9 +35,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 mod home;
 mod identify;
 mod channel_enable_state;
+mod move_absolute;
 
 /* -------------------------------------------------------------------------- Private Re-Exports */
 
 pub(crate) use home::__home;
 pub(crate) use identify::__identify;
 pub(crate) use channel_enable_state::{__req_channel_enable_state, __set_channel_enable_state};
+pub(crate) use move_absolute::__move_absolute;

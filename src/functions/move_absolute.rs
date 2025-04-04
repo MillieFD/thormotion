@@ -30,52 +30,32 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::durations::DEFAULT_LONG_TIMEOUT;
-use crate::error::Error;
-use crate::macros::*;
-use crate::messages::utils::{get_new_receiver, pack_long_message, pack_short_message};
-use crate::traits::{DistanceAngleConversion, ThorlabsDevice};
-use async_std::future::timeout;
-use std::fmt::Debug;
+use crate::messages::utils::long;
+use crate::traits::ThorlabsDevice;
 
+/// Moves the specified device channel to an absolute position.
 #[doc(hidden)]
-#[doc = "Moves the specified device channel to an absolute position"]
-#[doc = apt_doc!(async, "MOT_MOVE_ABSOLUTE", "MOT_MOVE_COMPLETED ", RUSB, Timeout, FatalError)]
-pub(crate) async fn __move_absolute_async<A, B>(
-    device: &A,
-    channel: i32,
-    absolute_position: B,
-) -> Result<(), Error>
-where
-    A: ThorlabsDevice + DistanceAngleConversion,
-    B: Into<f64> + Clone + Debug,
-{
-    const ID: [u8; 2] = [0x53, 0x04];
-    const LENGTH: usize = 12;
-    let receiver = get_new_receiver(ID).await?;
-    let mut data = pack_long_message(ID, LENGTH);
-    let channel_bytes: [u8; 2] = u16::try_from(channel)?.to_le_bytes();
-    data.extend(channel_bytes);
-    data.extend(A::position_angle_to_le_bytes(absolute_position));
-    device.write(&data)?;
-    let _response = timeout(DEFAULT_LONG_TIMEOUT, receiver.recv()).await??;
-    Ok(())
-}
-
-#[doc(hidden)]
-#[doc = "Moves the specified device channel to an absolute position (mm) using pre-set parameters"]
-#[doc = apt_doc!(sync, "MOT_MOVE_ABSOLUTE", "MOT_MOVE_COMPLETED ", RUSB, Timeout, FatalError)]
-pub(crate) async fn __move_absolute_from_params_async<A>(
-    device: &A,
-    channel: i32,
-) -> Result<(), Error>
+pub(crate) async fn __move_absolute<A>(device: &A, channel: u8, position: f32)
 where
     A: ThorlabsDevice,
 {
-    const ID: [u8; 2] = [0x53, 0x04];
-    let receiver = get_new_receiver(ID).await?;
-    let data = pack_short_message(ID, channel, 0);
-    device.write(&data)?;
-    let _response = timeout(DEFAULT_LONG_TIMEOUT, receiver.recv()).await??;
-    Ok(())
+    const MOVE: [u8; 2] = [0x53, 0x04];
+    const MOVED: [u8; 2] = [0x64, 0x04];
+
+    device.check_channel(channel);
+    let rx = device.inner().receiver(&MOVED).await;
+    if rx.is_new() {
+        let mut command = long(MOVE, 12);
+        command.push(0);
+        command.push(channel);
+        command.extend(position.to_le_bytes());
+        device.inner().send(command).await;
+    }
+    let response = rx.receive().await;
+    match response[2] == channel && response[8..12] == position.to_le_bytes() {
+        true => {} // No-op: Move was completed successfully
+        false => {
+            Box::pin(__move_absolute(device, channel, position)).await;
+        }
+    }
 }
