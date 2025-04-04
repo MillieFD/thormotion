@@ -33,28 +33,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use std::sync::Arc;
 
 use crate::devices::{BUG, global_abort};
-use crate::messages::{Receiver, Sender};
+use crate::messages::Receiver;
 
 /// Indicates whether the wrapped [`Receiver`] is bound to a [`New`][1] or [`Existing`][2]
-/// [`Sender`]
+/// [`Sender`][3]
 ///
 /// [1]: Provenance::New
 /// [2]: Provenance::Existing
+/// [3]: crate::messages::Sender
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Provenance {
-    /// If a [`Sender`] does not exist for the given command ID, a new [`broadcast`][1] channel is
-    /// created. The new [`Sender`] is inserted into the [`Dispatcher`][2] [`HashMap`][3] and the
-    /// new [`Receiver`] is returned wrapped in [`Provenance::New`].
+    /// If a [`Sender`][1] does not exist for the given command ID, a new [`broadcast`][2] channel
+    /// is created. The new [`Sender`][1] is inserted into the [`Dispatcher`][3] [`HashMap`][4]
+    /// and the new [`Receiver`] is returned wrapped in [`Provenance::New`].
     ///
-    /// [1]: async_broadcast::broadcast
-    /// [2]: crate::messages::Dispatcher
-    /// [3]: ahash::HashMap
+    /// [1]: crate::messages::Sender
+    /// [2]: async_broadcast::broadcast
+    /// [3]: crate::messages::Dispatcher
+    /// [4]: ahash::HashMap
     New(Receiver),
-    /// If the [`Dispatcher`][1] [`HashMap`][2] already contains a [`Sender`] for the given command
-    /// ID, a [`new_receiver`][3] is created and returned wrapped in [`Provenance::Existing`].
+    /// If the [`Dispatcher`][1] [`HashMap`][2] already contains a [`Sender`][3] for the given
+    /// command ID, a [`new_receiver`][4] is created and returned wrapped in
+    /// [`Provenance::Existing`].
     ///
     /// [1]: crate::messages::Dispatcher
     /// [2]: ahash::HashMap
-    /// [3]: Sender::new_receiver
+    /// [3]: crate::messages::Sender
+    /// [4]: Sender::new_receiver
     Existing(Receiver),
 }
 
