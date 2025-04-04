@@ -75,12 +75,14 @@ where
         .insert(serial_number, Box::new(f));
 }
 
+// SAFETY: This is a placeholder function. DO NOT USE. Devices are only removed from the global 
+// DEVICES map when they are dropped, which is handled by the `drop` function.
 /// Removes a [`Thorlabs Device`][1] from the global [`DEVICES`][2] [`HashMap`].
 ///
 /// [1]: crate::traits::ThorlabsDevice
 /// [2]: DEVICES
 #[doc(hidden)]
-pub(super) async fn remove_device(serial_number: &str) {
+async fn remove_device(serial_number: &str) {
     DEVICES
         .get_or_init(|| Mutex::new(HashMap::new()))
         .lock()

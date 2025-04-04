@@ -44,5 +44,5 @@ pub use utils::show_devices;
 /* -------------------------------------------------------------------------- Private Re-Exports */
 
 pub(crate) use usb_primitive::UsbPrimitive;
-use utils::{abort_device, add_device, drop_device, get_device, remove_device};
+use utils::{abort_device, add_device, drop_device, get_device};
 pub(crate) use utils::{global_abort, BUG};
