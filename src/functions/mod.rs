@@ -42,4 +42,4 @@ mod move_absolute;
 pub(crate) use home::__home;
 pub(crate) use identify::__identify;
 pub(crate) use channel_enable_state::{__req_channel_enable_state, __set_channel_enable_state};
-pub(crate) use move_absolute::__move_absolute;
+pub(crate) use move_absolute::{__move_absolute, __move_absolute_from_params};
