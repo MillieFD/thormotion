@@ -30,14 +30,31 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/// Returns a six-byte header-only command, packaged according to the Thorlabs APT Protocol
+const DESTINATION: u8 = 0x50;
+const SOURCE: u8 = 0x01;
+
+/// Returns a six-byte header-only command, packaged according to the Thorlabs APT Protocol.
 ///
 /// All Thorlabs commands use a fixed length six-byte message header. For simple commands, this
-/// header is enough to convey the entire command. For more complex commands that require
+/// header is enough to convey the entire instruction. For more complex commands that require
 /// additional data to be passed to the device, the six-byte header is followed by a
 /// variable-length data packet.
 pub(crate) fn short(id: [u8; 2], param_one: u8, param_two: u8) -> Vec<u8> {
-    const DESTINATION: u8 = 0x50;
-    const SOURCE: u8 = 0x01;
     vec![id[0], id[1], param_one, param_two, DESTINATION, SOURCE]
+}
+
+/// Returns a header-plus-payload command, packaged according to the Thorlabs APT Protocol.
+///
+/// All Thorlabs commands use a fixed length six-byte message header. For simple commands, this
+/// header is enough to convey the entire instruction. For more complex commands that require
+/// additional data to be passed to the device, the six-byte header is followed by a
+/// variable-length data packet.
+pub(crate) fn long(id: [u8; 2], data: &[u8]) -> Vec<u8> {
+    [
+        &id,
+        &(data.len() as u16).to_le_bytes(),
+        &[DESTINATION | 0x80, SOURCE],
+        data,
+    ]
+    .concat()
 }
