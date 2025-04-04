@@ -44,6 +44,10 @@ pub trait ThorlabsDevice: Display + Debug + Send + Sync {
         self.inner().serial_number()
     }
 
+    /// Returns the number of device channels.
+    // Use a hardcoded const u8
+    fn channels(&self) -> u8;
+
     /// Safely brings the [`USB Device`][1] to a resting state and releases the claimed
     /// [`Interface`][2].
     ///
