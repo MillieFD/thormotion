@@ -30,7 +30,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::{global_abort, BUG};
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
@@ -41,13 +40,12 @@ where
 {
     const HOME: [u8; 2] = [0x43, 0x04];
     const HOMED: [u8; 2] = [0x44, 0x04];
-    let mut rx = device.inner().new_receiver(&HOMED).await;
-    let command = short(HOME, channel, 0);
-    device.inner().send(command).await;
-    rx.recv_direct().await.unwrap_or_else(|e| {
-        global_abort(format!(
-            "{} failed to receive HOMED command : {} : {}",
-            device, e, BUG
-        ))
-    });
+
+    device.check_channel(channel);
+    let rx = device.inner().receiver(&HOMED).await;
+    if rx.is_new() {
+        let command = short(HOME, channel, 0);
+        device.inner().send(command).await;
+    }
+    let _ = rx.receive().await; // No need to parse response
 }
