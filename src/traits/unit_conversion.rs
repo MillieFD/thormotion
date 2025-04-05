@@ -41,6 +41,42 @@ pub(crate) enum Units {
 }
 
 impl Units {
+    /// Coerces a slice `&[u8]` into an array `[u8; 4]`.
+    #[doc(hidden)]
+    #[inline]
+    fn array_from_slice(slice: &[u8]) -> [u8; 4] {
+        slice.try_into().unwrap_or_else(|e| {
+            global_abort(format!(
+                "Cannot coerce slice {:?} to array [u8; 4] : {}",
+                slice, e
+            ))
+        })
+    }
+    
+    /// Converts a distance or angle from device units to real-world units (millimeters or degrees)
+    /// using the appropriate [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
+    pub(crate) fn distance(slice: &[u8]) -> Self {
+        Units::Distance(Self::array_from_slice(slice))
+    }
+
+    /// Converts a velocity from device units to real-world units (mm/s) using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
+    pub(crate) fn velocity(slice: &[u8]) -> Self {
+        Units::Velocity(Self::array_from_slice(slice))
+    }
+
+    /// Converts an acceleration from device units to real-world units (mm/s²) using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
+    pub(crate) fn acceleration(slice: &[u8]) -> Self {
+        Units::Acceleration(Self::array_from_slice(slice))
+    }
+    
     /// Converts an `f64` to an unwrapped little-endian byte array `[u8; 4]`.
     ///
     /// You can manually wrap the result in the appropriate [`Units`] variant. To automatically wrap
@@ -54,21 +90,6 @@ impl Units {
         let scaled = value * scale_factor;
         let rounded = scaled.round();
         i32::to_le_bytes(rounded as i32)
-    }
-
-    /// Consumes the [`Units`] enum, returning real-world units (millimeters and seconds) using the
-    /// appropriate [`scale factor`][1].
-    ///
-    /// [1]: UnitConversion
-    const fn decode<A>(&self) -> f64
-    where
-        A: UnitConversion,
-    {
-        match self {
-            Units::Distance(d) => i32::from_le_bytes(*d) as f64 / A::DISTANCE_ANGLE_SCALE_FACTOR,
-            Units::Velocity(v) => i32::from_le_bytes(*v) as f64 / A::VELOCITY_SCALE_FACTOR,
-            Units::Acceleration(a) => i32::from_le_bytes(*a) as f64 / A::ACCELERATION_SCALE_FACTOR,
-        }
     }
 
     /// Converts a distance (millimeters) or angle (degrees) from real-world units to device units
@@ -107,34 +128,25 @@ impl Units {
         Units::Distance(bytes)
     }
 
-    /// Coerces a slice `&[u8]` into an array `[u8; 4]`.
-    #[doc(hidden)]
-    #[inline]
-    fn array_from_slice(slice: &[u8]) -> [u8; 4] {
-        slice.try_into().unwrap_or_else(|e| {
-            global_abort(format!(
-                "Cannot coerce slice {:?} to array [u8; 4] : {}",
-                slice, e
-            ))
-        })
+    /// Consumes the [`Units`] enum, returning real-world units (millimeters and seconds) using the
+    /// appropriate [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion
+    const fn decode<A>(&self) -> f64
+    where
+        A: UnitConversion,
+    {
+        match self {
+            Units::Distance(d) => i32::from_le_bytes(*d) as f64 / A::DISTANCE_ANGLE_SCALE_FACTOR,
+            Units::Velocity(v) => i32::from_le_bytes(*v) as f64 / A::VELOCITY_SCALE_FACTOR,
+            Units::Acceleration(a) => i32::from_le_bytes(*a) as f64 / A::ACCELERATION_SCALE_FACTOR,
+        }
     }
 
-    pub(crate) fn distance_from_slice(slice: &[u8]) -> Self {
-        Units::Distance(Self::array_from_slice(slice))
-    }
-
-    pub(crate) fn velocity_from_slice(slice: &[u8]) -> Self {
-        Units::Velocity(Self::array_from_slice(slice))
-    }
-
-    pub(crate) fn acceleration_from_slice(slice: &[u8]) -> Self {
-        Units::Acceleration(Self::array_from_slice(slice))
-    }
-
-    /// Returns `True` if [`self`][1] and [`other`][1] are equal to three decimal places.
+    /// Returns `True` if [`self`][1] and [`other`][1] are equivalent within three decimal places.
     ///
     /// [1]: Units
-    pub(crate) const fn approximate<A>(&self, other: f64) -> bool
+    pub(crate) const fn approx<A>(&self, other: f64) -> bool
     where
         A: UnitConversion,
     {
@@ -155,8 +167,8 @@ impl Deref for Units {
 }
 
 impl IntoIterator for Units {
-    type Item = u8;
     type IntoIter = std::array::IntoIter<u8, 4>;
+    type Item = u8;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
