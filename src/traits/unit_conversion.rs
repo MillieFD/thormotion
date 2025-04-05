@@ -30,28 +30,140 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-pub(crate) struct UnitConverter {
-    scale_factor: f64,
+use std::ops::Deref;
+
+use crate::devices::global_abort;
+
+pub(crate) enum Units {
+    Distance([u8; 4]),
+    Velocity([u8; 4]),
+    Acceleration([u8; 4]),
 }
 
-impl UnitConverter {
-    /// Converts an acceleration from real-world units (millimeters and seconds) to device units
-    /// using the appropriate [`scale factor`][1].
+impl Units {
+    /// Converts an `f64` to an unwrapped little-endian byte array `[u8; 4]`.
     ///
-    /// [1]: UnitConversion
-    pub(crate) fn to_le_bytes(&self, position: f64) -> [u8; 4] {
-        let scaled = position * self.scale_factor;
+    /// You can manually wrap the result in the appropriate [`Units`] variant. To automatically wrap
+    /// the result, see the [`new_distance`][1], [`new_velocity`][2], and [`new_acceleration`][3]
+    /// functions.
+    ///
+    /// [1]: Units::new_distance
+    /// [2]: Units::new_velocity
+    /// [3]: Units::new_acceleration
+    fn encode(value: f64, scale_factor: f64) -> [u8; 4] {
+        let scaled = value * scale_factor;
         let rounded = scaled.round();
         i32::to_le_bytes(rounded as i32)
     }
 
-    /// Converts an acceleration from device units to real-world units (millimeters and seconds)
-    /// using the appropriate [`scale factor`][1].
+    /// Consumes the [`Units`] enum, returning real-world units (millimeters and seconds) using the
+    /// appropriate [`scale factor`][1].
     ///
     /// [1]: UnitConversion
-    pub(crate) fn to_f64(&self, bytes: [u8; 4]) -> f64 {
-        let encoder_counts = i32::from_le_bytes(bytes) as f64;
-        encoder_counts / self.scale_factor
+    const fn decode<A>(&self) -> f64
+    where
+        A: UnitConversion,
+    {
+        match self {
+            Units::Distance(d) => i32::from_le_bytes(*d) as f64 / A::DISTANCE_ANGLE_SCALE_FACTOR,
+            Units::Velocity(v) => i32::from_le_bytes(*v) as f64 / A::VELOCITY_SCALE_FACTOR,
+            Units::Acceleration(a) => i32::from_le_bytes(*a) as f64 / A::ACCELERATION_SCALE_FACTOR,
+        }
+    }
+
+    /// Converts a distance (millimeters) or angle (degrees) from real-world units to device units
+    /// using the appropriate [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
+    pub(crate) fn new_distance<A>(distance: f64) -> Self
+    where
+        A: UnitConversion,
+    {
+        let bytes = Self::encode(distance, A::DISTANCE_ANGLE_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Converts a velocity from real-world units (mm/s) to device units using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
+    pub(crate) fn new_velocity<A>(velocity: f64) -> Self
+    where
+        A: UnitConversion,
+    {
+        let bytes = Self::encode(velocity, A::VELOCITY_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Converts an acceleration from real-world units (mm/s²) to device units using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
+    pub(crate) fn new_acceleration<A>(acceleration: f64) -> Self
+    where
+        A: UnitConversion,
+    {
+        let bytes = Self::encode(acceleration, A::ACCELERATION_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Coerces a slice `&[u8]` into an array `[u8; 4]`.
+    #[doc(hidden)]
+    #[inline]
+    fn array_from_slice(slice: &[u8]) -> [u8; 4] {
+        slice.try_into().unwrap_or_else(|e| {
+            global_abort(format!(
+                "Cannot coerce slice {:?} to array [u8; 4] : {}",
+                slice, e
+            ))
+        })
+    }
+
+    pub(crate) fn distance_from_slice(slice: &[u8]) -> Self {
+        Units::Distance(Self::array_from_slice(slice))
+    }
+
+    pub(crate) fn velocity_from_slice(slice: &[u8]) -> Self {
+        Units::Velocity(Self::array_from_slice(slice))
+    }
+
+    pub(crate) fn acceleration_from_slice(slice: &[u8]) -> Self {
+        Units::Acceleration(Self::array_from_slice(slice))
+    }
+
+    /// Returns `True` if [`self`][1] and [`other`][1] are equal to three decimal places.
+    ///
+    /// [1]: Units
+    pub(crate) const fn approximate<A>(&self, other: f64) -> bool
+    where
+        A: UnitConversion,
+    {
+        (self.decode::<A>() - other).abs() < 0.001
+    }
+}
+
+impl Deref for Units {
+    type Target = [u8; 4];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Units::Distance(distance) => distance,
+            Units::Velocity(velocity) => velocity,
+            Units::Acceleration(acceleration) => acceleration,
+        }
+    }
+}
+
+impl IntoIterator for Units {
+    type Item = u8;
+    type IntoIter = std::array::IntoIter<u8, 4>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Units::Distance(bytes) => IntoIterator::into_iter(bytes),
+            Units::Velocity(bytes) => IntoIterator::into_iter(bytes),
+            Units::Acceleration(bytes) => IntoIterator::into_iter(bytes),
+        }
     }
 }
 
@@ -68,20 +180,6 @@ impl UnitConverter {
 /// between device types due to different encoder polling frequencies.
 pub(crate) trait UnitConversion {
     const ACCELERATION_SCALE_FACTOR: f64;
-
-    const ACCELERATION: UnitConverter = UnitConverter {
-        scale_factor: Self::ACCELERATION_SCALE_FACTOR,
-    };
-
     const DISTANCE_ANGLE_SCALE_FACTOR: f64;
-
-    const DISTANCE_ANGLE: UnitConverter = UnitConverter {
-        scale_factor: Self::DISTANCE_ANGLE_SCALE_FACTOR,
-    };
-
     const VELOCITY_SCALE_FACTOR: f64;
-
-    const VELOCITY: UnitConverter = UnitConverter {
-        scale_factor: Self::VELOCITY_SCALE_FACTOR,
-    };
 }
