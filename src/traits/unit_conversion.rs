@@ -167,8 +167,8 @@ impl Deref for Units {
 }
 
 impl IntoIterator for Units {
-    type IntoIter = std::array::IntoIter<u8, 4>;
     type Item = u8;
+    type IntoIter = std::array::IntoIter<u8, 4>;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {

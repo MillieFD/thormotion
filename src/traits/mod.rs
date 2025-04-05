@@ -41,7 +41,7 @@ mod unit_conversion;
 /* -------------------------------------------------------------------------- Private Re-Exports */
 
 pub(crate) use check_serial_number::CheckSerialNumber;
-pub(crate) use unit_conversion::UnitConversion;
+pub(crate) use unit_conversion::{Units, UnitConversion};
 
 /* --------------------------------------------------------------------------- Public Re-Exports */
 
