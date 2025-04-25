@@ -142,12 +142,20 @@ impl KDC101 {
         __home(self, 1).await;
     }
     
+    pub fn sync_open(&mut self) {
+        smol::block_on(async {self.open().await.unwrap();})
+    }
+    
     pub fn sync_home(&self) {
         smol::block_on(async {self.home().await;})
     }
     
     pub fn sync_identify(&self) {
         smol::block_on(async {self.identify().await;})
+    }
+    
+    pub fn sync_move_absolute(&self, position: f64) {
+        smol::block_on(async {self.move_absolute(position).await;})
     }
 
     /// Moves the specified device channel to an absolute position.
