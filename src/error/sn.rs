@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use std::fmt::{Debug, Display, Formatter};
 
 use nusb::DeviceInfo;
+use pyo3::PyErr;
 
 type Sn = String;
 
@@ -66,3 +67,9 @@ impl Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<Error> for PyErr {
+    fn from(error: Error) -> Self {
+        pyo3::exceptions::PyException::new_err(error.to_string())
+    }
+}
