@@ -59,14 +59,14 @@ mod py_module {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn identify_kdc101() {
-        use crate::devices::KDC101;
-        smol::block_on(async {
-            let serial_number = String::from("27xxxxxx");
-            let mut device = KDC101::new(serial_number).await.unwrap();
-            device.open().await.unwrap();
-            device.identify().await;
-        })
-    }
+    // #[test]
+    // fn identify_kdc101() {
+    //     use crate::devices::KDC101;
+    //     smol::block_on(async {
+    //         let serial_number = String::from("27xxxxxx");
+    //         let mut device = KDC101::new(serial_number).await.unwrap();
+    //         device.open().await.unwrap();
+    //         device.identify().await;
+    //     })
+    // }
 }
