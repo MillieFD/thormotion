@@ -47,7 +47,7 @@ pub struct KDC101 {
     inner: Arc<UsbPrimitive>,
 }
 
-// #[pyo3::pymethods]
+#[pyo3::pymethods]
 impl KDC101 {
     const IDS: [[u8; 2]; 3] = [
         // MOD
@@ -57,15 +57,34 @@ impl KDC101 {
         [0x64, 0x04], // MOVE_COMPLETED
     ];
 
-    pub async fn new(serial_number: String) -> Result<Self, sn::Error> {
-        Self::check_serial_number(&serial_number)?;
-        let device = Self {
-            inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
-        };
-        let d = device.clone(); // Inexpensive Arc Clone
-        let f = move || d.abort();
-        add_device(serial_number.clone(), f).await;
-        Ok(device)
+    // Async version of new()
+    //
+    // pub async fn new(serial_number: String) -> Result<Self, sn::Error> {
+    //     Self::check_serial_number(&serial_number)?;
+    //     let device = Self {
+    //         inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
+    //     };
+    //     let d = device.clone(); // Inexpensive Arc Clone
+    //     let f = move || d.abort();
+    //     add_device(serial_number.clone(), f).await;
+    //     Ok(device)
+    // }
+
+    #[new]
+    pub fn sync_new(serial_number: String) -> Result<Self, sn::Error> {
+        smol::block_on(async {
+            
+            // Sync version of new(). Quick and dirty test for python.
+            
+            Self::check_serial_number(&serial_number)?;
+            let device = Self {
+                inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
+            };
+            let d = device.clone(); // Inexpensive Arc Clone
+            let f = move || d.abort();
+            add_device(serial_number.clone(), f).await;
+            Ok(device)
+        })
     }
 
     /// Returns `True` if the [`USB Interface`][1] is open.
