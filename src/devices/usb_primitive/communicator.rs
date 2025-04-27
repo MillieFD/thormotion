@@ -30,14 +30,14 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use nusb::transfer::{Queue, RequestBuffer, TransferError};
 use nusb::Interface;
+use nusb::transfer::{Queue, RequestBuffer, TransferError};
+use smol::Task;
 use smol::future::yield_now;
 use smol::lock::Mutex;
-use smol::Task;
 
 use crate::devices::usb_primitive::serial_port::init;
-use crate::devices::{global_abort, BUG};
+use crate::devices::{BUG, global_abort};
 use crate::messages::Dispatcher;
 
 // SAFETY: Currently, no data packet exceeds 255 bytes (Thorlabs APT Protocol, Issue 38, Page 35).
@@ -61,7 +61,7 @@ impl Communicator {
         const OUT_ENDPOINT: u8 = 0x02;
         init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
-        let outgoing = Mutex::new(interface.interrupt_out_queue(OUT_ENDPOINT));
+        let outgoing = Mutex::new(interface.bulk_out_queue(OUT_ENDPOINT));
         let incoming = Self::spawn(interface, dsp);
         Self {
             dispatcher,
@@ -91,7 +91,7 @@ impl Communicator {
     /// 3. A [`TransferError`] occurs. See [`Self::handle_error`].
     fn spawn(interface: Interface, dispatcher: Dispatcher) -> Task<()> {
         const IN_ENDPOINT: u8 = 0x81;
-        let mut queue = interface.interrupt_in_queue(IN_ENDPOINT);
+        let mut queue = interface.bulk_in_queue(IN_ENDPOINT);
 
         let mut listen = async move || -> Result<(), TransferError> {
             loop {
