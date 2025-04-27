@@ -48,5 +48,5 @@ where
         let command = short(HOME, channel, 0);
         device.inner().send(command).await;
     }
-    let _ = rx.receive().await; // No need to parse response
+    let _ = rx.receive().await; // No need to parse the response
 }
