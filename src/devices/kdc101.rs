@@ -57,34 +57,16 @@ impl KDC101 {
         [0x64, 0x04], // MOVE_COMPLETED
     ];
 
-    // Async version of new()
-    //
-    // pub async fn new(serial_number: String) -> Result<Self, sn::Error> {
-    //     Self::check_serial_number(&serial_number)?;
-    //     let device = Self {
-    //         inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
-    //     };
-    //     let d = device.clone(); // Inexpensive Arc Clone
-    //     let f = move || d.abort();
-    //     add_device(serial_number.clone(), f).await;
-    //     Ok(device)
-    // }
-
     #[new]
-    pub fn sync_new(serial_number: String) -> Result<Self, sn::Error> {
-        smol::block_on(async {
-            
-            // Sync version of new(). Quick and dirty test for python.
-            
-            Self::check_serial_number(&serial_number)?;
-            let device = Self {
-                inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
-            };
-            let d = device.clone(); // Inexpensive Arc Clone
-            let f = move || d.abort();
-            add_device(serial_number.clone(), f).await;
-            Ok(device)
-        })
+    pub fn new(serial_number: String) -> Result<Self, sn::Error> {
+        Self::check_serial_number(&serial_number)?;
+        let device = Self {
+            inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
+        };
+        let d = device.clone(); // Inexpensive Arc Clone
+        let f = move || d.abort();
+        add_device(serial_number, f);
+        Ok(device)
     }
 
     /// Returns `True` if the [`USB Interface`][1] is open.
@@ -98,12 +80,30 @@ impl KDC101 {
     ///
     /// No action is taken if the device [`Status`][3] is already [`Open`][4].
     ///
+    /// For a synchronous alternative, see [`open`][5].
+    ///
     /// [1]: nusb::Interface
     /// [2]: UsbPrimitive
     /// [3]: crate::devices::usb_primitive::status::Status
     /// [4]: crate::devices::usb_primitive::status::Status::Open
-    pub async fn open(&mut self) -> Result<(), Error> {
+    /// [5]: KDC101::open
+    pub async fn async_open(&mut self) -> Result<(), Error> {
         self.inner.open().await
+    }
+
+    /// Opens an [`Interface`][1] to the [`USB Device`][2].
+    ///
+    /// No action is taken if the device [`Status`][3] is already [`Open`][4].
+    ///
+    /// For an asynchronous alternative, see [`async_open`][5].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Open
+    /// [5]: KDC101::async_open
+    pub fn open(&mut self) -> Result<(), Error> {
+        block_on(async { self.async_open().await })
     }
 
     /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
@@ -113,16 +113,51 @@ impl KDC101 {
     /// This does not stop the device's current action. If you need to safely bring the
     /// [`USB Device`][2] to a resting state, see [`abort`][5].
     ///
+    /// For a synchronous alternative, see [`close`][6].
+    ///
     /// [1]: nusb::Interface
     /// [2]: UsbPrimitive
     /// [3]: crate::devices::usb_primitive::status::Status
     /// [4]: crate::devices::usb_primitive::status::Status::Closed
     /// [5]: ThorlabsDevice::abort
-    async fn close(&mut self) -> Result<(), Error> {
+    /// [6]: KDC101::close
+    pub async fn async_close(&mut self) -> Result<(), Error> {
         self.inner.close().await
     }
 
+    /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
+    ///
+    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
+    ///
+    /// This does not stop the device's current action. If you need to safely bring the
+    /// [`USB Device`][2] to a resting state, see [`abort`][5].
+    ///
+    /// For an asynchronous alternative, see [`async_close`][6].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Closed
+    /// [5]: ThorlabsDevice::abort
+    /// [6]: KDC101::async_close
+    pub fn close(&mut self) -> Result<(), Error> {
+        block_on(async { self.async_close().await })
+    }
+
     /// Identifies the device by flashing the front panel LED.
+    ///
+    /// For a synchronous alternative, see [`identify`][1].
+    ///
+    /// [1]: KDC101::identify
+    pub async fn async_identify(&self) {
+        __identify(self, 1).await;
+    }
+
+    /// Identifies the device by flashing the front panel LED.
+    ///
+    /// For an asynchronous alternative, see [`async_identify`][1].
+    ///
+    /// [1]: KDC101::async_identify
     pub async fn identify(&self) {
         __identify(self, 1).await;
     }
@@ -138,29 +173,43 @@ impl KDC101 {
     }
 
     /// Homes the specified device channel.
-    pub async fn home(&self) {
+    ///
+    /// For a synchronous alternative, see [`home`][1]
+    ///
+    /// [1]: KDC101::home
+    pub async fn async_home(&self) {
         __home(self, 1).await;
     }
-    
-    pub fn sync_open(&mut self) {
-        smol::block_on(async {self.open().await.unwrap();})
-    }
-    
-    pub fn sync_home(&self) {
-        smol::block_on(async {self.home().await;})
-    }
-    
-    pub fn sync_identify(&self) {
-        smol::block_on(async {self.identify().await;})
-    }
-    
-    pub fn sync_move_absolute(&self, position: f64) {
-        smol::block_on(async {self.move_absolute(position).await;})
+
+    /// Homes the specified device channel.
+    ///
+    /// For an asynchronous alternative, see [`async_home`][1]
+    ///
+    /// [1]: KDC101::async_home
+    pub fn home(&self) {
+        block_on(async {
+            self.async_home().await;
+        })
     }
 
     /// Moves the specified device channel to an absolute position.
-    pub async fn move_absolute(&self, position: f64) {
+    ///
+    /// For a synchronous alternative, see [`move_absolute`][1]
+    ///
+    /// [1]: KDC101::move_absolute
+    pub async fn async_move_absolute(&self, position: f64) {
         __move_absolute(self, 1, position).await;
+    }
+
+    /// Moves the specified device channel to an absolute position.
+    ///
+    /// For an asynchronous alternative, see [`async_move_absolute`][1]
+    ///
+    /// [1]: KDC101::async_move_absolute
+    pub fn move_absolute(&self, position: f64) {
+        block_on(async {
+            self.async_move_absolute(position).await;
+        })
     }
 
     /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
