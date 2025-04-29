@@ -45,7 +45,7 @@ use smol::block_on;
 use smol::lock::RwLock;
 use status::Status;
 
-use crate::devices::{abort_device, drop_device, get_device, global_abort};
+use crate::devices::{abort_device, remove_device, get_device, abort};
 use crate::error::{cmd, sn};
 use crate::messages::{Dispatcher, Provenance, Receiver};
 
@@ -150,7 +150,7 @@ impl UsbPrimitive {
     /// [6]: ahash::HashMap
     /// [7]: UsbPrimitive::close
     async fn abort(&self) {
-        abort_device(self.serial_number()).await
+        abort_device(self.serial_number())
     }
 
     /// Returns a receiver for the given command ID, wrapped in the [`Provenance`] enum. This is
@@ -202,7 +202,7 @@ impl UsbPrimitive {
     /// Sends a command to the device.
     pub(crate) async fn send(&self, command: Vec<u8>) {
         self.try_send(command).await.unwrap_or_else(|e| {
-            global_abort(format!("Failed to send command to {} : {}", self, e))
+            abort(format!("Failed to send command to {} : {}", self, e))
         });
     }
 
@@ -269,7 +269,7 @@ impl Display for UsbPrimitive {
 impl Drop for UsbPrimitive {
     fn drop(&mut self) {
         block_on(async {
-            drop_device(self.serial_number()).await;
+            remove_device(self.serial_number());
         });
     }
 }
