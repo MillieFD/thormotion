@@ -18,9 +18,9 @@ crate-type = ["lib"]
 
 [dependencies]
 nusb = "0.1.13"
-smol = "*"
-async-broadcast = "*"
-ahash = "*"
+smol = "2.0.2"
+async-broadcast = "0.7.2"
+ahash = "0.8.11"
 
 [dependencies.pyo3]
 version = "0.24.0"
