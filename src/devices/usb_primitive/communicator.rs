@@ -37,7 +37,7 @@ use smol::future::yield_now;
 use smol::lock::Mutex;
 
 use crate::devices::usb_primitive::serial_port::init;
-use crate::devices::{BUG, global_abort};
+use crate::devices::{abort, bug_abort};
 use crate::messages::Dispatcher;
 
 // SAFETY: Currently, no data packet exceeds 255 bytes (Thorlabs APT Protocol, Issue 38, Page 35).
@@ -71,14 +71,13 @@ impl Communicator {
     }
 
     /// Handles any [`TransferError`] returned from the [`incoming task`][Self::spawn].
-    ///
-    /// A `match` statement allows [`TransferError`] variants to be handled differently if required.
-    ///
-    /// If the incoming task terminates, it cannot be restarted without the [`Interface`].
-    /// Automatic recovery may be implemented in a future version of Thormotion.
+    // NOTE: If the incoming task terminates, it cannot be restarted without the [`Interface`].
+    // Automatic recovery may be implemented in a future version of Thormotion.
     fn handle_error(error: TransferError) {
+        // NOTE: Currently, all errors cause the program to abort. A `match` statement allows
+        // TransferError variants to be handled differently if required.
         match error {
-            _ => global_abort(format!("Background task error : {}", error)),
+            _ => abort(format!("Background task error : {}", error)),
         }
     }
 
@@ -98,10 +97,9 @@ impl Communicator {
                 queue.submit(RequestBuffer::new(BUFFER_SIZE));
                 let mut completion = queue.next_complete().await;
                 match completion.data.len() {
-                    ..2 => global_abort(format!(
-                        "Received {}-byte command from USB device\n{}",
-                        completion.data.len(),
-                        BUG
+                    ..2 => bug_abort(format!(
+                        "Received {}-byte command from USB device\n",
+                        completion.data.len()
                     )),
                     2 => {} // Command contains framing bytes only. Proceed to the yield point.
                     3.. => {
