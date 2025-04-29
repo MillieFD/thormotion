@@ -2,7 +2,7 @@
 
 [package]
 name = "thormotion"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Amelia Fraser-Dale"]
 edition = "2024"
 description = "A cross-platform motion control library for Thorlabs systems, written in Rust."
