@@ -30,11 +30,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::sync::OnceLock;
+use std::fmt::Display;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use ahash::{HashMap, HashMapExt};
-use nusb::{list_devices, DeviceInfo};
-use smol::lock::Mutex;
+use nusb::{DeviceInfo, list_devices};
 
 use crate::error::sn::Error;
 
@@ -46,7 +46,7 @@ use crate::error::sn::Error;
 /// [`HashMap`] is not required when [`opening`][3], [`closing`][4], or [`sending`][5] commands to
 /// the device. As such, lock contention does not affect device latency.
 ///
-/// If an irrecoverable error occurs anywhere in the program, this triggers the [`global_abort`]
+/// If an irrecoverable error occurs anywhere in the program, this triggers the [`abort`]
 /// function which safely [`aborts`][1] each device, bringing the system to a controlled stop.
 ///
 /// [1]: crate::traits::ThorlabsDevice::abort
@@ -57,6 +57,23 @@ use crate::error::sn::Error;
 #[doc(hidden)]
 static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn Fn() + Send + 'static>>>> = OnceLock::new();
 
+/// Returns a [`MutexGuard`] protecting access to the global [`DEVICES`][1] [`HashMap`]. The map is
+/// lazily initialized when first accessed.
+///
+/// ### Panics
+///
+/// Calls [`abort`] if the mutex is poisoned, safely stopping all devices before terminating
+/// the program.
+///
+/// [1]: DEVICES
+#[doc(hidden)]
+fn devices<'a>() -> MutexGuard<'a, HashMap<String, Box<dyn Fn() + Send + 'static>>> {
+    DEVICES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(|e| abort(format!("DEVICES mutex is poisoned: {}", e)))
+}
+
 /// Adds a new [`Thorlabs Device`][1] `serial number` (key) and corresponding [`abort`][2] function
 /// (value) to the global [`DEVICES`][3] [`HashMap`].
 ///
@@ -64,30 +81,22 @@ static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn Fn() + Send + 'static>>>>
 /// [2]: crate::traits::ThorlabsDevice::abort
 /// [3]: DEVICES
 #[doc(hidden)]
-pub(super) async fn add_device<F>(serial_number: String, f: F)
+pub(super) fn add_device<F>(serial_number: String, f: F)
 where
     F: Fn() + Send + 'static,
 {
-    DEVICES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await
-        .insert(serial_number, Box::new(f));
+    devices().insert(serial_number, Box::new(f));
 }
 
-// SAFETY: This is a placeholder function. DO NOT USE. Devices are only removed from the global 
-// DEVICES map when they are dropped, which is handled by the `drop` function.
-/// Removes a [`Thorlabs Device`][1] from the global [`DEVICES`][2] [`HashMap`].
+/// Removes the specified [`Thorlabs Device`][1] from the global [`DEVICES`][2] [`HashMap`]. Then
+/// calls the corresponding [`abort`][2] function.
 ///
 /// [1]: crate::traits::ThorlabsDevice
 /// [2]: DEVICES
-#[doc(hidden)]
-async fn remove_device(serial_number: &str) {
-    DEVICES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await
-        .remove(serial_number);
+pub(super) async fn remove_device(serial_number: &str) {
+    if let Some(f) = devices().remove(serial_number) {
+        f()
+    }
 }
 
 /// Calls the [`abort`][1] function for the specified [`Thorlabs Device`][1].
@@ -100,32 +109,29 @@ async fn remove_device(serial_number: &str) {
 /// [3]: crate::devices::UsbPrimitive::open
 #[doc(hidden)]
 pub(super) async fn abort_device(serial_number: &str) {
-    if let Some(f) = DEVICES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await
-        .get(serial_number)
-    {
+    if let Some(f) = devices().get(serial_number) {
         f()
     }
 }
 
-pub(super) async fn drop_device(serial_number: &str) {
-    if let Some(f) = DEVICES
-        .get_or_init(|| Mutex::new(HashMap::new()))
-        .lock()
-        .await
-        .remove(serial_number)
-    {
-        f()
-    }
+// SAFETY: This is a placeholder function. DO NOT USE.
+/// Removes the specified [`Thorlabs Device`][1] from the global [`DEVICES`][2] [`HashMap`] without
+/// calling the corresponding [`abort`][2] or [`close`][3] functions.
+///
+/// [1]: crate::traits::ThorlabsDevice
+/// [2]: crate::traits::ThorlabsDevice::abort
+/// [3]: crate::devices::UsbPrimitive::close
+#[doc(hidden)]
+async fn leak_device(serial_number: &str) {
+    devices().remove(serial_number);
 }
 
 /// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
 /// an error message.
 ///
 /// Internally, this function iterates over the global [`DEVICES`][2] [`HashMap`] and calls the
-/// respective [`abort`][3] function for each device.
+/// respective [`abort`][3] function for each device. To handle situations which should never occur,
+/// see [`bug_abort`].
 ///
 /// ### Panics
 ///
@@ -137,23 +143,39 @@ pub(super) async fn drop_device(serial_number: &str) {
 /// [2]: DEVICES
 /// [3]: crate::traits::ThorlabsDevice::abort
 #[doc(hidden)]
-pub(crate) fn global_abort(message: String) -> ! {
-    smol::block_on(async {
-        DEVICES
-            .get_or_init(|| Mutex::new(HashMap::new()))
-            .lock()
-            .await
-            .drain()
-            .for_each(|(_, f)| {
-                f();
-            });
+pub(crate) fn abort<A>(message: A) -> !
+where
+    A: Display,
+{
+    devices().drain().for_each(|(_, f)| {
+        f();
     });
     panic!("\nAbort due to error : {}\n", message);
 }
 
+/// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
+/// an error message. Explains that the error is a bug and encourages the user to open a new GitHub
+/// issue.
+///
+/// Internally, this function calls [`abort`] with an additional message.
+///
+/// ### Panics
+///
+/// This function always panics.
+///
+/// This is intended behaviour to safely unwind and free resources.
+///
+/// [1]: crate::traits::ThorlabsDevice
+/// [2]: DEVICES
+/// [3]: crate::traits::ThorlabsDevice::abort
 #[doc(hidden)]
-pub(crate) const BUG: &str = "This is a bug. If you are able to reproduce this issue, please open \
-                              a new GitHub issue and report the relevant details";
+pub(crate) fn bug_abort(message: String) -> ! {
+    abort(format!(
+        "{} : This is a bug. If you are able to reproduce the error, please open a new GitHub \
+         issue and report the relevant details",
+        message
+    ));
+}
 
 /// Returns an iterator over all connected Thorlabs devices.
 fn get_devices() -> impl Iterator<Item = DeviceInfo> {
