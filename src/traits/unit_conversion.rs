@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::ops::Deref;
 
-use crate::devices::global_abort;
+use crate::devices::abort;
 
 pub(crate) enum Units {
     Distance([u8; 4]),
@@ -46,7 +46,7 @@ impl Units {
     #[inline]
     fn array_from_slice(slice: &[u8]) -> [u8; 4] {
         slice.try_into().unwrap_or_else(|e| {
-            global_abort(format!(
+            abort(format!(
                 "Cannot coerce slice {:?} to array [u8; 4] : {}",
                 slice, e
             ))

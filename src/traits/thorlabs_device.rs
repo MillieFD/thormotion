@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
-use crate::devices::{UsbPrimitive, global_abort};
+use crate::devices::{UsbPrimitive, abort};
 
 pub trait ThorlabsDevice: Display + Debug + Send + Sync {
     /// Returns a borrow which dereferences to the inner [`UsbPrimitive`]
@@ -52,7 +52,7 @@ pub trait ThorlabsDevice: Display + Debug + Send + Sync {
     /// Aborts if the specified channel is outside the valid range.
     fn check_channel(&self, channel: u8) {
         if channel <= 0 || channel > self.channels() {
-            global_abort(format!(
+            abort(format!(
                 "Channel number {} is not valid for {}",
                 channel, self
             ));
