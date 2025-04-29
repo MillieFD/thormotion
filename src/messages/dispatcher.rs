@@ -36,7 +36,7 @@ use ahash::HashMap;
 use async_broadcast::broadcast;
 use smol::lock::{Mutex, MutexGuard};
 
-use crate::devices::{BUG, global_abort};
+use crate::devices::{abort, bug_abort};
 use crate::messages::{Provenance, Receiver, Sender};
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
@@ -64,9 +64,7 @@ impl Dispatcher {
     async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
         self.map
             .get(id)
-            .unwrap_or_else(|| {
-                global_abort(format!("Dispatcher does not contain command ID {:?}", id))
-            })
+            .unwrap_or_else(|| abort(format!("Dispatcher does not contain command ID {:?}", id)))
             .lock()
             .await
     }
@@ -168,7 +166,7 @@ impl Dispatcher {
             sender
                 .broadcast_direct(data)
                 .await
-                .unwrap_or_else(|e| global_abort(format!("Broadcast failed : {} : {}", e, BUG)));
+                .unwrap_or_else(|e| bug_abort(format!("Broadcast failed : {}", e)));
         }
     }
 }

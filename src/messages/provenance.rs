@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::sync::Arc;
 
-use crate::devices::{BUG, global_abort};
+use crate::devices::bug_abort;
 use crate::messages::Receiver;
 
 /// Indicates whether the wrapped [`Receiver`] is bound to a [`New`][1] or [`Existing`][2]
@@ -91,9 +91,9 @@ impl Provenance {
     /// Consumes the [`Provenance`], returning the message received by the wrapped [`Receiver`].
     pub(crate) async fn receive(self) -> Arc<[u8]> {
         self.unpack().recv_direct().await.unwrap_or_else(|e| {
-            global_abort(format!(
-                "Failed to receive command from broadcast channel : {} : {}",
-                e, BUG
+            bug_abort(format!(
+                "Failed to receive command from broadcast channel : {}",
+                e
             ))
         })
     }
