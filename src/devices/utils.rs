@@ -93,6 +93,7 @@ where
 ///
 /// [1]: crate::traits::ThorlabsDevice
 /// [2]: DEVICES
+#[doc(hidden)]
 pub(super) async fn remove_device(serial_number: &str) {
     if let Some(f) = devices().remove(serial_number) {
         f()
