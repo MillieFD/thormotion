@@ -94,7 +94,7 @@ where
 /// [1]: crate::traits::ThorlabsDevice
 /// [2]: DEVICES
 #[doc(hidden)]
-pub(super) async fn remove_device(serial_number: &str) {
+pub(super) fn remove_device(serial_number: &str) {
     if let Some(f) = devices().remove(serial_number) {
         f()
     }
@@ -109,7 +109,7 @@ pub(super) async fn remove_device(serial_number: &str) {
 /// [2]: DEVICES
 /// [3]: crate::devices::UsbPrimitive::open
 #[doc(hidden)]
-pub(super) async fn abort_device(serial_number: &str) {
+pub(super) fn abort_device(serial_number: &str) {
     if let Some(f) = devices().get(serial_number) {
         f()
     }
@@ -123,7 +123,7 @@ pub(super) async fn abort_device(serial_number: &str) {
 /// [2]: crate::traits::ThorlabsDevice::abort
 /// [3]: crate::devices::UsbPrimitive::close
 #[doc(hidden)]
-async fn leak_device(serial_number: &str) {
+fn leak_device(serial_number: &str) {
     devices().remove(serial_number);
 }
 
