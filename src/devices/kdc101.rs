@@ -87,7 +87,7 @@ impl KDC101 {
     /// [3]: crate::devices::usb_primitive::status::Status
     /// [4]: crate::devices::usb_primitive::status::Status::Open
     /// [5]: KDC101::open
-    pub async fn async_open(&mut self) -> Result<(), Error> {
+    pub async fn open_async(&mut self) -> Result<(), Error> {
         self.inner.open().await
     }
 
@@ -101,9 +101,9 @@ impl KDC101 {
     /// [2]: UsbPrimitive
     /// [3]: crate::devices::usb_primitive::status::Status
     /// [4]: crate::devices::usb_primitive::status::Status::Open
-    /// [5]: KDC101::async_open
+    /// [5]: KDC101::open_async
     pub fn open(&mut self) -> Result<(), Error> {
-        block_on(async { self.async_open().await })
+        block_on(async { self.open_async().await })
     }
 
     /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
@@ -121,7 +121,7 @@ impl KDC101 {
     /// [4]: crate::devices::usb_primitive::status::Status::Closed
     /// [5]: ThorlabsDevice::abort
     /// [6]: KDC101::close
-    pub async fn async_close(&mut self) -> Result<(), Error> {
+    pub async fn close_async(&mut self) -> Result<(), Error> {
         self.inner.close().await
     }
 
@@ -139,9 +139,9 @@ impl KDC101 {
     /// [3]: crate::devices::usb_primitive::status::Status
     /// [4]: crate::devices::usb_primitive::status::Status::Closed
     /// [5]: ThorlabsDevice::abort
-    /// [6]: KDC101::async_close
+    /// [6]: KDC101::close_async
     pub fn close(&mut self) -> Result<(), Error> {
-        block_on(async { self.async_close().await })
+        block_on(async { self.close_async().await })
     }
 
     /// Identifies the device by flashing the front panel LED.
@@ -149,7 +149,7 @@ impl KDC101 {
     /// For a synchronous alternative, see [`identify`][1].
     ///
     /// [1]: KDC101::identify
-    pub async fn async_identify(&self) {
+    pub async fn identify_async(&self) {
         __identify(self, 1).await;
     }
 
@@ -157,10 +157,10 @@ impl KDC101 {
     ///
     /// For an asynchronous alternative, see [`async_identify`][1].
     ///
-    /// [1]: KDC101::async_identify
+    /// [1]: KDC101::identify_async
     pub fn identify(&self) {
         block_on(async {
-            self.async_identify().await;       
+            self.identify_async().await;
         })
     }
 
@@ -199,7 +199,7 @@ impl KDC101 {
     /// For a synchronous alternative, see [`home`][1]
     ///
     /// [1]: KDC101::home
-    pub async fn async_home(&self) {
+    pub async fn home_async(&self) {
         __home(self, 1).await;
     }
 
@@ -207,10 +207,10 @@ impl KDC101 {
     ///
     /// For an asynchronous alternative, see [`async_home`][1]
     ///
-    /// [1]: KDC101::async_home
+    /// [1]: KDC101::home_async
     pub fn home(&self) {
         block_on(async {
-            self.async_home().await;
+            self.home_async().await;
         })
     }
 
@@ -219,7 +219,7 @@ impl KDC101 {
     /// For a synchronous alternative, see [`move_absolute`][1]
     ///
     /// [1]: KDC101::move_absolute
-    pub async fn async_move_absolute(&self, position: f64) {
+    pub async fn move_absolute_async(&self, position: f64) {
         __move_absolute(self, 1, position).await;
     }
 
@@ -227,10 +227,10 @@ impl KDC101 {
     ///
     /// For an asynchronous alternative, see [`async_move_absolute`][1]
     ///
-    /// [1]: KDC101::async_move_absolute
+    /// [1]: KDC101::move_absolute_async
     pub fn move_absolute(&self, position: f64) {
         block_on(async {
-            self.async_move_absolute(position).await;
+            self.move_absolute_async(position).await;
         })
     }
 
