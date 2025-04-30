@@ -33,8 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 use crate::messages::utils::short;
 use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
-/// Returns the current position (mm), velocity (mm/s), and status bits for the specified device
-/// channel.
+/// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
+// TODO: Fn should also return status bits and motor current
 pub(crate) async fn __get_u_status_update<A>(device: &A, channel: u8) -> (f64, f64)
 where
     A: ThorlabsDevice + UnitConversion,
@@ -56,5 +56,4 @@ where
     let position = Units::distance_from_slice(&response[8..12]).decode::<A>();
     let velocity = Units::velocity_from_slice(&response[12..14]).decode::<A>();
     (position, velocity)
-    // TODO: Fn should also return status bits and motor current
 }
