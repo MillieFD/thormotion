@@ -164,6 +164,26 @@ impl KDC101 {
         })
     }
 
+    /// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
+    ///
+    /// For a synchronous alternative, see [`get_status`][1].
+    ///
+    /// [1]: KDC101::get_status
+    pub async fn get_status_async(&self) {
+        __get_u_status_update(self, 1).await;
+    }
+
+    /// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
+    ///
+    /// For an asynchronous alternative, see [`async_get_status`][1].
+    ///
+    /// [1]: KDC101::get_status_async
+    pub fn get_status(&self) {
+        block_on(async {
+            self.get_status_async().await;
+        })
+    }
+
     /// Returns `True` if the specified device channel is enabled.
     pub async fn get_channel_enable_state(&self) {
         __req_channel_enable_state(self, 1).await;
