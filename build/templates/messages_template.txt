@@ -1,8 +1,0 @@
-use async_std::sync::RwLock;
-use phf;
-
-pub(crate) static LENGTH_MAP: phf::Map<[u8; 2], usize> = LENGTH_MAP_ENTRIES;
-
-pub(crate) static CHANNEL_MAP: phf::Map<[u8; 2], &RwLock<Option<Channel>>> = CHANNEL_MAP_ENTRIES;
-
-// CHANNELS
