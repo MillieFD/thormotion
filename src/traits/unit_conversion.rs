@@ -57,24 +57,24 @@ impl Units {
     /// using the appropriate [`scale factor`][1].
     ///
     /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
-    pub(crate) fn distance(slice: &[u8]) -> Self {
-        Units::Distance(Self::array_from_slice(slice))
+    pub(crate) fn distance_from_slice(slice: &[u8]) -> Units {
+        Units::Distance(Units::array_from_slice(slice))
     }
 
     /// Converts a velocity from device units to real-world units (mm/s) using the appropriate
     /// [`scale factor`][1].
     ///
     /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
-    pub(crate) fn velocity(slice: &[u8]) -> Self {
-        Units::Velocity(Self::array_from_slice(slice))
+    pub(crate) fn velocity_from_slice(slice: &[u8]) -> Units {
+        Units::Velocity(Units::array_from_slice(slice))
     }
 
     /// Converts an acceleration from device units to real-world units (mm/s²) using the appropriate
     /// [`scale factor`][1].
     ///
     /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
-    pub(crate) fn acceleration(slice: &[u8]) -> Self {
-        Units::Acceleration(Self::array_from_slice(slice))
+    pub(crate) fn acceleration_from_slice(slice: &[u8]) -> Units {
+        Units::Acceleration(Units::array_from_slice(slice))
     }
     
     /// Converts an `f64` to an unwrapped little-endian byte array `[u8; 4]`.
@@ -83,9 +83,9 @@ impl Units {
     /// the result, see the [`new_distance`][1], [`new_velocity`][2], and [`new_acceleration`][3]
     /// functions.
     ///
-    /// [1]: Units::new_distance
-    /// [2]: Units::new_velocity
-    /// [3]: Units::new_acceleration
+    /// [1]: Units::distance_from_f64
+    /// [2]: Units::velocity_from_f64
+    /// [3]: Units::acceleration_from_f64
     fn encode(value: f64, scale_factor: f64) -> [u8; 4] {
         let scaled = value * scale_factor;
         let rounded = scaled.round();
@@ -96,11 +96,11 @@ impl Units {
     /// using the appropriate [`scale factor`][1].
     ///
     /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
-    pub(crate) fn new_distance<A>(distance: f64) -> Self
+    pub(crate) fn distance_from_f64<A>(distance: f64) -> Units
     where
         A: UnitConversion,
     {
-        let bytes = Self::encode(distance, A::DISTANCE_ANGLE_SCALE_FACTOR);
+        let bytes = Units::encode(distance, A::DISTANCE_ANGLE_SCALE_FACTOR);
         Units::Distance(bytes)
     }
 
@@ -108,11 +108,11 @@ impl Units {
     /// [`scale factor`][1].
     ///
     /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
-    pub(crate) fn new_velocity<A>(velocity: f64) -> Self
+    pub(crate) fn velocity_from_f64<A>(velocity: f64) -> Units
     where
         A: UnitConversion,
     {
-        let bytes = Self::encode(velocity, A::VELOCITY_SCALE_FACTOR);
+        let bytes = Units::encode(velocity, A::VELOCITY_SCALE_FACTOR);
         Units::Distance(bytes)
     }
 
@@ -120,11 +120,11 @@ impl Units {
     /// [`scale factor`][1].
     ///
     /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
-    pub(crate) fn new_acceleration<A>(acceleration: f64) -> Self
+    pub(crate) fn acceleration_from_f64<A>(acceleration: f64) -> Units
     where
         A: UnitConversion,
     {
-        let bytes = Self::encode(acceleration, A::ACCELERATION_SCALE_FACTOR);
+        let bytes = Units::encode(acceleration, A::ACCELERATION_SCALE_FACTOR);
         Units::Distance(bytes)
     }
 
@@ -132,7 +132,7 @@ impl Units {
     /// appropriate [`scale factor`][1].
     ///
     /// [1]: UnitConversion
-    const fn decode<A>(&self) -> f64
+    pub(crate) const fn decode<A>(&self) -> f64
     where
         A: UnitConversion,
     {
