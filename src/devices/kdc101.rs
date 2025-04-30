@@ -158,8 +158,10 @@ impl KDC101 {
     /// For an asynchronous alternative, see [`async_identify`][1].
     ///
     /// [1]: KDC101::async_identify
-    pub async fn identify(&self) {
-        __identify(self, 1).await;
+    pub fn identify(&self) {
+        block_on(async {
+            self.async_identify().await;       
+        })
     }
 
     /// Returns `True` if the specified device channel is enabled.
