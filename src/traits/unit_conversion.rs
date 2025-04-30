@@ -52,31 +52,34 @@ impl Units {
             ))
         })
     }
-    
-    /// Converts a distance or angle from device units to real-world units (millimeters or degrees)
-    /// using the appropriate [`scale factor`][1].
+
+    /// Constructs a new [`Units::Distance`] from device units.
     ///
-    /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
+    /// ### Aborts
+    ///
+    /// This function aborts if the slice cannot be coerced into a four-byte array `[u8; 4]`
     pub(crate) fn distance_from_slice(slice: &[u8]) -> Units {
         Units::Distance(Units::array_from_slice(slice))
     }
 
-    /// Converts a velocity from device units to real-world units (mm/s) using the appropriate
-    /// [`scale factor`][1].
+    /// Constructs a new [`Units::Velocity`] from device units.
     ///
-    /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
+    /// ### Aborts
+    ///
+    /// This function aborts if the slice cannot be coerced into a four-byte array `[u8; 4]`
     pub(crate) fn velocity_from_slice(slice: &[u8]) -> Units {
         Units::Velocity(Units::array_from_slice(slice))
     }
 
-    /// Converts an acceleration from device units to real-world units (mm/s²) using the appropriate
-    /// [`scale factor`][1].
+    /// Constructs a new [`Units::Acceleration`] from device units.
     ///
-    /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
+    /// ### Aborts
+    ///
+    /// This function aborts if the slice cannot be coerced into a four-byte array `[u8; 4]`
     pub(crate) fn acceleration_from_slice(slice: &[u8]) -> Units {
         Units::Acceleration(Units::array_from_slice(slice))
     }
-    
+
     /// Converts an `f64` to an unwrapped little-endian byte array `[u8; 4]`.
     ///
     /// You can manually wrap the result in the appropriate [`Units`] variant. To automatically wrap
@@ -167,8 +170,8 @@ impl Deref for Units {
 }
 
 impl IntoIterator for Units {
-    type Item = u8;
     type IntoIter = std::array::IntoIter<u8, 4>;
+    type Item = u8;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
