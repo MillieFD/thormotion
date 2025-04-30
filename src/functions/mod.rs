@@ -36,6 +36,7 @@ mod home;
 mod identify;
 mod channel_enable_state;
 mod move_absolute;
+mod status_update;
 
 /* -------------------------------------------------------------------------- Private Re-Exports */
 

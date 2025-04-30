@@ -30,12 +30,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::global_abort;
+use crate::devices::abort;
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
 /// Returns `True` if the specified device channel is enabled.
-#[doc(hidden)]
 pub(crate) async fn __req_channel_enable_state<A>(device: &A, channel: u8) -> bool
 where
     A: ThorlabsDevice,
@@ -54,7 +53,7 @@ where
         match response[3] {
             0x01 => true,
             0x02 => false,
-            _ => global_abort(format!(
+            _ => abort(format!(
                 "{} GET_CHANENABLESTATE contained invalid channel enable state : {}",
                 device, response[3]
             )),
@@ -65,7 +64,6 @@ where
 }
 
 /// Enables or disables the specified device channel.
-#[doc(hidden)]
 pub(crate) async fn __set_channel_enable_state<A>(device: &A, channel: u8, enable: bool)
 where
     A: ThorlabsDevice,
