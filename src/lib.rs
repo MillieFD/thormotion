@@ -37,6 +37,7 @@ pub mod error;
 
 /* ----------------------------------------------------------------------------- Private modules */
 
+#[doc(hidden)]
 mod functions;
 mod messages;
 mod traits;
