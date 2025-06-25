@@ -41,16 +41,15 @@ pub(crate) enum Units {
 }
 
 impl Units {
-    /// Coerces a slice `&[u8]` into an array `[u8; 4]`.
+    /// Converts a slice `&[u8]` into an array `[u8; N]`.
     #[doc(hidden)]
     #[inline]
-    fn array_from_slice(slice: &[u8]) -> [u8; 4] {
-        slice.try_into().unwrap_or_else(|e| {
-            abort(format!(
-                "Cannot coerce slice {:?} to array [u8; 4] : {}",
-                slice, e
-            ))
-        })
+    fn array_from_slice<const N: usize>(slice: &[u8]) -> [u8; N] {
+        let mut array = [0u8; N];
+        for (i, &byte) in slice.iter().take(N).enumerate() {
+            array[i] = byte;
+        }
+        array
     }
 
     /// Constructs a new [`Units::Distance`] from device units.
@@ -91,8 +90,8 @@ impl Units {
     /// [3]: Units::acceleration_from_f64
     fn encode(value: f64, scale_factor: f64) -> [u8; 4] {
         let scaled = value * scale_factor;
-        let rounded = scaled.round();
-        i32::to_le_bytes(rounded as i32)
+        let rounded = scaled.round() as i32;
+        i32::to_le_bytes(rounded)
     }
 
     /// Converts a distance (millimeters) or angle (degrees) from real-world units to device units
