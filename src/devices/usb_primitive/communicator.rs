@@ -97,11 +97,7 @@ impl Communicator {
                 queue.submit(RequestBuffer::new(BUFFER_SIZE));
                 let mut completion = queue.next_complete().await;
                 match completion.data.len() {
-                    ..2 => bug_abort(format!(
-                        "Received {}-byte command from USB device\n",
-                        completion.data.len()
-                    )),
-                    2 => {} // Command contains framing bytes only. Proceed to the yield point.
+                    ..3 => {} // Command contains framing bytes only. Proceed to the yield point.
                     3.. => {
                         completion.status?;
                         completion.data.drain(..2); // Drop the framing bytes
