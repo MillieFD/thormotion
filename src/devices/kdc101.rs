@@ -49,12 +49,13 @@ pub struct KDC101 {
 
 #[pyo3::pymethods]
 impl KDC101 {
-    const IDS: [[u8; 2]; 3] = [
+    const IDS: [[u8; 2]; 4] = [
         // MOD
         [0x12, 0x02], // GET_CHANENABLESTATE
         // MOT
         [0x44, 0x04], // MOVE_HOMED
         [0x64, 0x04], // MOVE_COMPLETED
+        [0x91, 0x04], // GET_USTATUSUPDATE
     ];
 
     #[new]
