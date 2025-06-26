@@ -17,11 +17,11 @@ name = "thormotion"
 crate-type = ["lib"]
 
 [dependencies]
-nusb = "0.1.13"
+nusb = "0.1.14"
 smol = "2.0.2"
 async-broadcast = "0.7.2"
-ahash = "0.8.11"
+ahash = "0.8.12"
 
 [dependencies.pyo3]
-version = "0.24.0"
+version = "0.25.1"
 features = ["experimental-async"]
