@@ -30,20 +30,17 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+use std::collections::VecDeque;
+
 use nusb::Interface;
 use nusb::transfer::{Queue, RequestBuffer, TransferError};
 use smol::Task;
 use smol::future::yield_now;
 use smol::lock::Mutex;
 
+use crate::devices::abort;
 use crate::devices::usb_primitive::serial_port::init;
-use crate::devices::{abort, bug_abort};
-use crate::messages::Dispatcher;
-
-// SAFETY: Currently, no data packet exceeds 255 bytes (Thorlabs APT Protocol, Issue 38, Page 35).
-// The max possible command length is therefore six-bytes (header) plus 255 bytes (data packet).
-/// The maximum possible size for a Thorlabs APT command
-const BUFFER_SIZE: usize = 255 + 6;
+use crate::messages::{CMD_LEN_MAX, Dispatcher};
 
 /// Handles all incoming and outgoing commands between the host and a specific USB [`Interface`].
 pub(super) struct Communicator {
@@ -57,7 +54,9 @@ pub(super) struct Communicator {
 }
 
 impl Communicator {
+    /// Creates a new [`Communicator`] instance for the specified USB [`Interface`].
     pub(super) async fn new(interface: Interface, dispatcher: Dispatcher) -> Self {
+        /// The USB endpoint used for outgoing commands to the device
         const OUT_ENDPOINT: u8 = 0x02;
         init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
@@ -89,25 +88,38 @@ impl Communicator {
     /// 2. The [`Communicator`] is dropped
     /// 3. A [`TransferError`] occurs. See [`Self::handle_error`].
     fn spawn(interface: Interface, dispatcher: Dispatcher) -> Task<()> {
+        /// The USB endpoint used for incoming commands from the device
         const IN_ENDPOINT: u8 = 0x81;
-        let mut queue = interface.bulk_in_queue(IN_ENDPOINT);
-
+        /// The number of concurrent transfers to maintain in the queue
+        const N_TRANSFERS: usize = 3;
+        let mut endpoint = interface.bulk_in_queue(IN_ENDPOINT);
+        while endpoint.pending() < N_TRANSFERS {
+            endpoint.submit(RequestBuffer::new(CMD_LEN_MAX));
+        }
+        let mut queue: VecDeque<u8> = VecDeque::with_capacity(N_TRANSFERS * CMD_LEN_MAX);
         let mut listen = async move || -> Result<(), TransferError> {
             loop {
-                queue.submit(RequestBuffer::new(BUFFER_SIZE));
-                let mut completion = queue.next_complete().await;
-                match completion.data.len() {
-                    ..3 => {} // Command contains framing bytes only. Proceed to the yield point.
-                    3.. => {
-                        completion.status?;
-                        completion.data.drain(..2); // Drop the framing bytes
-                        dispatcher.dispatch(completion.data).await;
+                let completion = endpoint.next_complete().await;
+                if completion.data.len() > 2 {
+                    completion.status?;
+                    queue.extend(&completion.data[2..]); // Drop prefix bytes
+                    loop {
+                        if queue.len() < 2 {
+                            break;
+                        }
+                        let id = &[queue[0], queue[1]]; // Copied bytes remain in queue
+                        let len = dispatcher.length(id).await;
+                        if queue.len() < len {
+                            break;
+                        }
+                        let msg = queue.drain(..len).collect();
+                        dispatcher.dispatch(msg).await;
                     }
                 }
+                endpoint.submit(RequestBuffer::reuse(completion.data, CMD_LEN_MAX));
                 yield_now().await;
             }
         };
-
         smol::spawn(async move {
             if let Err(error) = listen().await {
                 Self::handle_error(error);
