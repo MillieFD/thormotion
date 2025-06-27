@@ -34,7 +34,7 @@ use crate::error::sn::Error;
 
 pub(crate) trait CheckSerialNumber {
     /// The unique serial number prefix for the implementing Thorlabs device type.
-    /// See the Thorlabs APT Protocol, Issue 38, Page 32.
+    /// See the Thorlabs APT Protocol, Issue 39, Page 32.
     const SERIAL_NUMBER_PREFIX: &'static str;
 
     /// Returns [`Error::Invalid`] if the serial number:
