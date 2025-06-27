@@ -596,6 +596,7 @@ version = "0.4.0"
 dependencies = [
  "ahash",
  "async-broadcast",
+ "log",
  "nusb",
  "pyo3",
  "smol",
