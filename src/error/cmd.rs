@@ -30,26 +30,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/* ------------------------------------------------------------------------------ Public Modules */
+use std::fmt::{Display, Formatter};
 
-pub(crate) mod utils;
+#[derive(Debug)]
+pub enum Error {
+    DeviceClosed,
+}
 
-/* ----------------------------------------------------------------------------- Private Modules */
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::DeviceClosed => write!(f, "Cannot send command to closed device"),
+        }
+    }
+}
 
-mod command;
-mod dispatcher;
-mod provenance;
-
-/* --------------------------------------------------------------------------- Public Re-Exports */
-
-/// A sender for broadcasting command responses to multiple receivers.
-pub type Sender = async_broadcast::Sender<std::sync::Arc<[u8]>>;
-
-/// A receiver for listening to command responses from a sender.
-pub type Receiver = async_broadcast::Receiver<std::sync::Arc<[u8]>>;
-
-/* -------------------------------------------------------------------------- Private Re-Exports */
-
-pub(crate) use command::{CMD_LEN_MAX, Command};
-pub(crate) use dispatcher::Dispatcher;
-pub(crate) use provenance::Provenance;
+impl std::error::Error for Error {}

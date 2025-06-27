@@ -30,8 +30,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#![allow(non_snake_case)]
+
+/* ----------------------------------------------------------------------------- Private Modules */
+
+mod check_serial_number;
 mod thorlabs_device;
 mod unit_conversion;
 
+/* -------------------------------------------------------------------------- Private Re-Exports */
+
+pub(crate) use check_serial_number::CheckSerialNumber;
+pub(crate) use unit_conversion::{Units, UnitConversion};
+
+/* --------------------------------------------------------------------------- Public Re-Exports */
+
 pub use thorlabs_device::ThorlabsDevice;
-pub(crate) use unit_conversion::*;

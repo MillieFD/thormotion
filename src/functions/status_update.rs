@@ -30,34 +30,30 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::durations::DEFAULT_LONG_TIMEOUT;
-use crate::error::Error;
-use crate::macros::*;
-use crate::messages::utils::{get_new_receiver, pack_short_message};
-use crate::traits::{DistanceAngleConversion, ThorlabsDevice, VelocityConversion};
-use async_std::future::timeout;
+use crate::messages::utils::short;
+use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
-#[doc(hidden)]
-#[doc = "Returns the current position (mm), velocity (mm/s), and status of the specified device channel"]
-#[doc = apt_doc!(async, "MOT_REQ_STATUSUPDATE", "MOT_GET_STATUSUPDATE", RUSB, Timeout, FatalError)]
-pub(crate) async fn __get_u_status_update_async<A>(
-    device: &A,
-    channel: i32,
-) -> Result<(f64, f64, i32), Error>
+/// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
+// TODO: Fn should also return status bits and motor current
+pub(crate) async fn __get_u_status_update<A>(device: &A, channel: u8) -> (f64, f64)
 where
-    A: ThorlabsDevice + DistanceAngleConversion + VelocityConversion,
+    A: ThorlabsDevice + UnitConversion,
 {
-    const ID: [u8; 2] = [0x91, 0x04];
-    let receiver = get_new_receiver(ID).await?;
-    let data = pack_short_message(ID, channel, 0);
-    device.write(&data)?;
-    let response = timeout(DEFAULT_LONG_TIMEOUT, receiver.recv()).await??;
-    let returned_channel = i32::from_le_bytes([response[6], response[7], 0, 0]);
-    if channel != returned_channel {
-        return Err(Error::wrong_channel(device, channel, returned_channel));
+    const REQ_USTATUSUPDATE: [u8; 2] = [0x90, 0x04];
+    const GET_USTATUSUPDATE: [u8; 2] = [0x91, 0x04];
+    device.check_channel(channel);
+    let response = loop {
+        let rx = device.inner().receiver(&GET_USTATUSUPDATE).await;
+        if rx.is_new() {
+            let command = short(REQ_USTATUSUPDATE, channel, 0);
+            device.inner().send(command).await;
+        }
+        let response = rx.receive().await;
+        if response[6] == channel {
+            break response;
+        }
     };
-    let position = A::position_angle_from_le_bytes(response[8..12].try_into()?);
-    let velocity = A::velocity_from_le_bytes(response[12..14].try_into()?);
-    let motor_current = i32::from_le_bytes(response[14..16].try_into()?);
-    Ok((position, velocity, motor_current))
+    let position = Units::distance_from_slice(&response[8..12]).decode::<A>();
+    let velocity = Units::velocity_from_slice(&response[12..14]).decode::<A>();
+    (position, velocity)
 }

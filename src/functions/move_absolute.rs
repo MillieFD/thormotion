@@ -30,52 +30,47 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::durations::DEFAULT_LONG_TIMEOUT;
-use crate::error::Error;
-use crate::macros::*;
-use crate::messages::utils::{get_new_receiver, pack_long_message, pack_short_message};
-use crate::traits::{DistanceAngleConversion, ThorlabsDevice};
-use async_std::future::timeout;
-use std::fmt::Debug;
+use crate::messages::utils::{long, short};
+use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
-#[doc(hidden)]
-#[doc = "Moves the specified device channel to an absolute position"]
-#[doc = apt_doc!(async, "MOT_MOVE_ABSOLUTE", "MOT_MOVE_COMPLETED ", RUSB, Timeout, FatalError)]
-pub(crate) async fn __move_absolute_async<A, B>(
-    device: &A,
-    channel: i32,
-    absolute_position: B,
-) -> Result<(), Error>
+const MOVE: [u8; 2] = [0x53, 0x04];
+const MOVED: [u8; 2] = [0x64, 0x04];
+
+/// Moves the specified device channel to an absolute position.
+pub(crate) async fn __move_absolute<A>(device: &A, channel: u8, position: f64)
 where
-    A: ThorlabsDevice + DistanceAngleConversion,
-    B: Into<f64> + Clone + Debug,
+    A: ThorlabsDevice + UnitConversion,
 {
-    const ID: [u8; 2] = [0x53, 0x04];
-    const LENGTH: usize = 12;
-    let receiver = get_new_receiver(ID).await?;
-    let mut data = pack_long_message(ID, LENGTH);
-    let channel_bytes: [u8; 2] = u16::try_from(channel)?.to_le_bytes();
-    data.extend(channel_bytes);
-    data.extend(A::position_angle_to_le_bytes(absolute_position));
-    device.write(&data)?;
-    let _response = timeout(DEFAULT_LONG_TIMEOUT, receiver.recv()).await??;
-    Ok(())
+    device.check_channel(channel);
+    let rx = device.inner().receiver(&MOVED).await;
+    if rx.is_new() {
+        let mut data: Vec<u8> = Vec::with_capacity(6);
+        data.extend((channel as u16).to_le_bytes());
+        data.extend(Units::distance_from_f64::<A>(position));
+        let command = long(MOVE, &data);
+        device.inner().send(command).await;
+    }
+    let response = rx.receive().await;
+    match response[6] == channel && Units::distance_from_slice(&response[8..12]).approx::<A>(position) {
+        true => {} // No-op: Move was completed successfully
+        false => Box::pin(__move_absolute(device, channel, position)).await,
+    }
 }
 
-#[doc(hidden)]
-#[doc = "Moves the specified device channel to an absolute position (mm) using pre-set parameters"]
-#[doc = apt_doc!(sync, "MOT_MOVE_ABSOLUTE", "MOT_MOVE_COMPLETED ", RUSB, Timeout, FatalError)]
-pub(crate) async fn __move_absolute_from_params_async<A>(
-    device: &A,
-    channel: i32,
-) -> Result<(), Error>
+/// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
+pub(crate) async fn __move_absolute_from_params<A>(device: &A, channel: u8) -> f32
 where
     A: ThorlabsDevice,
 {
-    const ID: [u8; 2] = [0x53, 0x04];
-    let receiver = get_new_receiver(ID).await?;
-    let data = pack_short_message(ID, channel, 0);
-    device.write(&data)?;
-    let _response = timeout(DEFAULT_LONG_TIMEOUT, receiver.recv()).await??;
-    Ok(())
+    device.check_channel(channel);
+    let rx = device.inner().receiver(&MOVED).await;
+    if rx.is_new() {
+        let command = short(MOVE, channel, 0);
+        device.inner().send(command).await;
+    }
+    let response = rx.receive().await;
+    match response[6] == channel {
+        true => f32::from_le_bytes([response[8], response[9], response[10], response[11]]),
+        false => Box::pin(__move_absolute_from_params(device, channel)).await,
+    }
 }

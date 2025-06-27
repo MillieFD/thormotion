@@ -30,20 +30,15 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::error::Error;
-use crate::macros::*;
-use crate::messages::utils::pack_short_message;
+use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
-#[doc(hidden)]
-#[doc = "Identifies the device by flashing the front panel LED"]
-#[doc = apt_doc!(async, "MOD_IDENTIFY", RUSB)]
-pub(crate) fn __identify<A>(device: &A) -> Result<(), Error>
+/// Identifies the device by flashing the front panel LED.
+pub(crate) async fn __identify<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
 {
     const ID: [u8; 2] = [0x23, 0x02];
-    let data = pack_short_message(ID, 0, 0);
-    device.write(&data)?;
-    Ok(())
+    let command = short(ID, channel, 0);
+    device.inner().send(command).await
 }

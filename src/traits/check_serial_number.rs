@@ -30,26 +30,25 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/* ------------------------------------------------------------------------------ Public Modules */
+use crate::error::sn::Error;
 
-pub(crate) mod utils;
+pub(crate) trait CheckSerialNumber {
+    /// The unique serial number prefix for the implementing Thorlabs device type.
+    /// See the Thorlabs APT Protocol, Issue 39, Page 32.
+    const SERIAL_NUMBER_PREFIX: &'static str;
 
-/* ----------------------------------------------------------------------------- Private Modules */
-
-mod command;
-mod dispatcher;
-mod provenance;
-
-/* --------------------------------------------------------------------------- Public Re-Exports */
-
-/// A sender for broadcasting command responses to multiple receivers.
-pub type Sender = async_broadcast::Sender<std::sync::Arc<[u8]>>;
-
-/// A receiver for listening to command responses from a sender.
-pub type Receiver = async_broadcast::Receiver<std::sync::Arc<[u8]>>;
-
-/* -------------------------------------------------------------------------- Private Re-Exports */
-
-pub(crate) use command::{CMD_LEN_MAX, Command};
-pub(crate) use dispatcher::Dispatcher;
-pub(crate) use provenance::Provenance;
+    /// Returns [`Error::Invalid`] if the serial number:
+    /// 1. Does not match the serial number prefix for the target device type
+    /// 2. Is not exactly eight-digits long
+    /// 3. Contains non-numeric characters
+    fn check_serial_number(serial_number: &String) -> Result<(), Error> {
+        if serial_number.starts_with(Self::SERIAL_NUMBER_PREFIX)
+            && serial_number.len() == 8
+            && serial_number.chars().all(|c| c.is_numeric())
+        {
+            Ok(())
+        } else {
+            Err(Error::Invalid(serial_number.to_string()))
+        }
+    }
+}

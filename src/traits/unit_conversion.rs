@@ -30,270 +30,168 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use std::fmt::Debug;
+use std::ops::Deref;
 
-pub(crate) trait DistanceAngleConversion {
-    const DISTANCE_ANGLE_SCALE_FACTOR: f64;
+pub(crate) enum Units {
+    Distance([u8; 4]),
+    Velocity([u8; 4]),
+    Acceleration([u8; 4]),
+}
 
-    /**
-    Converts a position or angle from real-world units (millimetres) into device units
-    (little-endian byte array).
-
-    This function translates the input position or angle value from millimetres (mm) into the
-    corresponding device-specific units, represented as a signed 32-bit integer encoded as a
-    four-byte little-endian array. This conversion is performed using the device's
-    `DISTANCE_ANGLE_SCALE_FACTOR` constant.
-
-    # Thorlabs "Device Units" Explained
-
-    Internally, thorlabs devices use an encoder to keep track of their current position. All
-    distances must therefore be converted from real-word units (mm) into encoder-counts using the
-    correct scaling factor for the device. This scaling factor may differ between device types due
-    to different encoder resolutions and gearing ratios.
-
-    # Examples
-
-    ```rust
-    const DISTANCE_ANGLE_SCALE_FACTOR: f64 = 34304.0; // Example scale factor
-
-    let velocity = 6.345;
-    let bytes = velocity_to_le_bytes(velocity);
-
-    assert_eq!(bytes, [0x3B, 0x52, 0x03, 0x00]);
-    ```
-
-    # Panics
-
-    - Panics if the input `position` cannot be converted to `f64`
-    - Panics if the scaled position is out of range for `i32`.
-    */
-    fn position_angle_to_le_bytes<T>(position: T) -> [u8; 4]
-    where
-        T: TryInto<f64> + Clone + Debug,
-        <T as TryInto<f64>>::Error: Debug,
-    {
-        let position_f64: f64 = position
-            .clone()
-            .try_into()
-            .expect(&format!("Cannot convert {:?} to f64", position));
-        let scaled = position_f64 * Self::DISTANCE_ANGLE_SCALE_FACTOR;
-        let rounded = scaled.round();
-        if rounded < i32::MIN.into() || rounded > i32::MAX.into() {
-            panic!(
-                "f64 value {} cannot be converted to i32 because it is out of range.\n\
-                i32 can only represent integers from {} to {} inclusive.",
-                rounded,
-                i32::MIN,
-                i32::MAX,
-            );
+impl Units {
+    /// Converts a slice `&[u8]` into an array `[u8; N]`.
+    #[doc(hidden)]
+    #[inline]
+    fn array_from_slice<const N: usize>(slice: &[u8]) -> [u8; N] {
+        let mut array = [0u8; N];
+        for (i, &byte) in slice.iter().take(N).enumerate() {
+            array[i] = byte;
         }
-        i32::to_le_bytes(rounded as i32)
+        array
     }
 
-    /**
-    Converts a position or angle from device units (little-endian byte array) into real-world
-    units (mm).
+    /// Constructs a new [`Units::Distance`] from device units.
+    ///
+    /// ### Aborts
+    ///
+    /// This function aborts if the slice cannot be coerced into a four-byte array `[u8; 4]`
+    pub(crate) fn distance_from_slice(slice: &[u8]) -> Units {
+        Units::Distance(Units::array_from_slice(slice))
+    }
 
-    This function translates the input position or angle value from device-specific units,
-    represented as a signed 32-bit integer encoded as a four-byte little-endian array, into
-    millimetres (mm). This conversion is performed using the device's `DISTANCE_ANGLE_SCALE_FACTOR`
-    constant.
+    /// Constructs a new [`Units::Velocity`] from device units.
+    ///
+    /// ### Aborts
+    ///
+    /// This function aborts if the slice cannot be coerced into a four-byte array `[u8; 4]`
+    pub(crate) fn velocity_from_slice(slice: &[u8]) -> Units {
+        Units::Velocity(Units::array_from_slice(slice))
+    }
 
-    # Thorlabs "Device Units" Explained
+    /// Constructs a new [`Units::Acceleration`] from device units.
+    ///
+    /// ### Aborts
+    ///
+    /// This function aborts if the slice cannot be coerced into a four-byte array `[u8; 4]`
+    pub(crate) fn acceleration_from_slice(slice: &[u8]) -> Units {
+        Units::Acceleration(Units::array_from_slice(slice))
+    }
 
-    Internally, thorlabs devices use an encoder to keep track of their current position. All
-    distances must therefore be converted from encoder-counts into real-word units (mm) using the
-    correct scaling factor for the device. This scaling factor may differ between device types due
-    to different encoder resolutions and gearing ratios.
-    */
-    fn position_angle_from_le_bytes<T>(bytes: [u8; 4]) -> T
+    /// Converts an `f64` to an unwrapped little-endian byte array `[u8; 4]`.
+    ///
+    /// You can manually wrap the result in the appropriate [`Units`] variant. To automatically wrap
+    /// the result, see the [`new_distance`][1], [`new_velocity`][2], and [`new_acceleration`][3]
+    /// functions.
+    ///
+    /// [1]: Units::distance_from_f64
+    /// [2]: Units::velocity_from_f64
+    /// [3]: Units::acceleration_from_f64
+    fn encode(value: f64, scale_factor: f64) -> [u8; 4] {
+        let scaled = value * scale_factor;
+        let rounded = scaled.round() as i32;
+        i32::to_le_bytes(rounded)
+    }
+
+    /// Converts a distance (millimeters) or angle (degrees) from real-world units to device units
+    /// using the appropriate [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
+    pub(crate) fn distance_from_f64<A>(distance: f64) -> Units
     where
-        T: From<f64>,
+        A: UnitConversion,
     {
-        let encoder_counts: f64 = i32::from_le_bytes(bytes).into();
-        (encoder_counts / Self::DISTANCE_ANGLE_SCALE_FACTOR).into()
+        let bytes = Units::encode(distance, A::DISTANCE_ANGLE_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Converts a velocity from real-world units (mm/s) to device units using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
+    pub(crate) fn velocity_from_f64<A>(velocity: f64) -> Units
+    where
+        A: UnitConversion,
+    {
+        let bytes = Units::encode(velocity, A::VELOCITY_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Converts an acceleration from real-world units (mm/s²) to device units using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
+    pub(crate) fn acceleration_from_f64<A>(acceleration: f64) -> Units
+    where
+        A: UnitConversion,
+    {
+        let bytes = Units::encode(acceleration, A::ACCELERATION_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Consumes the [`Units`] enum, returning real-world units (millimeters and seconds) using the
+    /// appropriate [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion
+    pub(crate) const fn decode<A>(&self) -> f64
+    where
+        A: UnitConversion,
+    {
+        match self {
+            Units::Distance(d) => i32::from_le_bytes(*d) as f64 / A::DISTANCE_ANGLE_SCALE_FACTOR,
+            Units::Velocity(v) => i32::from_le_bytes(*v) as f64 / A::VELOCITY_SCALE_FACTOR,
+            Units::Acceleration(a) => i32::from_le_bytes(*a) as f64 / A::ACCELERATION_SCALE_FACTOR,
+        }
+    }
+
+    /// Returns `True` if [`self`][1] and [`other`][1] are equivalent within three decimal places.
+    ///
+    /// [1]: Units
+    pub(crate) const fn approx<A>(&self, other: f64) -> bool
+    where
+        A: UnitConversion,
+    {
+        (self.decode::<A>() - other).abs() < 0.001
     }
 }
 
-pub(crate) trait VelocityConversion {
-    const VELOCITY_SCALE_FACTOR: f64;
+impl Deref for Units {
+    type Target = [u8; 4];
 
-    /**
-    Converts a velocity from real-world units (mm/s) into device units (little-endian byte array).
-
-    This function translates the input velocity value from millimetres per second (mm/s) into the
-    corresponding device-specific units, represented as a signed 32-bit integer encoded as a
-    four-byte little-endian array. This conversion is performed using the device's
-    `DISTANCE_ANGLE_SCALE_FACTOR` constant.
-
-    # Thorlabs "Device Units" Explained
-
-    Internally, thorlabs devices use an encoder to keep track of their current position. All
-    distances must therefore be converted from real-word units (mm/s) into encoder-counts using the
-    correct scaling factor for the device. This scaling factor may differ between device types due
-    to different encoder resolutions and gearing ratios.
-
-    The device's unit of time is determined by the encoder polling frequency. All time-based units
-    (such as velocity and acceleration) must therefore be converted from real-word units (seconds)
-    into device units using the correct scaling factor for the device. This scaling factor may
-    differ between device types due to different encoder polling frequencies.
-
-    # Examples
-
-    ```rust
-    const VELOCITY_SCALE_FACTOR: f64 = 34304.0; // Example scale factor
-
-    let velocity = 6.345;
-    let bytes = velocity_to_le_bytes(velocity);
-
-    assert_eq!(bytes, [0x3B, 0x52, 0x03, 0x00]);
-    ```
-
-    # Panics
-
-    - Panics if the input `position` cannot be converted to `f64`
-    - Panics if the scaled position is out of range for `i32`.
-    */
-    fn velocity_to_le_bytes<T>(position: T) -> [u8; 4]
-    where
-        T: TryInto<f64> + Clone + Debug,
-        <T as TryInto<f64>>::Error: Debug,
-    {
-        let position_f64: f64 = position
-            .clone()
-            .try_into()
-            .expect(&format!("Cannot convert {:?} to f64", position));
-        let scaled = position_f64 * Self::VELOCITY_SCALE_FACTOR;
-        let rounded = scaled.round();
-        if rounded < i32::MIN.into() || rounded > i32::MAX.into() {
-            panic!(
-                "f64 value {} cannot be converted to i32 because it is out of range.\n\
-                i32 can only represent integers from {} to {} inclusive.",
-                rounded,
-                i32::MIN,
-                i32::MAX,
-            );
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Units::Distance(distance) => distance,
+            Units::Velocity(velocity) => velocity,
+            Units::Acceleration(acceleration) => acceleration,
         }
-        i32::to_le_bytes(rounded as i32)
-    }
-
-    /**
-    Converts a velocity from device units (little-endian byte array) into real-world units (mm/s).
-
-    This function translates the input velocity value from device-specific units, represented as a
-    signed 32-bit integer encoded as a four-byte little-endian array, into millimetres per second
-    (mm/s). This conversion is performed using the device's `VELOCITY_SCALE_FACTOR` constant.
-
-    # Thorlabs "Device Units" Explained
-
-    Internally, thorlabs devices use an encoder to keep track of their current position. All
-    distances must therefore be converted from encoder-counts into real-word units (mm/s) using the
-    correct scaling factor for the device. This scaling factor may differ between device types due
-    to different encoder resolutions and gearing ratios.
-
-    The device's unit of time is determined by the encoder polling frequency. All time-based units
-    (such as velocity and acceleration) must therefore be converted from real-word units (seconds)
-    into device units using the correct scaling factor for the device. This scaling factor may
-    differ between device types due to different encoder polling frequencies.
-    */
-    fn velocity_from_le_bytes<T>(bytes: [u8; 4]) -> T
-    where
-        T: From<f64>,
-    {
-        let encoder_counts: f64 = i32::from_le_bytes(bytes).into();
-        (encoder_counts / Self::VELOCITY_SCALE_FACTOR).into()
     }
 }
 
-pub(crate) trait AccelerationConversion {
+impl IntoIterator for Units {
+    type IntoIter = std::array::IntoIter<u8, 4>;
+    type Item = u8;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Units::Distance(bytes) => IntoIterator::into_iter(bytes),
+            Units::Velocity(bytes) => IntoIterator::into_iter(bytes),
+            Units::Acceleration(bytes) => IntoIterator::into_iter(bytes),
+        }
+    }
+}
+
+/// # Thorlabs "Device Units" Explained
+///
+/// Internally, thorlabs devices use an encoder to track of their current position. All distances
+/// must therefore be converted from real-word units (millimeters) to encoder-counts using the
+/// correct scaling factor. This scaling factor may differ between device types due to different
+/// encoder resolutions and gearing ratios.
+///
+/// The device's unit of time is determined by the encoder polling frequency. All time-dependent
+/// units (e.g. velocity and acceleration) must therefore be converted from real-word units
+/// (seconds) to device units using the correct scaling factor. This scaling factor may differ
+/// between device types due to different encoder polling frequencies.
+pub(crate) trait UnitConversion {
     const ACCELERATION_SCALE_FACTOR: f64;
-
-    /**
-    Converts an acceleration from real-world units (mm/s²) into device units (little-endian byte
-    array).
-
-    This function translates the input acceleration value from millimetres per second per second
-    (mm/s²) into the corresponding device-specific units, represented as a signed 32-bit integer
-    encoded as a four-byte little-endian array. This conversion is performed using the device's
-    `ACCELERATION_SCALE_FACTOR` constant.
-
-    # Thorlabs "Device Units" Explained
-
-    Internally, thorlabs devices use an encoder to keep track of their current position. All
-    distances must therefore be converted from real-word units (mm/s²) into encoder-counts using the
-    correct scaling factor for the device. This scaling factor may differ between device types due
-    to different encoder resolutions and gearing ratios.
-
-    The device's unit of time is determined by the encoder polling frequency. All time-based units
-    (such as velocity and acceleration) must therefore be converted from real-word units (seconds)
-    into device units using the correct scaling factor for the device. This scaling factor may
-    differ between device types due to different encoder polling frequencies.
-
-    # Examples
-
-    ```rust
-    const ACCELERATION_SCALE_FACTOR: f64 = 34304.0; // Example scale factor
-
-    let acceleration = 6.345;
-    let bytes = acceleration_to_le_bytes(acceleration);
-
-    assert_eq!(bytes, [0x3B, 0x52, 0x03, 0x00]);
-    ```
-
-    # Panics
-
-    - Panics if the input `position` cannot be converted to `f64`
-    - Panics if the scaled position is out of range for `i32`.
-    */
-    fn acceleration_to_le_bytes<T>(position: T) -> [u8; 4]
-    where
-        T: TryInto<f64> + Clone + Debug,
-        <T as TryInto<f64>>::Error: Debug,
-    {
-        let position_f64: f64 = position
-            .clone()
-            .try_into()
-            .expect(&format!("Cannot convert {:?} to i32", position));
-        let scaled = position_f64 * Self::ACCELERATION_SCALE_FACTOR;
-        let rounded = scaled.round();
-        if rounded < i32::MIN.into() || rounded > i32::MAX.into() {
-            panic!(
-                "f64 value {} cannot be converted to i32 because it is out of range.\n\
-                i32 can only represent integers from {} to {} inclusive.",
-                rounded,
-                i32::MIN,
-                i32::MAX,
-            );
-        }
-        i32::to_le_bytes(rounded as i32)
-    }
-
-    /**
-    Converts an acceleration from device units (little-endian byte array) into real-world units
-    (mm/s²).
-
-    This function translates the input acceleration value from device-specific units,
-    represented as a signed 32-bit integer encoded as a four-byte little-endian array,
-    into millimetres per second per second (mm/s²).
-    This conversion is performed using the device's `ACCELERATION_SCALE_FACTOR` constant.
-
-    # Thorlabs "Device Units" Explained
-
-    Internally, thorlabs devices use an encoder to keep track of their current position. All
-    distances must therefore be converted from encoder-counts into real-word units (mm/s²) using
-    the correct scaling factor for the device. This scaling factor may differ between device types
-    due to different encoder resolutions and gearing ratios.
-
-    The device's unit of time is determined by the encoder polling frequency. All time-based units
-    (such as velocity and acceleration) must therefore be converted from real-word units (seconds)
-    into device units using the correct scaling factor for the device. This scaling factor may
-    differ between device types due to different encoder polling frequencies.
-    */
-    fn acceleration_from_le_bytes<T>(bytes: [u8; 4]) -> T
-    where
-        T: From<f64>,
-    {
-        let encoder_counts: f64 = i32::from_le_bytes(bytes).into();
-        (encoder_counts / Self::ACCELERATION_SCALE_FACTOR).into()
-    }
+    const DISTANCE_ANGLE_SCALE_FACTOR: f64;
+    const VELOCITY_SCALE_FACTOR: f64;
 }

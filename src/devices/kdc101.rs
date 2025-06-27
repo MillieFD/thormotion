@@ -30,141 +30,244 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::devices::UsbDevicePrimitive;
-use crate::error::Error;
+use std::fmt::{Display, Formatter};
+use std::io::Error;
+use std::sync::Arc;
+
+use smol::block_on;
+
+use crate::devices::{UsbPrimitive, add_device};
+use crate::error::sn;
 use crate::functions::*;
-use crate::macros::*;
-use crate::traits::*;
-use async_std::task::block_on;
-use pyo3::prelude::*;
-use std::fmt::Debug;
-use std::ops::Deref;
+use crate::messages::Command;
+use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion};
 
-#[pyclass]
-#[derive(Debug)]
+#[pyo3::pyclass]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KDC101 {
-    inner: UsbDevicePrimitive,
+    inner: Arc<UsbPrimitive>,
 }
 
-impl Deref for KDC101 {
-    type Target = UsbDevicePrimitive;
+#[pyo3::pymethods]
+impl KDC101 {
+    const IDS: [Command; 4] = [
+        // MOD
+        Command::header([0x12, 0x02]), // GET_CHANENABLESTATE
+        // MOT
+        Command::header([0x44, 0x04]),      // MOVE_HOMED
+        Command::payload([0x64, 0x04], 20), // MOVE_COMPLETED
+        Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
+    ];
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl TryFrom<UsbDevicePrimitive> for KDC101 {
-    type Error = Error;
-
-    fn try_from(inner: UsbDevicePrimitive) -> Result<Self, Self::Error> {
-        Self::check_serial_number(inner.serial_number.as_str())?;
-        let device = Self { inner };
+    #[new]
+    pub fn new(serial_number: String) -> Result<Self, sn::Error> {
+        Self::check_serial_number(&serial_number)?;
+        let device = Self {
+            inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
+        };
+        let d = device.clone(); // Inexpensive Arc Clone
+        let f = move || d.abort();
+        add_device(serial_number, f);
         Ok(device)
+    }
+
+    /// Returns `True` if the [`USB Interface`][1] is open.
+    ///
+    /// [1]: nusb::Interface
+    async fn is_open(&self) -> bool {
+        self.inner.is_open().await
+    }
+
+    /// Opens an [`Interface`][1] to the [`USB Device`][2].
+    ///
+    /// No action is taken if the device [`Status`][3] is already [`Open`][4].
+    ///
+    /// For a synchronous alternative, see [`open`][5].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Open
+    /// [5]: KDC101::open
+    pub async fn open_async(&mut self) -> Result<(), Error> {
+        self.inner.open().await
+    }
+
+    /// Opens an [`Interface`][1] to the [`USB Device`][2].
+    ///
+    /// No action is taken if the device [`Status`][3] is already [`Open`][4].
+    ///
+    /// For an asynchronous alternative, see [`async_open`][5].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Open
+    /// [5]: KDC101::open_async
+    pub fn open(&mut self) -> Result<(), Error> {
+        block_on(async { self.open_async().await })
+    }
+
+    /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
+    ///
+    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
+    ///
+    /// This does not stop the device's current action. If you need to safely bring the
+    /// [`USB Device`][2] to a resting state, see [`abort`][5].
+    ///
+    /// For a synchronous alternative, see [`close`][6].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Closed
+    /// [5]: ThorlabsDevice::abort
+    /// [6]: KDC101::close
+    pub async fn close_async(&mut self) -> Result<(), Error> {
+        self.inner.close().await
+    }
+
+    /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
+    ///
+    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
+    ///
+    /// This does not stop the device's current action. If you need to safely bring the
+    /// [`USB Device`][2] to a resting state, see [`abort`][5].
+    ///
+    /// For an asynchronous alternative, see [`async_close`][6].
+    ///
+    /// [1]: nusb::Interface
+    /// [2]: UsbPrimitive
+    /// [3]: crate::devices::usb_primitive::status::Status
+    /// [4]: crate::devices::usb_primitive::status::Status::Closed
+    /// [5]: ThorlabsDevice::abort
+    /// [6]: KDC101::close_async
+    pub fn close(&mut self) -> Result<(), Error> {
+        block_on(async { self.close_async().await })
+    }
+
+    /// Identifies the device by flashing the front panel LED.
+    ///
+    /// For a synchronous alternative, see [`identify`][1].
+    ///
+    /// [1]: KDC101::identify
+    pub async fn identify_async(&self) {
+        __identify(self, 1).await;
+    }
+
+    /// Identifies the device by flashing the front panel LED.
+    ///
+    /// For an asynchronous alternative, see [`async_identify`][1].
+    ///
+    /// [1]: KDC101::identify_async
+    pub fn identify(&self) {
+        block_on(async {
+            self.identify_async().await;
+        })
+    }
+
+    /// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
+    ///
+    /// For a synchronous alternative, see [`get_status`][1].
+    ///
+    /// [1]: KDC101::get_status
+    pub async fn get_status_async(&self) -> (f64, f64) {
+        __get_u_status_update(self, 1).await
+    }
+
+    /// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
+    ///
+    /// For an asynchronous alternative, see [`async_get_status`][1].
+    ///
+    /// [1]: KDC101::get_status_async
+    pub fn get_status(&self) -> (f64, f64) {
+        block_on(async { self.get_status_async().await })
+    }
+
+    /// Returns `True` if the specified device channel is enabled.
+    pub async fn get_channel_enable_state(&self) {
+        __req_channel_enable_state(self, 1).await;
+    }
+
+    /// Enables or disables the specified device channel.
+    pub async fn set_channel_enable_state(&self, enable: bool) {
+        __set_channel_enable_state(self, 1, enable).await;
+    }
+
+    /// Homes the specified device channel.
+    ///
+    /// For a synchronous alternative, see [`home`][1]
+    ///
+    /// [1]: KDC101::home
+    pub async fn home_async(&self) {
+        __home(self, 1).await;
+    }
+
+    /// Homes the specified device channel.
+    ///
+    /// For an asynchronous alternative, see [`async_home`][1]
+    ///
+    /// [1]: KDC101::home_async
+    pub fn home(&self) {
+        block_on(async {
+            self.home_async().await;
+        })
+    }
+
+    /// Moves the specified device channel to an absolute position.
+    ///
+    /// For a synchronous alternative, see [`move_absolute`][1]
+    ///
+    /// [1]: KDC101::move_absolute
+    pub async fn move_absolute_async(&self, position: f64) {
+        __move_absolute(self, 1, position).await;
+    }
+
+    /// Moves the specified device channel to an absolute position.
+    ///
+    /// For an asynchronous alternative, see [`async_move_absolute`][1]
+    ///
+    /// [1]: KDC101::move_absolute_async
+    pub fn move_absolute(&self, position: f64) {
+        block_on(async {
+            self.move_absolute_async(position).await;
+        })
+    }
+
+    /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
+    pub async fn move_absolute_from_params(&self) {
+        __move_absolute_from_params(self, 1).await;
     }
 }
 
 impl ThorlabsDevice for KDC101 {
+    fn inner(&self) -> &UsbPrimitive {
+        &self.inner
+    }
+
+    fn channels(&self) -> u8 {
+        1
+    }
+
+    fn abort(&self) {
+        // todo()!
+    }
+}
+
+impl CheckSerialNumber for KDC101 {
     const SERIAL_NUMBER_PREFIX: &'static str = "27";
 }
 
-impl DistanceAngleConversion for KDC101 {
+impl UnitConversion for KDC101 {
+    const ACCELERATION_SCALE_FACTOR: f64 = 263.8443072;
     const DISTANCE_ANGLE_SCALE_FACTOR: f64 = 34554.96;
-}
-
-impl VelocityConversion for KDC101 {
     const VELOCITY_SCALE_FACTOR: f64 = 772981.3692;
 }
 
-impl AccelerationConversion for KDC101 {
-    const ACCELERATION_SCALE_FACTOR: f64 = 263.8443072;
-}
-
-#[pymethods]
-impl KDC101 {
-    #[new]
-    pub fn new(serial_number: &str) -> Result<Self, Error> {
-        ThorlabsDevice::new(serial_number)
-    }
-
-    #[doc = "Identifies the device by flashing the front panel LED"]
-    #[doc = apt_doc!(async, "MOD_IDENTIFY", RUSB)]
-    pub fn identify(&self) -> Result<(), Error> {
-        __identify(self)
-    }
-
-    #[doc = "Starts periodic update messages from the device every 100 milliseconds (10 Hz)."]
-    #[doc = "Automatic updates will continue until the `stop_update_messages` function is called."]
-    #[doc = "A 'one-off' status update can be requested using `get_status_update_async`."]
-    #[doc = apt_doc!(async, "HW_START_UPDATEMSGS", "GET_STATUSTUPDATE", RUSB)]
-    pub fn start_update_messages(&self) -> Result<(), Error> {
-        __start_update_messages(self)
-    }
-
-    #[doc = "Stops periodic update messages from the device every 100 milliseconds (10 Hz)."]
-    #[doc = "Automatic updates will cease until the `start_update_messages` function is called."]
-    #[doc = apt_doc!(async, "HW_STOP_UPDATEMSGS", RUSB)]
-    pub fn stop_update_message(&self) -> Result<(), Error> {
-        __stop_update_messages(self)
-    }
-
-    #[doc = "Returns the current position (mm), velocity (mm/s), and status of the device"]
-    #[doc = apt_doc!(async, "MOT_REQ_STATUSUPDATE", "MOT_GET_STATUSUPDATE", RUSB, Timeout, FatalError)]
-    pub async fn get_u_status_update_async(&self) -> Result<(f64, f64, i32), Error> {
-        __get_u_status_update_async(self, 1).await
-    }
-
-    #[doc = "Returns the current position (mm), velocity (mm/s), and status of the device"]
-    #[doc = apt_doc!(sync, "MOT_REQ_STATUSUPDATE", "MOT_GET_STATUSUPDATE", RUSB, Timeout, FatalError)]
-    pub async fn get_u_status_update(&self) -> Result<(f64, f64, i32), Error> {
-        block_on(__get_u_status_update_async(self, 1))
-    }
-
-    #[doc = "Homes the device."]
-    #[doc = apt_doc!(async, "MOT_MOVE_HOME", "MOT_MOVE_HOMED", RUSB, Timeout, FatalError)]
-    pub async fn home_async(&self) -> Result<(), Error> {
-        __home_async(self, 1).await
-    }
-
-    #[doc = "Homes the device."]
-    #[doc = apt_doc!(sync, "MOT_MOVE_HOME", "MOT_MOVE_HOMED", RUSB, Timeout, FatalError)]
-    pub fn home(&self) -> Result<(), Error> {
-        block_on(__home_async(self, 1))
-    }
-
-    #[doc = "Returns `True` if the device is enabled."]
-    #[doc = apt_doc!(async, "MOD_REQ_CHANENABLESTATE", "MOD_GET_CHANENABLESTATE", RUSB, Timeout, FatalError)]
-    pub async fn get_channel_enable_state_async(&self) -> Result<bool, Error> {
-        __get_channel_enable_state_async(self, 1).await
-    }
-
-    #[doc = "Returns `True` if the device is enabled."]
-    #[doc = apt_doc!(sync, "MOD_REQ_CHANENABLESTATE", "MOD_GET_CHANENABLESTATE", RUSB, Timeout, FatalError)]
-    pub fn get_channel_enable_state(&self) -> Result<bool, Error> {
-        block_on(__get_channel_enable_state_async(self, 1))
-    }
-
-    #[doc = "Enables or disables the device."]
-    #[doc = apt_doc!(async, "MOD_REQ_CHANENABLESTATE", "MOD_GET_CHANENABLESTATE", RUSB, Timeout, FatalError)]
-    pub async fn set_channel_enable_state_async(&self, enable: bool) -> Result<(), Error> {
-        __set_channel_enable_state_async(self, 1, enable).await
-    }
-
-    #[doc = "Enables or disables the device."]
-    #[doc = apt_doc!(sync, "MOD_REQ_CHANENABLESTATE", "MOD_GET_CHANENABLESTATE", RUSB, Timeout, FatalError)]
-    pub async fn set_channel_enable_state(&self, enable: bool) -> Result<(), Error> {
-        block_on(__set_channel_enable_state_async(self, 1, enable))
-    }
-
-    #[doc = "Moves the device to an absolute position (mm)"]
-    #[doc = apt_doc!(async, "MOT_MOVE_ABSOLUTE", "MOT_MOVE_COMPLETED ", RUSB, Timeout, FatalError)]
-    pub async fn move_absolute_async(&self, absolute_position: f64) -> Result<(), Error> {
-        __move_absolute_async(self, 1, absolute_position).await
-    }
-
-    #[doc = "Moves the device to an absolute position (mm)"]
-    #[doc = apt_doc!(async, "MOT_MOVE_ABSOLUTE", "MOT_MOVE_COMPLETED ", RUSB, Timeout, FatalError)]
-    pub fn move_absolute(&self, absolute_position: f64) -> Result<(), Error> {
-        block_on(__move_absolute_async(self, 1, absolute_position))
+impl Display for KDC101 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&block_on(async {
+            format!("KDC101 ({})", self.inner.to_string()) // See Display trait impl for UsbPrimitive
+        }))
     }
 }

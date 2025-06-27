@@ -30,24 +30,22 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use crate::durations::DEFAULT_LONG_TIMEOUT;
-use crate::error::Error;
-use crate::macros::*;
-use crate::messages::utils::{get_new_receiver, pack_short_message};
+use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
-use async_std::future::timeout;
 
-#[doc(hidden)]
-#[doc = "Homes the specified device channel."]
-#[doc = apt_doc!(async, "MOT_MOVE_HOME", "MOT_MOVE_HOMED", RUSB, Timeout, FatalError)]
-pub(crate) async fn __home_async<A>(device: &A, channel: i32) -> Result<(), Error>
+/// Homes the specified device channel.
+pub(crate) async fn __home<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
 {
-    const ID: [u8; 2] = [0x43, 0x04];
-    let receiver = get_new_receiver(ID).await?;
-    let data = pack_short_message(ID, channel, 0);
-    device.write(&data)?;
-    let _response = timeout(DEFAULT_LONG_TIMEOUT, receiver.recv()).await??;
-    Ok(())
+    const HOME: [u8; 2] = [0x43, 0x04];
+    const HOMED: [u8; 2] = [0x44, 0x04];
+
+    device.check_channel(channel);
+    let rx = device.inner().receiver(&HOMED).await;
+    if rx.is_new() {
+        let command = short(HOME, channel, 0);
+        device.inner().send(command).await;
+    }
+    let _ = rx.receive().await; // No need to parse the response
 }

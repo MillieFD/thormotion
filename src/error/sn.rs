@@ -30,16 +30,46 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-use async_channel::{Receiver, Sender, bounded};
+use std::fmt::{Debug, Display, Formatter};
 
-pub(crate) struct Channel {
-    pub(crate) sender: Sender<Box<[u8]>>,
-    pub(super) receiver: Receiver<Box<[u8]>>,
+use nusb::DeviceInfo;
+use pyo3::PyErr;
+
+type Sn = String;
+
+#[derive(Debug)]
+pub enum Error {
+    Invalid(Sn),
+    Multiple(Sn),
+    NotFound(Sn),
+    Unknown(DeviceInfo),
 }
 
-impl Channel {
-    pub(super) fn new() -> Self {
-        let (sender, receiver) = bounded(1);
-        Self { sender, receiver }
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Invalid(sn) => write!(
+                f,
+                "{:?} is not a valid serial number for the requested Thorlabs device type.",
+                sn
+            ),
+            Error::Multiple(sn) => {
+                write!(f, "Multiple devices found with serial number {}", sn)
+            }
+            Error::NotFound(sn) => {
+                write!(f, "No devices found with serial number {}", sn)
+            }
+            Error::Unknown(dev) => {
+                write!(f, "Serial number could not be read from device {:?}", dev)
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl From<Error> for PyErr {
+    fn from(error: Error) -> Self {
+        pyo3::exceptions::PyException::new_err(error.to_string())
     }
 }
