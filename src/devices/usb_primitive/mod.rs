@@ -45,9 +45,9 @@ use smol::block_on;
 use smol::lock::RwLock;
 use status::Status;
 
-use crate::devices::{abort_device, remove_device, get_device, abort};
+use crate::devices::{abort, abort_device, get_device, remove_device};
 use crate::error::{cmd, sn};
-use crate::messages::{Dispatcher, Provenance, Receiver};
+use crate::messages::{Command, Dispatcher, Provenance, Receiver};
 
 pub(crate) struct UsbPrimitive {
     /// A unique eight-digit serial number which is printed on the Thorlabs device.
@@ -74,7 +74,7 @@ impl UsbPrimitive {
     ///
     /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
     /// found.
-    pub(super) fn new(serial_number: String, ids: &[[u8; 2]]) -> Result<Self, sn::Error> {
+    pub(super) fn new(serial_number: String, ids: &[Command]) -> Result<Self, sn::Error> {
         let device_info = get_device(&serial_number)?;
         Ok(Self {
             serial_number,
@@ -201,9 +201,9 @@ impl UsbPrimitive {
 
     /// Sends a command to the device.
     pub(crate) async fn send(&self, command: Vec<u8>) {
-        self.try_send(command).await.unwrap_or_else(|e| {
-            abort(format!("Failed to send command to {} : {}", self, e))
-        });
+        self.try_send(command)
+            .await
+            .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", self, e)));
     }
 
     /// Sends a command to the device.
@@ -224,6 +224,9 @@ impl UsbPrimitive {
 }
 
 impl PartialEq<UsbPrimitive> for UsbPrimitive {
+    /// Compares two `UsbPrimitive` devices for equality.
+    ///
+    /// Returns `true` if both devices have the same vendor ID, product ID, and serial number.
     fn eq(&self, other: &Self) -> bool {
         self.device_info.vendor_id() == other.device_info.vendor_id()
             && self.device_info.product_id() == other.device_info.product_id()
@@ -232,9 +235,20 @@ impl PartialEq<UsbPrimitive> for UsbPrimitive {
     }
 }
 
+/// Implements the `Eq` trait for `UsbPrimitive`.
+///
+/// This trait is required in addition to `PartialEq` to use `UsbPrimitive` in collections
+/// that require equality comparison, such as `HashSet` or as keys in `HashMap`.
 impl Eq for UsbPrimitive {}
 
+/// Implements the `Hash` trait for `UsbPrimitive`.
+///
+/// This allows `UsbPrimitive` to be used as a key in hash-based collections like `HashMap`.
+/// The hash is computed based on the device's vendor ID, product ID, and serial number.
 impl Hash for UsbPrimitive {
+    /// Computes a hash value for the `UsbPrimitive` device.
+    ///
+    /// The hash is based on the device's vendor ID, product ID, and serial number.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.device_info.vendor_id().hash(state);
         self.device_info.product_id().hash(state);
@@ -257,16 +271,13 @@ impl Debug for UsbPrimitive {
 impl Display for UsbPrimitive {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&block_on(async {
-            format!(
-                "Thormotion USB Primitive (Serial number : {} | Status : {})",
-                self.serial_number(),
-                self.status.read().await.as_str()
-            )
+            format!("Thormotion USB Primitive ({:?})", self)
         }))
     }
 }
 
 impl Drop for UsbPrimitive {
+    /// Removes the `UsbPrimitive` instance from the global registry to prevent resource leaks.
     fn drop(&mut self) {
         block_on(async {
             remove_device(self.serial_number());
