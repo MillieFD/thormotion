@@ -35,7 +35,7 @@ impl Command {
     /// - Six-byte message header
     /// - Data payload if present
     ///
-    /// Currently, no data packet exceeds 255 bytes (Thorlabs APT Protocol, Issue 38, Page 35).
+    /// Currently, no data packet exceeds 255 bytes (Thorlabs APT Protocol, Issue 39, Page 35).
     /// The maximum possible command length is given by [`CMD_LEN_MAX`].
     pub(crate) const fn payload(id: [u8; 2], length: usize) -> Self {
         if length < 6 || length > CMD_LEN_MAX {
