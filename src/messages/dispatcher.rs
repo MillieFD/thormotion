@@ -34,10 +34,10 @@ use std::sync::Arc;
 
 use ahash::HashMap;
 use async_broadcast::broadcast;
-use smol::lock::{Mutex, MutexGuard};
+use smol::lock::MutexGuard;
 
 use crate::devices::{abort, bug_abort};
-use crate::messages::{Provenance, Receiver, Sender};
+use crate::messages::{Command, Provenance, Receiver, Sender};
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
 ///
@@ -45,38 +45,38 @@ use crate::messages::{Provenance, Receiver, Sender};
 /// The [`Dispatcher`] is released when all clones are dropped.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Dispatcher {
-    map: Arc<HashMap<[u8; 2], Mutex<Option<Sender>>>>,
+    map: Arc<HashMap<[u8; 2], Command>>,
 }
 
 impl Dispatcher {
     /// Constructs a new [`Dispatcher`] from the provided array of command ID bytes.
-    pub(crate) fn new(ids: &[[u8; 2]]) -> Self {
+    pub(crate) fn new(ids: &[Command]) -> Self {
         Self {
             map: Arc::new(HashMap::from_iter(
-                ids.iter().map(|id| (*id, Mutex::new(None))),
+                ids.iter()
+                    .map(|cmd| (cmd.id, Command::payload(cmd.id, cmd.length))),
             )),
         }
     }
 
-    // SAFETY: Using Dispatcher::get outside this impl block may allow a channel to remain in the
-    // Dispatcher::map after sending a message. Use Dispatcher::take instead.
+    /// Returns a reference to the [`Command`] corresponding to the ID.
     #[doc(hidden)]
-    async fn get(&self, id: &[u8]) -> MutexGuard<Option<Sender>> {
+    async fn get(&self, id: &[u8]) -> &Command {
+        // SAFETY: Using Dispatcher::get outside this impl block may allow a channel to remain in
+        // the Dispatcher::map after sending a message. Use Dispatcher::take instead.
         self.map
             .get(id)
             .unwrap_or_else(|| abort(format!("Dispatcher does not contain command ID {:?}", id)))
-            .lock()
-            .await
     }
 
-    // SAFETY: Using Dispatcher::insert outside this impl block may cause an existing sender to
-    // drop before it has broadcast. Any existing receivers will await indefinitely.
     /// Creates a new [`broadcast channel`][1].
     /// Inserts the [`Sender`] into the [`HashMap`] and returns the [`Receiver`].
     ///
     /// [1]: broadcast
     #[doc(hidden)]
     fn insert(opt: &mut MutexGuard<Option<Sender>>) -> Receiver {
+        // SAFETY: Using Dispatcher::insert outside this impl block may cause an existing sender to
+        // drop before it has broadcast. Any existing receivers will await indefinitely.
         let (tx, rx) = broadcast(1);
         opt.replace(tx);
         rx
@@ -99,7 +99,7 @@ impl Dispatcher {
     /// [3]: Dispatcher::any_receiver
     /// [4]: Dispatcher::new_receiver
     pub(crate) async fn receiver(&self, id: &[u8]) -> Provenance {
-        let mut opt = self.get(id).await;
+        let mut opt = self.get(id).await.sender.lock().await;
         match &*opt {
             None => Provenance::New(Self::insert(&mut opt)),
             Some(existing) => Provenance::Existing(existing.new_receiver()),
@@ -150,7 +150,12 @@ impl Dispatcher {
     /// - Returns [`None`] if no functions are awaiting the command response.
     #[doc(hidden)]
     pub(crate) async fn take(&self, id: &[u8]) -> Option<Sender> {
-        self.get(id).await.take()
+        self.get(id).await.sender.lock().await.take()
+    }
+
+    /// Returns the expected length (number of bytes) for the given command ID.
+    pub(crate) async fn length(&self, id: &[u8]) -> usize {
+        self.get(id).await.length
     }
 
     /// [`Broadcasts`][1] the command response to any waiting receivers.
@@ -171,8 +176,8 @@ impl Dispatcher {
     }
 }
 
-impl From<&[[u8; 2]]> for Dispatcher {
-    fn from(ids: &[[u8; 2]]) -> Self {
+impl From<&[Command]> for Dispatcher {
+    fn from(ids: &[Command]) -> Self {
         Self::new(ids)
     }
 }
