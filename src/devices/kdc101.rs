@@ -39,6 +39,7 @@ use smol::block_on;
 use crate::devices::{UsbPrimitive, add_device};
 use crate::error::sn;
 use crate::functions::*;
+use crate::messages::Command;
 use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion};
 
 #[pyo3::pyclass]
@@ -49,13 +50,13 @@ pub struct KDC101 {
 
 #[pyo3::pymethods]
 impl KDC101 {
-    const IDS: [[u8; 2]; 4] = [
+    const IDS: [Command; 4] = [
         // MOD
-        [0x12, 0x02], // GET_CHANENABLESTATE
+        Command::header([0x12, 0x02]), // GET_CHANENABLESTATE
         // MOT
-        [0x44, 0x04], // MOVE_HOMED
-        [0x64, 0x04], // MOVE_COMPLETED
-        [0x91, 0x04], // GET_USTATUSUPDATE
+        Command::header([0x44, 0x04]),      // MOVE_HOMED
+        Command::payload([0x64, 0x04], 20), // MOVE_COMPLETED
+        Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
     ];
 
     #[new]
