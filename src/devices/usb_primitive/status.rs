@@ -54,6 +54,9 @@ pub(super) enum Status {
 }
 
 impl Status {
+    /// Returns a string representation of the current status.
+    ///
+    /// Returns "Open" if the device is open, or "Closed" if the device is closed.
     pub(super) fn as_str(&self) -> &str {
         match self {
             Self::Open(_) => "Open",
