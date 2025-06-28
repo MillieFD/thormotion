@@ -32,14 +32,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::collections::VecDeque;
 
+use log::{debug, info, trace};
 use nusb::Interface;
 use nusb::transfer::{Queue, RequestBuffer, TransferError};
 use smol::Task;
 use smol::future::yield_now;
 use smol::lock::Mutex;
 
+use super::serial_port;
 use crate::devices::abort;
-use crate::devices::usb_primitive::serial_port::init;
 use crate::messages::{CMD_LEN_MAX, Dispatcher};
 
 /// Handles all incoming and outgoing commands between the host and a specific USB [`Interface`].
@@ -58,7 +59,8 @@ impl Communicator {
     pub(super) async fn new(interface: Interface, dispatcher: Dispatcher) -> Self {
         /// The USB endpoint used for outgoing commands to the device
         const OUT_ENDPOINT: u8 = 0x02;
-        init(&interface).await;
+        trace!("Initialising communicator");
+        serial_port::init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
         let outgoing = Mutex::new(interface.bulk_out_queue(OUT_ENDPOINT));
         let incoming = Self::spawn(interface, dsp);
@@ -92,27 +94,38 @@ impl Communicator {
         const IN_ENDPOINT: u8 = 0x81;
         /// The number of concurrent transfers to maintain in the queue
         const N_TRANSFERS: usize = 3;
+        trace!("Initialising incoming USB endpoint");
         let mut endpoint = interface.bulk_in_queue(IN_ENDPOINT);
         while endpoint.pending() < N_TRANSFERS {
             endpoint.submit(RequestBuffer::new(CMD_LEN_MAX));
         }
         let mut queue: VecDeque<u8> = VecDeque::with_capacity(N_TRANSFERS * CMD_LEN_MAX);
         let mut listen = async move || -> Result<(), TransferError> {
+            trace!("Starting background 'listen' task");
             loop {
                 let completion = endpoint.next_complete().await;
                 if completion.data.len() > 2 {
                     completion.status?;
+                    debug!("Received command {:02X?}", &completion.data[2..],);
                     queue.extend(&completion.data[2..]); // Drop prefix bytes
                     loop {
                         if queue.len() < 2 {
                             break;
                         }
                         let id = &[queue[0], queue[1]]; // Copied bytes remain in queue
+                        info!("Message ID : {:02X?}", id);
                         let len = dispatcher.length(id).await;
                         if queue.len() < len {
+                            info!("Incomplete command. Waiting for more data.");
+                            trace!(
+                                "Queue is {} bytes | Message needs {} bytes",
+                                queue.len(),
+                                len
+                            );
                             break;
                         }
                         let msg = queue.drain(..len).collect();
+                        debug!("Dispatching command {:02X?}", msg);
                         dispatcher.dispatch(msg).await;
                     }
                 }
@@ -129,6 +142,7 @@ impl Communicator {
 
     /// Send a command to the device [`Interface`].
     pub(super) async fn send(&self, command: Vec<u8>) {
+        debug!("Sending command {:02X?}", command);
         self.outgoing.lock().await.submit(command);
     }
 

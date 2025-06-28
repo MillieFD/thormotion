@@ -40,6 +40,7 @@ use std::io;
 use std::ops::Deref;
 
 use communicator::Communicator;
+use log::{debug, error, info, trace, warn};
 use nusb::DeviceInfo;
 use smol::block_on;
 use smol::lock::RwLock;
@@ -75,6 +76,7 @@ impl UsbPrimitive {
     /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
     /// found.
     pub(super) fn new(serial_number: String, ids: &[Command]) -> Result<Self, sn::Error> {
+        info!("Initialising Thormotion USB Primitive (Serial number : {serial_number})");
         let device_info = get_device(&serial_number)?;
         Ok(Self {
             serial_number,
@@ -104,8 +106,10 @@ impl UsbPrimitive {
     /// [2]: UsbPrimitive
     /// [3]: Status::Open
     pub(super) async fn open(&self) -> Result<(), io::Error> {
+        info!("Opening {self}");
         let mut guard = self.status.write().await;
         if let Status::Closed(dsp) = guard.deref() {
+            trace!("Claiming interface");
             let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
             let dispatcher = dsp.clone(); // Inexpensive Arc Clone
             let communicator = Communicator::new(interface, dispatcher).await;
@@ -122,8 +126,10 @@ impl UsbPrimitive {
     /// [2]: UsbPrimitive
     /// [3]: Status::Closed
     pub(super) async fn close(&self) -> Result<(), io::Error> {
+        info!("Closing {self}");
         let mut guard = self.status.write().await;
         if let Status::Open(communicator) = guard.deref() {
+            trace!("Closing communicator. Extracting dispatcher.");
             let dispatcher = communicator.get_dispatcher();
             *guard = Status::Closed(dispatcher);
         }
@@ -150,7 +156,8 @@ impl UsbPrimitive {
     /// [6]: ahash::HashMap
     /// [7]: UsbPrimitive::close
     async fn abort(&self) {
-        abort_device(self.serial_number())
+        warn!("Aborting {self}");
+        abort_device(self.serial_number());
     }
 
     /// Returns a receiver for the given command ID, wrapped in the [`Provenance`] enum. This is
@@ -201,6 +208,7 @@ impl UsbPrimitive {
 
     /// Sends a command to the device.
     pub(crate) async fn send(&self, command: Vec<u8>) {
+        debug!("Sending command to {} : {:02X?}", self, command);
         self.try_send(command)
             .await
             .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", self, e)));
@@ -212,6 +220,7 @@ impl UsbPrimitive {
     ///
     /// [1]: cmd::Error
     pub(crate) async fn try_send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
+        debug!("Try sending command to {} : {:02X?}", self, command);
         let guard = self.status.read().await;
         match &*guard {
             Status::Open(communicator) => {
