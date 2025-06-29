@@ -161,9 +161,7 @@ impl KDC101 {
     ///
     /// [1]: KDC101::identify_async
     pub fn identify(&self) {
-        block_on(async {
-            self.identify_async().await;
-        })
+        block_on(async { self.identify_async().await })
     }
 
     /// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
@@ -184,14 +182,38 @@ impl KDC101 {
         block_on(async { self.get_status_async().await })
     }
 
+    pub async fn hw_start_update_messages_async(&self) {
+        __hw_start_update_messages(self).await;
+    }
+
+    pub fn hw_start_update_messages(&self) {
+        block_on(async { self.hw_start_update_messages_async().await })
+    }
+
+    pub async fn hw_stop_update_messages_async(&self) {
+        __hw_stop_update_messages(self).await;
+    }
+
+    pub fn hw_stop_update_messages(&self) {
+        block_on(async { self.hw_stop_update_messages_async().await })
+    }
+
     /// Returns `True` if the specified device channel is enabled.
-    pub async fn get_channel_enable_state(&self) {
+    pub async fn get_channel_enable_state_async(&self) {
         __req_channel_enable_state(self, 1).await;
     }
 
+    pub async fn get_channel_enable_state(&self) {
+        block_on(async { self.get_channel_enable_state_async().await })
+    }
+
     /// Enables or disables the specified device channel.
-    pub async fn set_channel_enable_state(&self, enable: bool) {
+    pub async fn set_channel_enable_state_async(&self, enable: bool) {
         __set_channel_enable_state(self, 1, enable).await;
+    }
+
+    pub async fn set_channel_enable_state(&self, enable: bool) {
+        block_on(async { self.set_channel_enable_state_async(enable).await })
     }
 
     /// Homes the specified device channel.
@@ -209,9 +231,7 @@ impl KDC101 {
     ///
     /// [1]: KDC101::home_async
     pub fn home(&self) {
-        block_on(async {
-            self.home_async().await;
-        })
+        block_on(async { self.home_async().await })
     }
 
     /// Moves the specified device channel to an absolute position.
@@ -229,14 +249,16 @@ impl KDC101 {
     ///
     /// [1]: KDC101::move_absolute_async
     pub fn move_absolute(&self, position: f64) {
-        block_on(async {
-            self.move_absolute_async(position).await;
-        })
+        block_on(async { self.move_absolute_async(position).await })
     }
 
     /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
-    pub async fn move_absolute_from_params(&self) {
+    pub async fn move_absolute_from_params_async(&self) {
         __move_absolute_from_params(self, 1).await;
+    }
+
+    pub fn move_absolute_from_params(&self) {
+        block_on(async { self.move_absolute_from_params_async().await })
     }
 }
 
