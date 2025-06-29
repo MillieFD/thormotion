@@ -54,7 +54,7 @@ impl KDC101 {
         // MOD
         Command::header([0x12, 0x02]), // GET_CHANENABLESTATE
         // MOT
-        Command::header([0x44, 0x04]),      // MOVE_HOMED
+        Command::header([0x44, 0x04]), // MOVE_HOMED
         Command::payload([0x64, 0x04], 20), // MOVE_COMPLETED
         Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
     ];
@@ -182,18 +182,54 @@ impl KDC101 {
         block_on(async { self.get_status_async().await })
     }
 
+    /// Starts periodic update messages from the device every 100 milliseconds (10 Hz).
+    ///
+    /// Automatic updates will continue until the [`hw_stop_update_messages`][1] function is called.
+    /// A 'one-off' status update can be requested using [`get_status`].
+    ///
+    /// For a synchronous alternative, see [`hw_start_update_messages`][3].
+    ///
+    /// [1]: KDC101::hw_stop_update_messages
+    /// [2]: KDC101::get_status
+    /// [3]: KDC101::hw_start_update_messages
     pub async fn hw_start_update_messages_async(&self) {
         __hw_start_update_messages(self).await;
     }
 
+    /// Starts periodic update messages from the device every 100 milliseconds (10 Hz).
+    ///
+    /// Automatic updates will continue until the [`hw_stop_update_messages`][1] function is called.
+    /// A 'one-off' status update can be requested using [`get_status`].
+    ///
+    /// For an asynchronous alternative, see [`hw_start_update_messages_async`][3].
+    ///
+    /// [1]: KDC101::hw_stop_update_messages
+    /// [2]: KDC101::get_status
+    /// [3]: KDC101::hw_start_update_messages_async
     pub fn hw_start_update_messages(&self) {
         block_on(async { self.hw_start_update_messages_async().await })
     }
 
+    /// Stops periodic update messages from the device every 100 milliseconds (10 Hz).
+    ///
+    /// Automatic updates will cease until the [`hw_start_update_messages`][1] function is called.
+    ///
+    /// For a synchronous alternative, see [`hw_stop_update_messages`][2].
+    ///
+    /// [1]: KDC101::hw_start_update_messages
+    /// [2]: KDC101::hw_stop_update_messages
     pub async fn hw_stop_update_messages_async(&self) {
         __hw_stop_update_messages(self).await;
     }
 
+    /// Stops periodic update messages from the device every 100 milliseconds (10 Hz).
+    ///
+    /// Automatic updates will cease until the [`hw_start_update_messages`][1] function is called.
+    ///
+    /// For an asynchronous alternative, see [`hw_stop_update_messages_async`][2].
+    ///
+    /// [1]: KDC101::hw_start_update_messages
+    /// [2]: KDC101::hw_stop_update_messages_async
     pub fn hw_stop_update_messages(&self) {
         block_on(async { self.hw_stop_update_messages_async().await })
     }
@@ -203,6 +239,7 @@ impl KDC101 {
         __req_channel_enable_state(self, 1).await;
     }
 
+    /// Returns `True` if the specified device channel is enabled.
     pub async fn get_channel_enable_state(&self) {
         block_on(async { self.get_channel_enable_state_async().await })
     }
@@ -212,6 +249,7 @@ impl KDC101 {
         __set_channel_enable_state(self, 1, enable).await;
     }
 
+    /// Enables or disables the specified device channel.
     pub async fn set_channel_enable_state(&self, enable: bool) {
         block_on(async { self.set_channel_enable_state_async(enable).await })
     }
@@ -253,10 +291,19 @@ impl KDC101 {
     }
 
     /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
+    ///
+    /// For a synchronous alternative, see [`move_absolute_from_params`][1]
+    ///
+    /// [1]: KDC101::move_absolute_from_params
     pub async fn move_absolute_from_params_async(&self) {
         __move_absolute_from_params(self, 1).await;
     }
 
+    /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
+    ///
+    /// For an asynchronous alternative, see [`move_absolute_from_params_async`][1]
+    ///
+    /// [1]: KDC101::move_absolute_from_params_async
     pub fn move_absolute_from_params(&self) {
         block_on(async { self.move_absolute_from_params_async().await })
     }
