@@ -9,7 +9,7 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 */
 
 use crate::messages::utils::short;
-use crate::traits::{ThorlabsDevice, UnitConversion};
+use crate::traits::ThorlabsDevice;
 
 /// Starts periodic update messages from the device every 100 milliseconds (10 Hz).
 ///
