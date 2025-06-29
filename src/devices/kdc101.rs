@@ -336,7 +336,7 @@ impl UnitConversion for KDC101 {
 impl Display for KDC101 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&block_on(async {
-            format!("KDC101 ({})", self.inner.to_string()) // See Display trait impl for UsbPrimitive
+            format!("KDC101 ({:?})", self.inner) // See Debug trait for UsbPrimitive
         }))
     }
 }
