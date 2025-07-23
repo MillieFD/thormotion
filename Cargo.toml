@@ -25,4 +25,4 @@ log = "0.4.27"
 
 [dependencies.pyo3]
 version = "0.25.1"
-features = ["experimental-async"]
+features = ["experimental-async", "extension-module"]
