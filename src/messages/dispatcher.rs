@@ -161,8 +161,7 @@ impl Dispatcher {
     /// [`Broadcasts`][1] the command response to any waiting receivers.
     ///
     /// [1]: Sender::broadcast_direct
-    pub(crate) async fn dispatch(&self, command: Vec<u8>) {
-        let data: Arc<[u8]> = Arc::from(command);
+    pub(crate) async fn dispatch(&self, data: Arc<[u8]>) {
         let id: &[u8] = &data[..2];
         if let Some(sender) = self.take(id).await {
             // Sender::broadcast returns an error if either:

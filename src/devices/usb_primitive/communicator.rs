@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 use std::collections::VecDeque;
+use std::io::Read;
 
 use log::{debug, info, trace};
 use nusb::Interface;
@@ -100,6 +101,7 @@ impl Communicator {
             endpoint.submit(RequestBuffer::new(CMD_LEN_MAX));
         }
         let mut queue: VecDeque<u8> = VecDeque::with_capacity(N_TRANSFERS * CMD_LEN_MAX);
+        let mut id = [0u8; 2]; // Reusable ID buffer
         let mut listen = async move || -> Result<(), TransferError> {
             trace!("Starting background 'listen' task");
             loop {
@@ -108,13 +110,12 @@ impl Communicator {
                     completion.status?;
                     debug!("Received command {:02X?}", &completion.data[2..],);
                     queue.extend(&completion.data[2..]); // Drop prefix bytes
-                    loop {
-                        if queue.len() < 2 {
-                            break;
-                        }
-                        let id = &[queue[0], queue[1]]; // Copied bytes remain in queue
+
+                    while queue.get(5).is_some() {
+                        id[0] = queue[0]; // Copying is more efficient than borrowing for u8
+                        id[1] = queue[1]; // Copied bytes remain in queue
                         info!("Message ID : {:02X?}", id);
-                        let len = dispatcher.length(id).await;
+                        let len = dispatcher.length(&id).await;
                         if queue.len() < len {
                             info!("Incomplete command. Waiting for more data.");
                             trace!(
@@ -130,7 +131,6 @@ impl Communicator {
                     }
                 }
                 endpoint.submit(RequestBuffer::reuse(completion.data, CMD_LEN_MAX));
-                yield_now().await;
             }
         };
         smol::spawn(async move {
