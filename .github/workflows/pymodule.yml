@@ -35,7 +35,6 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          working-directory: thormotion-py
           args: --release --out ../dist --find-interpreter --zig
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
@@ -64,7 +63,6 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          working-directory: thormotion-py
           args: --release --out ../dist --find-interpreter --zig
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: musllinux_1_2
@@ -133,7 +131,6 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          working-directory: thormotion-py
           args: --out ../dist --manifest-path thormotion-py/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v4
