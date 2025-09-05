@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17064172.svg)](https://doi.org/10.5281/zenodo.17064172)
+
 # Thormotion
 
 A cross-platform motion control library for Thorlabs systems, written in Rust.
@@ -52,8 +54,8 @@ generic DOI [10.5281/zenodo.15006067](https://doi.org/10.5281/zenodo.15006067) w
 release.
 
 ```markdown
-MillieFD. (2025). MillieFD/thormotion: v0.3.0 Stable Pre-Release (v0.3.0).
-Zenodo. https://doi.org/10.5281/zenodo.15006067
+Amelia Fraser-Dale. (2025). MillieFD/thormotion: Thormotion v0.4.0
+Zenodo. https://doi.org/10.5281/zenodo.17064172
 ```
 
 ### 📖 Documentation
