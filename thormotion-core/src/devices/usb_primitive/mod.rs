@@ -53,11 +53,11 @@ impl UsbPrimitive {
     ///
     /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
     /// found.
-    pub(super) fn new(serial_number: String, ids: &[Command]) -> Result<Self, sn::Error> {
+    pub(super) fn new(serial_number: &String, ids: &[Command]) -> Result<Self, sn::Error> {
         info!("Initialising Thormotion USB Primitive (Serial number : {serial_number})");
-        let device_info = get_device(&serial_number)?;
+        let device_info = get_device(serial_number)?;
         Ok(Self {
-            serial_number,
+            serial_number: serial_number.clone(),
             device_info,
             status: RwLock::new(Status::Closed(Dispatcher::new(ids))),
         })

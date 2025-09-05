@@ -35,14 +35,18 @@ impl KDC101 {
         Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
     ];
 
-    pub fn new(serial_number: String) -> Result<Self, sn::Error> {
-        Self::check_serial_number(&serial_number)?;
+    pub fn new<A>(serial_number: A) -> Result<Self, sn::Error>
+    where
+        A: Into<String>,
+    {
+        let sn = serial_number.into();
+        Self::check_serial_number(&sn)?;
         let device = Self {
-            inner: Arc::new(UsbPrimitive::new(serial_number.clone(), &Self::IDS)?),
+            inner: Arc::new(UsbPrimitive::new(&sn, &Self::IDS)?),
         };
         let d = device.clone(); // Inexpensive Arc Clone
         let f = move || d.abort();
-        add_device(serial_number, f);
+        add_device(sn, f);
         Ok(device)
     }
 

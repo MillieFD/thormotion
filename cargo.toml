@@ -8,6 +8,7 @@ members = ["thormotion-core", "thormotion-py"]
 authors = ["Amelia Fraser-Dale"]
 categories = ["hardware-support", "science", "science::robotics"]
 description = "A cross-platform motion control library for Thorlabs systems, written in Rust."
+documentation = "https://docs.rs/thormotion/"
 edition = "2024"
 keywords = ["thorlabs", "research", "automation", "robotics", "mechatronics"]
 license = "BSD-3-Clause"
