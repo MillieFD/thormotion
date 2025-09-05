@@ -18,7 +18,7 @@ name = "thormotion"
 crate-type = ["lib"]
 
 [dependencies]
-thormotion-rs = { path = "../thormotion-rs" }
+thormotion = { path = "../thormotion-rs" }
 
 [dependencies.pyo3]
 version = "0.26"

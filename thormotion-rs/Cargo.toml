@@ -1,7 +1,7 @@
 # See a full list of keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [package]
-name = "thormotion-rs"
+name = "thormotion"
 authors = ["Amelia Fraser-Dale"]
 categories = ["hardware-support", "science", "science::robotics"]
 description = "A cross-platform motion control library for Thorlabs systems, written in Rust."

@@ -590,15 +590,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
 
 [[package]]
-name = "thormotion-py"
-version = "0.4.0"
-dependencies = [
- "pyo3",
- "thormotion-rs",
-]
-
-[[package]]
-name = "thormotion-rs"
+name = "thormotion"
 version = "0.4.0"
 dependencies = [
  "ahash",
@@ -607,6 +599,14 @@ dependencies = [
  "nusb",
  "pyo3",
  "smol",
+]
+
+[[package]]
+name = "thormotion-py"
+version = "0.4.0"
+dependencies = [
+ "pyo3",
+ "thormotion",
 ]
 
 [[package]]
