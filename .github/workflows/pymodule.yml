@@ -36,9 +36,8 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter --zig --manifest-path thormotion-py/Cargo.toml
-          working-directory: ${{ github.workspace }}
-          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
+          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
@@ -65,7 +64,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter --zig --manifest-path thormotion-py/Cargo.toml
-          working-directory: ${{ github.workspace }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: musllinux_1_2
       - name: Upload wheels
@@ -134,7 +132,6 @@ jobs:
         with:
           command: sdist
           args: --out dist --manifest-path thormotion-py/Cargo.toml
-          working-directory: ${{ github.workspace }}
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
