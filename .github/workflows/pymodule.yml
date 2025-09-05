@@ -35,7 +35,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter --zig --manifest-path thormotion-py/Cargo.toml
+          args: --release --out dist --find-interpreter --zig --manifest-path ${{ github.workspace }}/thormotion-py/Cargo.toml
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
       - name: Upload wheels
@@ -63,7 +63,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter --manifest-path thormotion-py/Cargo.toml
+          args: --release --out dist --find-interpreter --manifest-path ${{ github.workspace }}/thormotion-py/Cargo.toml
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: musllinux_1_2
       - name: Upload wheels
@@ -131,7 +131,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist --manifest-path thormotion-py/Cargo.toml
+          args: --out dist --manifest-path ${{ github.workspace }}/thormotion-py/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
