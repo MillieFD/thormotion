@@ -1,0 +1,16 @@
+# See a full list of keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+resolver = "3"
+members = ["thormotion-core", "thormotion-py"]
+
+[workspace.package]
+authors = ["Amelia Fraser-Dale"]
+categories = ["hardware-support", "science", "science::robotics"]
+description = "A cross-platform motion control library for Thorlabs systems, written in Rust."
+edition = "2024"
+keywords = ["thorlabs", "research", "automation", "robotics", "mechatronics"]
+license = "BSD-3-Clause"
+readme = "README.md"
+repository = "https://github.com/MillieFD/thormotion"
+version = "0.4.0"

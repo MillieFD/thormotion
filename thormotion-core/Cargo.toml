@@ -1,0 +1,25 @@
+# See a full list of keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[package]
+name = "thormotion-core"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lib]
+name = "thormotion"
+crate-type = ["lib"]
+
+[dependencies]
+nusb = "0.1.14"
+smol = "2.0"
+pyo3 = "0.26"
+async-broadcast = "0.7"
+ahash = "0.8"
+log = "0.4"
