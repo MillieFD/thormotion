@@ -122,10 +122,10 @@ impl Dispatcher {
         }
     }
 
-    /// Removes the [`HashMap`] entry for the given command ID.
+    /// Takes the [`Sender`] out of the [`Dispatcher`] if functions are awaiting the command
+    /// response, leaving [`None`] in its place.
     ///
-    /// - Returns a [`Sender`] if functions are awaiting the command response.
-    /// - Returns [`None`] if no functions are awaiting the command response.
+    /// Returns [`None`] if no functions are awaiting the command response.
     #[doc(hidden)]
     pub(crate) async fn take(&self, id: &[u8]) -> Option<Sender> {
         self.get(id).await.sender.lock().await.take()
