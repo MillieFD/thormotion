@@ -18,7 +18,7 @@ use std::io;
 use std::ops::Deref;
 
 use communicator::Communicator;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
 use nusb::DeviceInfo;
 use smol::block_on;
 use smol::lock::RwLock;
