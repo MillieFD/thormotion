@@ -203,4 +203,40 @@ impl KDC101 {
     pub fn move_absolute_from_params(&self) {
         self.inner.move_absolute_from_params();
     }
+
+    /// Brings the specified device channel to a controlled (profiled) stop.
+    ///
+    /// For a synchronous alternative, see `stop`.
+    ///
+    /// For an immediate (emergency) stop, see `estop_async`.
+    pub async fn stop_async(&self) {
+        self.inner.stop_async().await;
+    }
+
+    /// Brings the specified device channel to a controlled (profiled) stop.
+    ///
+    /// For aa asynchronous alternative, see `stop_async`.
+    ///
+    /// For an immediate (emergency) stop, see `estop`.
+    pub fn stop(&self) {
+        self.inner.stop();
+    }
+
+    /// Brings the specified device channel to an immediate (emergency) stop.
+    ///
+    /// For a synchronous alternative, see `estop`.
+    ///
+    /// For a controlled (profiled) stop, see `stop_async`.
+    pub async fn estop_async(&self) {
+        self.inner.estop_async().await;
+    }
+
+    /// Brings the specified device channel to an immediate (emergency) stop.
+    ///
+    /// For an asynchronous alternative, see `estop_async`.
+    ///
+    /// For a controlled (profiled) stop, see `stop`.
+    pub fn estop(&self) {
+        self.inner.estop();
+    }
 }
