@@ -15,6 +15,7 @@ mod home;
 mod identify;
 mod move_absolute;
 mod status_update;
+mod stop;
 mod update_messages;
 
 /* -------------------------------------------------------------------------- Private Re-Exports */
@@ -24,4 +25,5 @@ pub(crate) use home::__home;
 pub(crate) use identify::__identify;
 pub(crate) use move_absolute::{__move_absolute, __move_absolute_from_params};
 pub(crate) use status_update::__get_u_status_update;
+pub(crate) use stop::{__estop, __stop};
 pub(crate) use update_messages::{__hw_start_update_messages, __hw_stop_update_messages};
