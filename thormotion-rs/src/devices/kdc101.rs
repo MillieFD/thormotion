@@ -26,12 +26,13 @@ pub struct KDC101 {
 }
 
 impl KDC101 {
-    const IDS: [Command; 4] = [
+    const IDS: [Command; 5] = [
         // MOD
         Command::header([0x12, 0x02]), // GET_CHANENABLESTATE
         // MOT
         Command::header([0x44, 0x04]),      // MOVE_HOMED
         Command::payload([0x64, 0x04], 20), // MOVE_COMPLETED
+        Command::payload([0x66, 0x04], 20), // MOVE_STOPPED
         Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
     ];
 
@@ -286,6 +287,54 @@ impl KDC101 {
     pub fn move_absolute_from_params(&self) {
         block_on(async { self.move_absolute_from_params_async().await })
     }
+
+    /// Brings the specified device channel to a controlled (profiled) stop.
+    ///
+    /// For a synchronous alternative, see [`stop`][1].
+    ///
+    /// For an immediate (emergency) stop, see [`estop_async`][2].
+    ///
+    /// [1]: KDC101::stop
+    /// [2]: KDC101::estop_async
+    pub async fn stop_async(&self) {
+        __stop(self, 1).await;
+    }
+
+    /// Brings the specified device channel to a controlled (profiled) stop.
+    ///
+    /// For aa asynchronous alternative, see [`stop_async`][1].
+    ///
+    /// For an immediate (emergency) stop, see [`estop`][2].
+    ///
+    /// [1]: KDC101::stop_async
+    /// [2]: KDC101::estop
+    pub fn stop(&self) {
+        block_on(async { self.stop_async().await })
+    }
+
+    /// Brings the specified device channel to an immediate (emergency) stop.
+    ///
+    /// For a synchronous alternative, see [`estop`][1].
+    ///
+    /// For a controlled (profiled) stop, see [`stop_async`][2].
+    ///
+    /// [1]: KDC101::estop
+    /// [2]: KDC101::stop_async
+    pub async fn estop_async(&self) {
+        __estop(self, 1).await;
+    }
+
+    /// Brings the specified device channel to an immediate (emergency) stop.
+    ///
+    /// For an asynchronous alternative, see [`estop_async`][1].
+    ///
+    /// For a controlled (profiled) stop, see [`stop`][2].
+    ///
+    /// [1]: KDC101::estop_async
+    /// [2]: KDC101::stop
+    pub fn estop(&self) {
+        block_on(async { self.estop_async().await })
+    }
 }
 
 impl ThorlabsDevice for KDC101 {
@@ -298,7 +347,7 @@ impl ThorlabsDevice for KDC101 {
     }
 
     fn abort(&self) {
-        // todo()!
+        self.estop()
     }
 }
 
