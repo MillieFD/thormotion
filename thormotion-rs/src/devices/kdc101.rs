@@ -30,7 +30,7 @@ impl KDC101 {
         // MOD
         Command::header([0x12, 0x02]), // GET_CHANENABLESTATE
         // MOT
-        Command::header([0x44, 0x04]),      // MOVE_HOMED
+        Command::header([0x44, 0x04]), // MOVE_HOMED
         Command::payload([0x64, 0x04], 20), // MOVE_COMPLETED
         Command::payload([0x66, 0x04], 20), // MOVE_STOPPED
         Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
