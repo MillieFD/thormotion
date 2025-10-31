@@ -17,7 +17,8 @@ mod unit_conversion;
 /* ----------------------------------------------------------------------------- Private Exports */
 
 pub(crate) use check_serial_number::CheckSerialNumber;
-/* ------------------------------------------------------------------------------ Public
- * Exports */
-pub use thorlabs_device::ThorlabsDevice;
 pub(crate) use unit_conversion::{UnitConversion, Units};
+
+/* ------------------------------------------------------------------------------ Public Exports */
+
+pub use thorlabs_device::ThorlabsDevice;
