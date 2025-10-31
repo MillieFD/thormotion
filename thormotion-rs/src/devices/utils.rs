@@ -16,6 +16,25 @@ use nusb::{DeviceInfo, list_devices};
 
 use crate::error::sn::Error;
 
+/* ---------------------------------------------------------------------------- Public Functions */
+
+/// Returns an iterator over all connected Thorlabs USB devices.
+pub fn get_devices() -> impl Iterator<Item = DeviceInfo> {
+    list_devices()
+        .expect("Failed to list devices due to OS error")
+        .filter(|dev| dev.vendor_id() == 0x0403)
+}
+
+/// For convenience, this function prints a list of connected Thorlabs USB devices to stdout.
+pub fn show_devices() {
+    let devices = get_devices();
+    for device in devices {
+        println!("{:?}\n", device);
+    }
+}
+
+/* --------------------------------------------------------------------------- Private Functions */
+
 /// A lazily initialized [`HashMap`] containing the `serial number` (key) and [`abort function`][1]
 /// (value) for each connected [`Thorlabs Device`][2]. It is protected by an async [`Mutex`] for
 /// thread-safe concurrent access.
@@ -109,7 +128,7 @@ fn leak_device(serial_number: &str) {
 /// an error message.
 ///
 /// Internally, this function iterates over the global [`DEVICES`][2] [`HashMap`] and calls the
-/// respective [`abort`][3] function for each device. To handle situations which should never occur,
+/// respective [`abort`][3] function for each device. To handle situations that should never occur,
 /// see [`bug_abort`].
 ///
 /// ### Panics
@@ -156,13 +175,6 @@ pub(crate) fn bug_abort(message: String) -> ! {
     ));
 }
 
-/// Returns an iterator over all connected Thorlabs devices.
-fn get_devices() -> impl Iterator<Item = DeviceInfo> {
-    list_devices()
-        .expect("Failed to list devices due to OS error")
-        .filter(|dev| dev.vendor_id() == 0x0403)
-}
-
 /// Returns [`DeviceInfo`] for the Thorlabs device with the specified serial number.
 ///
 /// Returns [`Error::NotFound`] if the specified device is not connected.
@@ -175,13 +187,5 @@ pub(super) fn get_device(serial_number: &String) -> Result<DeviceInfo, Error> {
         (None, _) => Err(Error::NotFound(serial_number.clone())),
         (Some(device), None) => Ok(device),
         (Some(_), Some(_)) => Err(Error::Multiple(serial_number.clone())),
-    }
-}
-
-/// For convenience, this function prints a list of connected devices to stdout.
-pub fn show_devices() {
-    let devices = get_devices();
-    for device in devices {
-        println!("{:?}\n", device);
     }
 }
