@@ -52,8 +52,13 @@ impl KDC101 {
     }
 
     #[doc = include_str!("../documentation/is_open.md")]
-    pub async fn is_open(&self) -> bool {
+    pub async fn is_open_async(&self) -> bool {
         self.inner.is_open().await
+    }
+
+    #[doc = include_str!("../documentation/is_open.md")]
+    pub fn is_open(&self) -> bool {
+        block_on(async { self.is_open_async().await })
     }
 
     #[doc = include_str!("../documentation/open.md")]
@@ -87,13 +92,24 @@ impl KDC101 {
     }
 
     #[doc = include_str!("../documentation/get_status.md")]
-    pub async fn get_status_async(&self) -> (f64, f64) {
+    pub async fn get_status_async(&self) -> (f64, f64, u32) {
         __get_u_status_update(self, 1).await
     }
 
     #[doc = include_str!("../documentation/get_status.md")]
-    pub fn get_status(&self) -> (f64, f64) {
+    pub fn get_status(&self) -> (f64, f64, u32) {
         block_on(async { self.get_status_async().await })
+    }
+
+    #[doc = include_str!("../documentation/is_homed.md")]
+    pub async fn is_homed_async(&self) -> bool {
+        let (_, _, bits) = self.get_status_async().await;
+        (bits & 0x00000400) != 0
+    }
+
+    #[doc = include_str!("../documentation/is_homed.md")]
+    pub async fn is_homed(&self) -> bool {
+        block_on(async { self.is_homed_async().await })
     }
 
     #[doc = include_str!("../documentation/hw_start_update_messages.md")]
