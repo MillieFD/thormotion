@@ -2,4 +2,4 @@
 
 [workspace]
 resolver = "3"
-members = ["thormotion-rs", "thormotion-py"]
+members = ["thormotion-rs"]
