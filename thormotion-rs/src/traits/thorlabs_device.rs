@@ -14,7 +14,7 @@ use std::hash::{Hash, Hasher};
 use crate::devices::{UsbPrimitive, abort};
 
 pub trait ThorlabsDevice: Display + Debug + Send + Sync {
-    /// Returns a borrow which dereferences to the inner [`UsbPrimitive`]
+    /// Returns a borrow that dereferences to the inner [`UsbPrimitive`]
     fn inner(&self) -> &UsbPrimitive;
 
     /// Returns the serial number of the device as a `&str`.
