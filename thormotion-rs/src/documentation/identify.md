@@ -1,0 +1,1 @@
+Identifies the device by flashing the front panel LED.

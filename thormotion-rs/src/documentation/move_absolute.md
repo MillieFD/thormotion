@@ -1,0 +1,1 @@
+Moves the specified device channel to an absolute position (mm).

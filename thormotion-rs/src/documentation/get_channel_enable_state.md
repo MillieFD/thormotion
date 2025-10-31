@@ -1,0 +1,1 @@
+Returns `True` if the specified device channel is enabled.

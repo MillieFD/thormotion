@@ -1,0 +1,1 @@
+Enables or disables the specified device channel.

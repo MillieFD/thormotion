@@ -1,0 +1,1 @@
+Homes the specified device channel.
