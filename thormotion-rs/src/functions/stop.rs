@@ -14,7 +14,7 @@ use crate::traits::ThorlabsDevice;
 const STOP: [u8; 2] = [0x65, 0x04];
 const STOPPED: [u8; 2] = [0x66, 0x04];
 
-/// Brings the specified device channel to a controlled (profiled) stop.
+#[doc = include_str!("../documentation/stop.md")]
 pub(crate) async fn __stop<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
@@ -28,7 +28,7 @@ where
     let _ = rx.receive().await;
 }
 
-/// Abruptly stops the specified device channel.
+#[doc = include_str!("../documentation/estop.md")]
 pub(crate) async fn __estop<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,

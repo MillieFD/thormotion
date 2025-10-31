@@ -14,7 +14,7 @@ use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 const MOVE: [u8; 2] = [0x53, 0x04];
 const MOVED: [u8; 2] = [0x64, 0x04];
 
-/// Moves the specified device channel to an absolute position.
+#[doc = include_str!("../documentation/move_absolute.md")]
 pub(crate) async fn __move_absolute<A>(device: &A, channel: u8, position: f64)
 where
     A: ThorlabsDevice + UnitConversion,
@@ -37,7 +37,7 @@ where
     }
 }
 
-/// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
+#[doc = include_str!("../documentation/move_absolute_from_params.md")]
 pub(crate) async fn __move_absolute_from_params<A>(device: &A, channel: u8) -> f32
 where
     A: ThorlabsDevice,

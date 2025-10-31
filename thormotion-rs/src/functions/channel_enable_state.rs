@@ -12,7 +12,7 @@ use crate::devices::abort;
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
-/// Returns `True` if the specified device channel is enabled.
+#[doc = include_str!("../documentation/get_channel_enable_state.md")]
 pub(crate) async fn __req_channel_enable_state<A>(device: &A, channel: u8) -> bool
 where
     A: ThorlabsDevice,
@@ -41,7 +41,7 @@ where
     }
 }
 
-/// Enables or disables the specified device channel.
+#[doc = include_str!("../documentation/set_channel_enable_state.md")]
 pub(crate) async fn __set_channel_enable_state<A>(device: &A, channel: u8, enable: bool)
 where
     A: ThorlabsDevice,

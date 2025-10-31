@@ -11,7 +11,7 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
-/// Identifies the device by flashing the front panel LED.
+#[doc = include_str!("../documentation/identify.md")]
 pub(crate) async fn __identify<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,

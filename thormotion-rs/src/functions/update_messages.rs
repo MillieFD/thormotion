@@ -11,10 +11,7 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
-/// Starts periodic update messages from the device every 100 milliseconds (10 Hz).
-///
-/// Automatic updates will continue until the `stop_update_messages` function is called.
-/// A 'one-off' status update can be requested using `get_status_update_async`.
+#[doc = include_str!("../documentation/hw_start_update_messages.md")]
 pub(crate) async fn __hw_start_update_messages<A>(device: &A)
 where
     A: ThorlabsDevice,
@@ -24,9 +21,7 @@ where
     device.inner().send(command).await;
 }
 
-/// Stops periodic update messages from the device every 100 milliseconds (10 Hz).
-///
-/// Automatic updates will cease until the `start_update_messages` function is called.
+#[doc = include_str!("../documentation/hw_stop_update_messages.md")]
 pub(crate) async fn __hw_stop_update_messages<A>(device: &A)
 where
     A: ThorlabsDevice,

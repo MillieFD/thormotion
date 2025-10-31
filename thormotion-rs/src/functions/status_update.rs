@@ -11,7 +11,7 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use crate::messages::utils::short;
 use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
-/// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
+#[doc = include_str!("../documentation/get_status.md")]
 // TODO: Fn should also return status bits and motor current
 pub(crate) async fn __get_u_status_update<A>(device: &A, channel: u8) -> (f64, f64)
 where
