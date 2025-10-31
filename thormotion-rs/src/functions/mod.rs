@@ -18,7 +18,7 @@ mod status_update;
 mod stop;
 mod update_messages;
 
-/* -------------------------------------------------------------------------- Private Re-Exports */
+/* ----------------------------------------------------------------------------- Private Exports */
 
 pub(crate) use channel_enable_state::{__req_channel_enable_state, __set_channel_enable_state};
 pub(crate) use home::__home;
