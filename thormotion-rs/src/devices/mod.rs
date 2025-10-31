@@ -8,8 +8,6 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the conditions of the LICENSE are met.
 */
 
-#[rustfmt::skip]
-
 /* ----------------------------------------------------------------------------- Private Modules */
 
 mod kdc101;
