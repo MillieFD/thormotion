@@ -32,6 +32,6 @@ where
     };
     let position = Units::distance_from_slice(&response[8..12]).decode::<A>();
     let velocity = Units::velocity_from_slice(&response[12..14]).decode::<A>();
-    let bits: u32 = response[16..20].iter().into();
+    let bits = u32::from_le_bytes([response[16], response[17], response[18], response[19]]);
     (position, velocity, bits)
 }
