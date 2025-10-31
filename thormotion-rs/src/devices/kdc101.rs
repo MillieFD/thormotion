@@ -51,287 +51,137 @@ impl KDC101 {
         Ok(device)
     }
 
-    /// Returns `True` if the [`USB Interface`][1] is open.
-    ///
-    /// [1]: nusb::Interface
+    #[doc = include_str!("../documentation/is_open.md")]
     pub async fn is_open(&self) -> bool {
         self.inner.is_open().await
     }
 
-    /// Opens an [`Interface`][1] to the [`USB Device`][2].
-    ///
-    /// No action is taken if the device [`Status`][3] is already [`Open`][4].
-    ///
-    /// For a synchronous alternative, see [`open`][5].
-    ///
-    /// [1]: nusb::Interface
-    /// [2]: UsbPrimitive
-    /// [3]: crate::devices::usb_primitive::status::Status
-    /// [4]: crate::devices::usb_primitive::status::Status::Open
-    /// [5]: KDC101::open
+    #[doc = include_str!("../documentation/open.md")]
     pub async fn open_async(&mut self) -> Result<(), Error> {
         self.inner.open().await
     }
 
-    /// Opens an [`Interface`][1] to the [`USB Device`][2].
-    ///
-    /// No action is taken if the device [`Status`][3] is already [`Open`][4].
-    ///
-    /// For an asynchronous alternative, see [`async_open`][5].
-    ///
-    /// [1]: nusb::Interface
-    /// [2]: UsbPrimitive
-    /// [3]: crate::devices::usb_primitive::status::Status
-    /// [4]: crate::devices::usb_primitive::status::Status::Open
-    /// [5]: KDC101::open_async
+    #[doc = include_str!("../documentation/open.md")]
     pub fn open(&mut self) -> Result<(), Error> {
         block_on(async { self.open_async().await })
     }
 
-    /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
-    ///
-    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
-    ///
-    /// This does not stop the device's current action. If you need to safely bring the
-    /// [`USB Device`][2] to a resting state, see [`abort`][5].
-    ///
-    /// For a synchronous alternative, see [`close`][6].
-    ///
-    /// [1]: nusb::Interface
-    /// [2]: UsbPrimitive
-    /// [3]: crate::devices::usb_primitive::status::Status
-    /// [4]: crate::devices::usb_primitive::status::Status::Closed
-    /// [5]: ThorlabsDevice::abort
-    /// [6]: KDC101::close
+    #[doc = include_str!("../documentation/close.md")]
     pub async fn close_async(&mut self) -> Result<(), Error> {
         self.inner.close().await
     }
 
-    /// Releases the claimed [`Interface`][1] to the [`USB Device`][2].
-    ///
-    /// No action is taken if the device [`Status`][3] is already [`Closed`][4].
-    ///
-    /// This does not stop the device's current action. If you need to safely bring the
-    /// [`USB Device`][2] to a resting state, see [`abort`][5].
-    ///
-    /// For an asynchronous alternative, see [`async_close`][6].
-    ///
-    /// [1]: nusb::Interface
-    /// [2]: UsbPrimitive
-    /// [3]: crate::devices::usb_primitive::status::Status
-    /// [4]: crate::devices::usb_primitive::status::Status::Closed
-    /// [5]: ThorlabsDevice::abort
-    /// [6]: KDC101::close_async
+    #[doc = include_str!("../documentation/close.md")]
     pub fn close(&mut self) -> Result<(), Error> {
         block_on(async { self.close_async().await })
     }
 
-    /// Identifies the device by flashing the front panel LED.
-    ///
-    /// For a synchronous alternative, see [`identify`][1].
-    ///
-    /// [1]: KDC101::identify
+    #[doc = include_str!("../documentation/identify.md")]
     pub async fn identify_async(&self) {
         __identify(self, 1).await;
     }
 
-    /// Identifies the device by flashing the front panel LED.
-    ///
-    /// For an asynchronous alternative, see [`async_identify`][1].
-    ///
-    /// [1]: KDC101::identify_async
+    #[doc = include_str!("../documentation/identify.md")]
     pub fn identify(&self) {
         block_on(async { self.identify_async().await })
     }
 
-    /// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
-    ///
-    /// For a synchronous alternative, see [`get_status`][1].
-    ///
-    /// [1]: KDC101::get_status
+    #[doc = include_str!("../documentation/get_status.md")]
     pub async fn get_status_async(&self) -> (f64, f64) {
         __get_u_status_update(self, 1).await
     }
 
-    /// Returns the current position (mm) and velocity (mm/s) for the specified device channel.
-    ///
-    /// For an asynchronous alternative, see [`async_get_status`][1].
-    ///
-    /// [1]: KDC101::get_status_async
+    #[doc = include_str!("../documentation/get_status.md")]
     pub fn get_status(&self) -> (f64, f64) {
         block_on(async { self.get_status_async().await })
     }
 
-    /// Starts periodic update messages from the device every 100 milliseconds (10 Hz).
-    ///
-    /// Automatic updates will continue until the [`hw_stop_update_messages`][1] function is called.
-    /// A 'one-off' status update can be requested using [`get_status`].
-    ///
-    /// For a synchronous alternative, see [`hw_start_update_messages`][3].
-    ///
-    /// [1]: KDC101::hw_stop_update_messages
-    /// [2]: KDC101::get_status
-    /// [3]: KDC101::hw_start_update_messages
+    #[doc = include_str!("../documentation/hw_start_update_messages.md")]
     pub async fn hw_start_update_messages_async(&self) {
         __hw_start_update_messages(self).await;
     }
 
-    /// Starts periodic update messages from the device every 100 milliseconds (10 Hz).
-    ///
-    /// Automatic updates will continue until the [`hw_stop_update_messages`][1] function is called.
-    /// A 'one-off' status update can be requested using [`get_status`].
-    ///
-    /// For an asynchronous alternative, see [`hw_start_update_messages_async`][3].
-    ///
-    /// [1]: KDC101::hw_stop_update_messages
-    /// [2]: KDC101::get_status
-    /// [3]: KDC101::hw_start_update_messages_async
+    #[doc = include_str!("../documentation/hw_start_update_messages.md")]
     pub fn hw_start_update_messages(&self) {
         block_on(async { self.hw_start_update_messages_async().await })
     }
 
-    /// Stops periodic update messages from the device every 100 milliseconds (10 Hz).
-    ///
-    /// Automatic updates will cease until the [`hw_start_update_messages`][1] function is called.
-    ///
-    /// For a synchronous alternative, see [`hw_stop_update_messages`][2].
-    ///
-    /// [1]: KDC101::hw_start_update_messages
-    /// [2]: KDC101::hw_stop_update_messages
+    #[doc = include_str!("../documentation/hw_stop_update_messages.md")]
     pub async fn hw_stop_update_messages_async(&self) {
         __hw_stop_update_messages(self).await;
     }
 
-    /// Stops periodic update messages from the device every 100 milliseconds (10 Hz).
-    ///
-    /// Automatic updates will cease until the [`hw_start_update_messages`][1] function is called.
-    ///
-    /// For an asynchronous alternative, see [`hw_stop_update_messages_async`][2].
-    ///
-    /// [1]: KDC101::hw_start_update_messages
-    /// [2]: KDC101::hw_stop_update_messages_async
+    #[doc = include_str!("../documentation/hw_stop_update_messages.md")]
     pub fn hw_stop_update_messages(&self) {
         block_on(async { self.hw_stop_update_messages_async().await })
     }
 
-    /// Returns `True` if the specified device channel is enabled.
+    #[doc = include_str!("../documentation/get_channel_enable_state.md")]
     pub async fn get_channel_enable_state_async(&self) {
         __req_channel_enable_state(self, 1).await;
     }
 
-    /// Returns `True` if the specified device channel is enabled.
+    #[doc = include_str!("../documentation/get_channel_enable_state.md")]
     pub async fn get_channel_enable_state(&self) {
         block_on(async { self.get_channel_enable_state_async().await })
     }
 
-    /// Enables or disables the specified device channel.
+    #[doc = include_str!("../documentation/set_channel_enable_state.md")]
     pub async fn set_channel_enable_state_async(&self, enable: bool) {
         __set_channel_enable_state(self, 1, enable).await;
     }
 
-    /// Enables or disables the specified device channel.
+    #[doc = include_str!("../documentation/set_channel_enable_state.md")]
     pub async fn set_channel_enable_state(&self, enable: bool) {
         block_on(async { self.set_channel_enable_state_async(enable).await })
     }
 
-    /// Homes the specified device channel.
-    ///
-    /// For a synchronous alternative, see [`home`][1]
-    ///
-    /// [1]: KDC101::home
+    #[doc = include_str!("../documentation/home.md")]
     pub async fn home_async(&self) {
         __home(self, 1).await;
     }
 
-    /// Homes the specified device channel.
-    ///
-    /// For an asynchronous alternative, see [`async_home`][1]
-    ///
-    /// [1]: KDC101::home_async
+    #[doc = include_str!("../documentation/home.md")]
     pub fn home(&self) {
         block_on(async { self.home_async().await })
     }
 
-    /// Moves the specified device channel to an absolute position.
-    ///
-    /// For a synchronous alternative, see [`move_absolute`][1]
-    ///
-    /// [1]: KDC101::move_absolute
+    #[doc = include_str!("../documentation/move_absolute.md")]
     pub async fn move_absolute_async(&self, position: f64) {
         __move_absolute(self, 1, position).await;
     }
 
-    /// Moves the specified device channel to an absolute position.
-    ///
-    /// For an asynchronous alternative, see [`async_move_absolute`][1]
-    ///
-    /// [1]: KDC101::move_absolute_async
+    #[doc = include_str!("../documentation/move_absolute.md")]
     pub fn move_absolute(&self, position: f64) {
         block_on(async { self.move_absolute_async(position).await })
     }
 
-    /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
-    ///
-    /// For a synchronous alternative, see [`move_absolute_from_params`][1]
-    ///
-    /// [1]: KDC101::move_absolute_from_params
+    #[doc = include_str!("../documentation/move_absolute_from_params.md")]
     pub async fn move_absolute_from_params_async(&self) {
         __move_absolute_from_params(self, 1).await;
     }
 
-    /// Moves the specified device channel to an absolute position (mm) using pre-set parameters.
-    ///
-    /// For an asynchronous alternative, see [`move_absolute_from_params_async`][1]
-    ///
-    /// [1]: KDC101::move_absolute_from_params_async
+    #[doc = include_str!("../documentation/move_absolute_from_params.md")]
     pub fn move_absolute_from_params(&self) {
         block_on(async { self.move_absolute_from_params_async().await })
     }
 
-    /// Brings the specified device channel to a controlled (profiled) stop.
-    ///
-    /// For a synchronous alternative, see [`stop`][1].
-    ///
-    /// For an immediate (emergency) stop, see [`estop_async`][2].
-    ///
-    /// [1]: KDC101::stop
-    /// [2]: KDC101::estop_async
+    #[doc = include_str!("../documentation/stop.md")]
     pub async fn stop_async(&self) {
         __stop(self, 1).await;
     }
 
-    /// Brings the specified device channel to a controlled (profiled) stop.
-    ///
-    /// For aa asynchronous alternative, see [`stop_async`][1].
-    ///
-    /// For an immediate (emergency) stop, see [`estop`][2].
-    ///
-    /// [1]: KDC101::stop_async
-    /// [2]: KDC101::estop
+    #[doc = include_str!("../documentation/stop.md")]
     pub fn stop(&self) {
         block_on(async { self.stop_async().await })
     }
 
-    /// Brings the specified device channel to an immediate (emergency) stop.
-    ///
-    /// For a synchronous alternative, see [`estop`][1].
-    ///
-    /// For a controlled (profiled) stop, see [`stop_async`][2].
-    ///
-    /// [1]: KDC101::estop
-    /// [2]: KDC101::stop_async
+    #[doc = include_str!("../documentation/estop.md")]
     pub async fn estop_async(&self) {
         __estop(self, 1).await;
     }
 
-    /// Brings the specified device channel to an immediate (emergency) stop.
-    ///
-    /// For an asynchronous alternative, see [`estop_async`][1].
-    ///
-    /// For a controlled (profiled) stop, see [`stop`][2].
-    ///
-    /// [1]: KDC101::estop_async
-    /// [2]: KDC101::stop
+    #[doc = include_str!("../documentation/estop.md")]
     pub fn estop(&self) {
         block_on(async { self.estop_async().await })
     }
