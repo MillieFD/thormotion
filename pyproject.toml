@@ -14,4 +14,4 @@ dynamic = ["version", "description", "authors", "readme", "license"]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-cargo-manifest-path = "thormotion-py/Cargo.toml"
+cargo-manifest-path = "Cargo.toml"
