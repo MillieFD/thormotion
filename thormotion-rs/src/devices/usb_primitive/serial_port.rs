@@ -111,10 +111,10 @@ pub(super) async fn init(interface: &Interface) {
     control_out(RESET_CONTROLLER).await;
     control_out(BAUD_RATE).await;
     control_out(EIGHT_DATA_ONE_STOP_NO_PARITY).await;
-    Timer::after(Duration::from_millis(50)).await; // Pre-purge dwell 50ms
+    Timer::after(Duration::from_millis(50)).await; // Pre-purge dwell 50 ms
     control_out(PURGE_RX).await;
     control_out(PURGE_TX).await;
-    Timer::after(Duration::from_millis(50)).await; // Post-purge dwell 50ms
+    Timer::after(Duration::from_millis(50)).await; // Post-purge dwell 50 ms
     control_out(FLOW_CONTROL).await;
     control_out(RTS).await;
 }
