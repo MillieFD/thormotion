@@ -20,6 +20,7 @@ use crate::functions::*;
 use crate::messages::Command;
 use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion};
 
+#[cfg_attr(feature = "py", pyo3::pyclass)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KDC101 {
     inner: Arc<UsbPrimitive>,
@@ -36,6 +37,7 @@ impl KDC101 {
         Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
     ];
 
+    #[doc = include_str!("../documentation/new.md")]
     pub fn new<A>(serial_number: A) -> Result<Self, sn::Error>
     where
         A: Into<String>,
@@ -49,6 +51,16 @@ impl KDC101 {
         let f = move || d.abort();
         add_device(sn, f);
         Ok(device)
+    }
+}
+
+#[cfg_attr(feature = "py", pyo3::pymethods)]
+impl KDC101 {
+    #[cfg(feature = "py")]
+    #[new]
+    #[doc = include_str!("../documentation/new.md")]
+    pub fn py_new(serial_number: String) -> Result<Self, sn::Error> {
+        Ok(KDC101::new(serial_number)?)
     }
 
     #[doc = include_str!("../documentation/is_open.md")]
@@ -103,7 +115,7 @@ impl KDC101 {
 
     #[doc = include_str!("../documentation/get_position.md")]
     pub async fn get_position_async(&self) -> f64 {
-        self.get_status_async().await[0]
+        self.get_status_async().await.0
     }
 
     #[doc = include_str!("../documentation/get_position.md")]
@@ -113,7 +125,7 @@ impl KDC101 {
 
     #[doc = include_str!("../documentation/get_velocity.md")]
     pub async fn get_velocity_async(&self) -> f64 {
-        self.get_status_async().await[1]
+        self.get_status_async().await.1
     }
 
     #[doc = include_str!("../documentation/get_velocity.md")]
@@ -121,9 +133,17 @@ impl KDC101 {
         block_on(async { self.get_velocity_async().await })
     }
 
+    pub async fn get_status_bits_async(&self) -> u32 {
+        self.get_status_async().await.2
+    }
+
+    pub fn get_status_bits(&self) -> u32 {
+        block_on(async { self.get_status_bits_async().await })
+    }
+
     #[doc = include_str!("../documentation/is_homed.md")]
     pub async fn is_homed_async(&self) -> bool {
-        let (_, _, bits) = self.get_status_async().await;
+        let bits = self.get_status_bits_async().await;
         (bits & 0x00000400) != 0
     }
 
