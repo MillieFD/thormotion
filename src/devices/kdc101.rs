@@ -58,7 +58,7 @@ impl KDC101 {
 impl KDC101 {
     #[cfg(feature = "py")]
     #[new]
-    #[pyo3(signature = (serial_number: str))]
+    #[pyo3(signature = (serial_number: "str"))]
     #[doc = include_str!("../documentation/new.md")]
     pub fn py_new(serial_number: String) -> Result<Self, sn::Error> {
         Ok(KDC101::new(serial_number)?)
