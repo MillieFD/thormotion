@@ -11,7 +11,7 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
-/// Homes the specified device channel.
+#[doc = include_str!("../documentation/home.md")]
 pub(crate) async fn __home<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
