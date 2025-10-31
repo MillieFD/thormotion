@@ -15,12 +15,13 @@ mod kdc101;
 mod usb_primitive;
 mod utils;
 
-/* --------------------------------------------------------------------------- Public Re-Exports */
+/* ------------------------------------------------------------------------------ Public Exports */
 
 pub use kdc101::KDC101;
-/* -------------------------------------------------------------------------- Private
- * Re-Exports */
+pub use utils::{get_devices, show_devices};
+
+/* ----------------------------------------------------------------------------- Private Exports */
+
 pub(crate) use usb_primitive::UsbPrimitive;
-pub use utils::show_devices;
 pub(crate) use utils::{abort, bug_abort};
 use utils::{abort_device, add_device, get_device, remove_device};
