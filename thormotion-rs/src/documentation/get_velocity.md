@@ -1,0 +1,1 @@
+Returns the current velocity (mm/s) for the specified device channel.

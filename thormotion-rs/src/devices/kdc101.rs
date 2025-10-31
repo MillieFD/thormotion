@@ -101,6 +101,26 @@ impl KDC101 {
         block_on(async { self.get_status_async().await })
     }
 
+    #[doc = include_str!("../documentation/get_position.md")]
+    pub async fn get_position_async(&self) -> f64 {
+        self.get_status_async().await[0]
+    }
+
+    #[doc = include_str!("../documentation/get_position.md")]
+    pub fn get_position(&self) -> f64 {
+        block_on(async { self.get_position_async().await })
+    }
+
+    #[doc = include_str!("../documentation/get_velocity.md")]
+    pub async fn get_velocity_async(&self) -> f64 {
+        self.get_status_async().await[1]
+    }
+
+    #[doc = include_str!("../documentation/get_velocity.md")]
+    pub fn get_velocity(&self) -> f64 {
+        block_on(async { self.get_velocity_async().await })
+    }
+
     #[doc = include_str!("../documentation/is_homed.md")]
     pub async fn is_homed_async(&self) -> bool {
         let (_, _, bits) = self.get_status_async().await;
@@ -110,6 +130,17 @@ impl KDC101 {
     #[doc = include_str!("../documentation/is_homed.md")]
     pub async fn is_homed(&self) -> bool {
         block_on(async { self.is_homed_async().await })
+    }
+
+    #[doc = include_str!("../documentation/is_settled.md")]
+    pub async fn is_settled_async(&self) -> bool {
+        let (_, _, bits) = self.get_status_async().await;
+        (bits & 0x00002000) != 0
+    }
+
+    #[doc = include_str!("../documentation/is_settled.md")]
+    pub async fn is_settled(&self) -> bool {
+        block_on(async { self.is_settled_async().await })
     }
 
     #[doc = include_str!("../documentation/hw_start_update_messages.md")]

@@ -1,0 +1,1 @@
+Returns the current position (mm) for the specified device channel.
