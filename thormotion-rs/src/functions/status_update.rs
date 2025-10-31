@@ -12,8 +12,7 @@ use crate::messages::utils::short;
 use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
 #[doc = include_str!("../documentation/get_status.md")]
-// TODO: Fn should also return status bits and motor current
-pub(crate) async fn __get_u_status_update<A>(device: &A, channel: u8) -> (f64, f64)
+pub(crate) async fn __get_u_status_update<A>(device: &A, channel: u8) -> (f64, f64, u32)
 where
     A: ThorlabsDevice + UnitConversion,
 {
@@ -33,5 +32,6 @@ where
     };
     let position = Units::distance_from_slice(&response[8..12]).decode::<A>();
     let velocity = Units::velocity_from_slice(&response[12..14]).decode::<A>();
-    (position, velocity)
+    let bits: u32 = response[16..20].iter().into();
+    (position, velocity, bits)
 }
