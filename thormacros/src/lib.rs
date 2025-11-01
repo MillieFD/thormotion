@@ -52,7 +52,7 @@ pub fn sync(_attr: TokenStream, ts: TokenStream) -> TokenStream {
     let attrs: Vec<Attribute> = item.attrs.into_iter().filter(not_sync_attr).collect();
 
     // 3c. Function name e.g. foo_async
-    let async_name = &item.sig.ident.to_string();
+    let async_name = &item.sig.ident;
 
     // 3d. Function input(s) name(s) and type(s) e.g. a: f64, b: bool
     let inputs = &item.sig.inputs;
@@ -70,18 +70,21 @@ pub fn sync(_attr: TokenStream, ts: TokenStream) -> TokenStream {
     let body = &item.block;
 
     // 4. Ensure the function name ends with `_async`.
-    let sync_name = match async_name.strip_suffix("_async") {
-        None => {
-            return syn::Error::new(
-                item.sig.ident.span(),
-                "#[sync] function name must include the `_async` suffix.\nDefine `async fn \
-                 foo_async(...)` (with suffix); the #[sync] macro will generate a synchronous `fn \
-                 foo(...)` wrapper.",
-            )
-            .to_compile_error()
-            .into();
+    let sync_name = {
+        let tmp = async_name.to_string();
+        match tmp.strip_suffix("_async") {
+            None => {
+                return syn::Error::new(
+                    item.sig.ident.span(),
+                    "#[sync] function name must include the `_async` suffix.\nDefine `async fn \
+                     foo_async(...)` (with suffix); the #[sync] macro will generate a synchronous \
+                     `fn foo(...)` wrapper.",
+                )
+                .to_compile_error()
+                .into();
+            }
+            Some(s) => syn::Ident::new(s, item.sig.ident.span()),
         }
-        Some(s) => s,
     };
 
     // 5. Extract input names (ignore types) for forwarding through the generated wrapper function
@@ -113,12 +116,9 @@ pub fn sync(_attr: TokenStream, ts: TokenStream) -> TokenStream {
     }
 
     // 6. Build the call target for the sync wrapper
-    let caller = if receiver {
-        // Instance functions
-        quote! { self.#sync_name }
-    } else {
-        // Static functions
-        quote! { #sync_name }
+    let caller = match receiver {
+        true => quote! { self. }, // Instance functions
+        false => quote! {},       // Static functions
     };
     // WARN: No support for Self:: functions yet
 
@@ -135,7 +135,7 @@ pub fn sync(_attr: TokenStream, ts: TokenStream) -> TokenStream {
         #(#attrs)*
         #vis fn #sync_name #generics (#inputs) #output #where_clause {
             // The sync function runs the async function to completion on the current thread.
-            ::smol::block_on(async { #caller( #(#args),* ).await })
+            ::smol::block_on(async { #caller #async_name ( #(#args),* ).await })
         }
     };
 
@@ -156,14 +156,3 @@ fn not_sync_attr(attr: &Attribute) -> bool {
     // Ignores optional path prefixes e.g. `thormacros::sync`
     !attr.path().to_token_stream().to_string().ends_with("sync")
 }
-
-// Marker attribute that becomes PyO3's `#[new]` only when the `py` feature is enabled
-// in the consuming crate. Use as `#[thormacros::new]`.
-// #[proc_macro_attribute]
-// pub fn new(_attr: TokenStream, item: TokenStream) -> TokenStream {
-//     let item_ts = proc_macro2::TokenStream::from(item);
-//     TokenStream::from(quote! {
-//         #[cfg_attr(feature = "py", new)]
-//         #item_ts
-//     })
-// }
