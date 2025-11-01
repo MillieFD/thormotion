@@ -15,10 +15,23 @@ pub mod error;
 
 /* ----------------------------------------------------------------------------- Private modules */
 
-#[doc(hidden)]
-mod functions;
 mod messages;
+mod functions;
 mod traits;
+
+/* ------------------------------------------------------------------------------- Python Module */
+
+#[cfg(feature = "py")]
+mod py {
+    use pyo3::prelude::*;
+    use crate::devices::*;
+    #[pymodule(name = "thormotion")]
+    ///A cross-platform motion control library for Thorlabs systems, written in Rust.
+    fn initialise_thormotion_pymodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
+        module.add_class::<KDC101>()?;
+        Ok(())
+    }
+}
 
 /* ------------------------------------------------------------------------------ Public Exports */
 
