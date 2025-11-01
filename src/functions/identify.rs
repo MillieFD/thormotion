@@ -12,7 +12,7 @@ use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
 #[doc = include_str!("../documentation/identify.md")]
-pub(crate) async fn __identify<A>(device: &A, channel: u8)
+pub(crate) async fn identify<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
 {

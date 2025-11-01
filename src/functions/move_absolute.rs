@@ -15,7 +15,7 @@ const MOVE: [u8; 2] = [0x53, 0x04];
 const MOVED: [u8; 2] = [0x64, 0x04];
 
 #[doc = include_str!("../documentation/move_absolute.md")]
-pub(crate) async fn __move_absolute<A>(device: &A, channel: u8, position: f64)
+pub(crate) async fn move_absolute<A>(device: &A, channel: u8, position: f64)
 where
     A: ThorlabsDevice + UnitConversion,
 {
@@ -33,12 +33,12 @@ where
         && Units::distance_from_slice(&response[8..12]).approx::<A>(position)
     {
         true => {} // No-op: Move was completed successfully
-        false => Box::pin(__move_absolute(device, channel, position)).await,
+        false => Box::pin(move_absolute(device, channel, position)).await,
     }
 }
 
 #[doc = include_str!("../documentation/move_absolute_from_params.md")]
-pub(crate) async fn __move_absolute_from_params<A>(device: &A, channel: u8) -> f32
+pub(crate) async fn move_absolute_from_params<A>(device: &A, channel: u8) -> f32
 where
     A: ThorlabsDevice,
 {
@@ -51,6 +51,6 @@ where
     let response = rx.receive().await;
     match response[6] == channel {
         true => f32::from_le_bytes([response[8], response[9], response[10], response[11]]),
-        false => Box::pin(__move_absolute_from_params(device, channel)).await,
+        false => Box::pin(move_absolute_from_params(device, channel)).await,
     }
 }

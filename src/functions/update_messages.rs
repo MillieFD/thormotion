@@ -12,7 +12,7 @@ use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
 #[doc = include_str!("../documentation/hw_start_update_messages.md")]
-pub(crate) async fn __hw_start_update_messages<A>(device: &A)
+pub(crate) async fn hw_start_update_messages<A>(device: &A)
 where
     A: ThorlabsDevice,
 {
@@ -22,7 +22,7 @@ where
 }
 
 #[doc = include_str!("../documentation/hw_stop_update_messages.md")]
-pub(crate) async fn __hw_stop_update_messages<A>(device: &A)
+pub(crate) async fn hw_stop_update_messages<A>(device: &A)
 where
     A: ThorlabsDevice,
 {

@@ -12,7 +12,7 @@ use crate::messages::utils::short;
 use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
 #[doc = include_str!("../documentation/get_status.md")]
-pub(crate) async fn __get_u_status_update<A>(device: &A, channel: u8) -> (f64, f64, u32)
+pub(crate) async fn get_u_status_update<A>(device: &A, channel: u8) -> (f64, f64, u32)
 where
     A: ThorlabsDevice + UnitConversion,
 {

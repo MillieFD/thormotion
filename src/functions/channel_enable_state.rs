@@ -13,7 +13,7 @@ use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
 #[doc = include_str!("../documentation/get_channel_enable_state.md")]
-pub(crate) async fn __req_channel_enable_state<A>(device: &A, channel: u8) -> bool
+pub(crate) async fn req_channel_enable_state<A>(device: &A, channel: u8) -> bool
 where
     A: ThorlabsDevice,
 {
@@ -37,12 +37,12 @@ where
             )),
         }
     } else {
-        Box::pin(async { __req_channel_enable_state(device, channel).await }).await
+        Box::pin(async { req_channel_enable_state(device, channel).await }).await
     }
 }
 
 #[doc = include_str!("../documentation/set_channel_enable_state.md")]
-pub(crate) async fn __set_channel_enable_state<A>(device: &A, channel: u8, enable: bool)
+pub(crate) async fn set_channel_enable_state<A>(device: &A, channel: u8, enable: bool)
 where
     A: ThorlabsDevice,
 {
@@ -63,7 +63,7 @@ where
     match response[2] == channel && response[3] == enable_byte {
         true => {} // No-op: Enable state was set successfully
         false => {
-            Box::pin(__set_channel_enable_state(device, channel, enable)).await;
+            Box::pin(set_channel_enable_state(device, channel, enable)).await;
         }
     }
 }

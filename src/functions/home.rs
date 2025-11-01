@@ -12,7 +12,7 @@ use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
 #[doc = include_str!("../documentation/home.md")]
-pub(crate) async fn __home<A>(device: &A, channel: u8)
+pub(crate) async fn home<A>(device: &A, channel: u8)
 where
     A: ThorlabsDevice,
 {
