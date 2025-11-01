@@ -1,0 +1,19 @@
+# See a full list of keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[package]
+name = "thormacros"
+version = "0.1.0"
+edition = "2024"
+license = "BSD-3-Clause"
+description = "Procedural macros sub-crate for the thormotion library"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+
+[dependencies.syn]
+version = "2"
+features = ["full"]
