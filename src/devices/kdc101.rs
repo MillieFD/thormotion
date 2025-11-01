@@ -57,10 +57,10 @@ impl KDC101 {
 #[cfg_attr(feature = "py", pyo3::pymethods)]
 impl KDC101 {
     #[cfg(feature = "py")]
-    #[pyo3(signature = (serial_number: "str"))]
+    #[new]
     #[doc = include_str!("../documentation/new.md")]
     pub fn py_new(serial_number: String) -> Result<Self, sn::Error> {
-        Ok(KDC101::new(serial_number)?)
+        KDC101::new(serial_number)
     }
 
     #[thormacros::sync]
@@ -92,7 +92,7 @@ impl KDC101 {
     #[thormacros::sync]
     #[doc = include_str!("../documentation/get_status.md")]
     pub async fn get_status_async(&self) -> (f64, f64, u32) {
-        { functions::get_u_status_update(self, 1).await }
+        functions::get_u_status_update(self, 1).await
     }
 
     #[thormacros::sync]
