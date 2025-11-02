@@ -11,13 +11,14 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
+const HOME: [u8; 2] = [0x43, 0x04];
+const HOMED: [u8; 2] = [0x44, 0x04];
+
 #[doc = include_str!("../documentation/home.md")]
 pub(crate) async fn home<A, const CH: usize>(device: &A, channel: usize)
 where
     A: ThorlabsDevice<CH>,
 {
-    const HOME: [u8; 2] = [0x43, 0x04];
-    const HOMED: [u8; 2] = [0x44, 0x04];
     // Subscribe to the GET broadcast channel
     let rx = device.inner().receiver(&HOMED, channel).await;
     if rx.is_new() {
