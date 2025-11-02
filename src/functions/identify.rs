@@ -11,12 +11,13 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
+const ID: [u8; 2] = [0x23, 0x02];
+
 #[doc = include_str!("../documentation/identify.md")]
 pub(crate) async fn identify<A, const CH: usize>(device: &A, channel: u8)
 where
     A: ThorlabsDevice<CH>,
 {
-    const ID: [u8; 2] = [0x23, 0x02];
     let command = short(ID, channel, 0);
     device.inner().send(command).await
 }
