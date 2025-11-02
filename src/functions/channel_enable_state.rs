@@ -12,13 +12,15 @@ use crate::devices::abort;
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
+const SET: [u8; 2] = [0x10, 0x02];
+const REQ: [u8; 2] = [0x11, 0x02];
+const GET: [u8; 2] = [0x12, 0x02];
+
 #[doc = include_str!("../documentation/get_channel_enable_state.md")]
 pub(crate) async fn get_channel_enable_state<A, const CH: usize>(device: &A, channel: usize) -> bool
 where
     A: ThorlabsDevice<CH>,
 {
-    const REQ: [u8; 2] = [0x11, 0x02];
-    const GET: [u8; 2] = [0x12, 0x02];
     // Subscribe to the GET broadcast channel
     let rx = device.inner().receiver(&GET, channel).await;
     if rx.is_new() {
@@ -46,9 +48,6 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
 ) where
     A: ThorlabsDevice<CH>,
 {
-    const SET: [u8; 2] = [0x10, 0x02];
-    const REQ: [u8; 2] = [0x11, 0x02];
-    const GET: [u8; 2] = [0x12, 0x02];
     // Convert the boolean "enable" into a byte (Thorlabs APT Protocol)
     let enable_byte: u8 = if enable { 0x01 } else { 0x02 };
     loop {
