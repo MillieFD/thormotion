@@ -16,7 +16,7 @@ use crate::devices::{UsbPrimitive, add_device};
 use crate::error::sn;
 use crate::functions;
 use crate::messages::Metadata;
-use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion};
+use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion, Units};
 
 /// KDC101 devices have one channel.
 const CH: usize = 1;
@@ -177,7 +177,7 @@ impl KDC101 {
         let start = self.get_position_async().await;
         functions::move_relative(self, 1, distance).await;
         let end = self.get_position_async().await;
-        if !Self::approx((end - start).abs(), distance) {
+        if !Units::approx((end - start).abs(), distance) {
             log::error!("{self} MOVE_RELATIVE (failed tolerance) START {start:.3} END {end:.3}");
         }
     }
