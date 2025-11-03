@@ -65,6 +65,21 @@ A complete list of the supported Thorlabs devices and functions can be found on 
 Thormotion implements the Thorlabs APT communication protocol. For full details, please refer to the APT protocol
 documentation.
 
+### 🪵 Logging
+
+Thormotion uses the [log](https://crates.io/crates/log) crate to record information at runtime. This lightweight
+logging API is compatible with a variety of backends, allowing users to select the most appropriate logging
+implementation for their use case.
+
+| Level   | Description                                                           |
+|---------|-----------------------------------------------------------------------|
+| `trace` | The raw bytes sent and received                                       |
+| `debug` | Low-level activity common to all device types                         |
+| `info`  | High-level activity specific to each device                           |
+| `warn`  | Issues that do not preclude the request                               |
+| `error` | Issues that preclude the request but do not terminate the application |
+| `panic` | Issues that terminate the application                                 |
+
 ### 🤝 Contributing
 
 Thormotion is an open-source project! Contributions are welcome, and we are always looking for ways to improve the
