@@ -20,6 +20,13 @@ use super::serial_port;
 use crate::devices::abort;
 use crate::messages::{CMD_LEN_MAX, Dispatcher};
 
+/// The USB endpoint used for incoming commands from the device
+const IN_ENDPOINT: u8 = 0x81;
+/// The number of concurrent transfers to maintain in the queue
+const N_TRANSFERS: usize = 3;
+/// The USB endpoint used for outgoing commands to the device
+const OUT_ENDPOINT: u8 = 0x02;
+
 /// Handles all incoming and outgoing commands between the host and a specific USB [`Interface`].
 pub(super) struct Communicator {
     /// A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
