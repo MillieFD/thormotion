@@ -64,7 +64,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
             device_info,
             status: RwLock::new(Status::Closed(Dispatcher::new(ids))),
         };
-        log::debug!("{device} NEW (success)");
+        log::debug!("USB Primitive {serial_number} NEW (success)");
         Ok(device)
     }
 
