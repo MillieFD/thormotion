@@ -11,30 +11,15 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
 
-use crate::devices::{UsbPrimitive, abort};
+use crate::devices::UsbPrimitive;
 
-pub trait ThorlabsDevice: Display + Debug + Send + Sync {
+pub trait ThorlabsDevice<const CH: usize>: Debug + Display + Send + Sync {
     /// Returns a borrow that dereferences to the inner [`UsbPrimitive`]
-    fn inner(&self) -> &UsbPrimitive;
+    fn inner(&self) -> &UsbPrimitive<CH>;
 
     /// Returns the serial number of the device as a `&str`.
     fn serial_number(&self) -> &str {
         self.inner().serial_number()
-    }
-
-    /// Returns the number of device channels.
-    fn channels(&self) -> u8;
-
-    /// No action if the specified channel is valid.
-    ///
-    /// Aborts if the specified channel is outside the valid range.
-    fn check_channel(&self, channel: u8) {
-        if channel <= 0 || channel > self.channels() {
-            abort(format!(
-                "Channel number {} is not valid for {}",
-                channel, self
-            ));
-        }
     }
 
     /// Safely brings the [`USB Device`][1] to a resting state and releases the claimed
@@ -59,16 +44,16 @@ pub trait ThorlabsDevice: Display + Debug + Send + Sync {
     fn abort(&self);
 }
 
-impl Hash for dyn ThorlabsDevice {
+impl<const CH: usize> Hash for dyn ThorlabsDevice<CH> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.inner().serial_number().hash(state);
     }
 }
 
-impl PartialEq for dyn ThorlabsDevice {
+impl<const CH: usize> PartialEq for dyn ThorlabsDevice<CH> {
     fn eq(&self, other: &Self) -> bool {
         self.inner().serial_number() == other.inner().serial_number()
     }
 }
 
-impl Eq for dyn ThorlabsDevice {}
+impl<const CH: usize> Eq for dyn ThorlabsDevice<CH> {}
