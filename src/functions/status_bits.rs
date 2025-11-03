@@ -30,7 +30,7 @@ where
     }
     // Wait for GET_STATUS_BITS response
     let response = rx.receive().await;
-    log::debug!("{device} CHANNEL {channel} GET_STATUS_BITS (responded)");
+    log::debug!("{device} CHANNEL {channel} GET_STATUS_BITS (success)");
     // Return little-endian status bits as u32
     u32::from_le_bytes([response[8], response[9], response[10], response[11]])
 }
