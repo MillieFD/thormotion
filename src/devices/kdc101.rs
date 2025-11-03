@@ -12,8 +12,6 @@ use std::fmt::{Display, Formatter};
 use std::io::Error;
 use std::sync::Arc;
 
-use smol::block_on;
-
 use crate::devices::{UsbPrimitive, add_device};
 use crate::error::sn;
 use crate::functions;
@@ -24,7 +22,7 @@ use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion};
 const CH: usize = 1;
 
 #[cfg_attr(feature = "py", pyo3::pyclass)]
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct KDC101 {
     inner: Arc<UsbPrimitive<CH>>,
 }
@@ -226,8 +224,6 @@ impl UnitConversion for KDC101 {
 
 impl Display for KDC101 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&block_on(async {
-            format!("KDC101 {}", self.serial_number())
-        }))
+        write!(f, "KDC101 {}", self.serial_number())
     }
 }
