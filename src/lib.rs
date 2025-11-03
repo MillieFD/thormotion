@@ -15,8 +15,8 @@ pub mod error;
 
 /* ----------------------------------------------------------------------------- Private modules */
 
-mod messages;
 mod functions;
+mod messages;
 mod traits;
 
 /* ------------------------------------------------------------------------------- Python Module */
@@ -24,6 +24,7 @@ mod traits;
 #[cfg(feature = "py")]
 mod py {
     use pyo3::prelude::*;
+
     use crate::devices::*;
     #[pymodule(name = "thormotion")]
     ///A cross-platform motion control library for Thorlabs systems, written in Rust.
@@ -41,14 +42,22 @@ pub use traits::ThorlabsDevice;
 
 #[cfg(test)]
 mod tests {
-    // #[test]
-    // fn identify_kdc101() {
-    //     use crate::devices::KDC101;
-    //     smol::block_on(async {
-    //         let serial_number = String::from("27xxxxxx");
-    //         let mut device = KDC101::new(serial_number).await.unwrap();
-    //         device.open().await.unwrap();
-    //         device.identify().await;
-    //     })
-    // }
+    use crate::devices::*;
+
+    /// Initialises the logging infrastructure for tests.
+    /// Logging output is captured and displayed during test execution.
+    fn logger(level: log::LevelFilter) {
+        let _ = env_logger::builder()
+            .is_test(true)
+            .filter_level(level)
+            .try_init();
+    }
+
+    #[test]
+    fn kdc101() {
+        logger(log::LevelFilter::Trace);
+        let mut device = KDC101::new("27XXX").unwrap();
+        device.open().unwrap();
+        device.identify();
+    }
 }
