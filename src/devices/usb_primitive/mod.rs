@@ -187,7 +187,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
 
     /// Sends a command to the device.
     pub(crate) async fn send(&self, command: Vec<u8>) {
-        log::trace!("{self} SEND (requested) {command:02X?}");
+        log::debug!("{self} SEND (requested)");
         self.try_send(command)
             .await
             .unwrap_or_else(|e| abort(format!("{self} SEND (failed) {e}")));
