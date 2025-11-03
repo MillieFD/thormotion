@@ -15,8 +15,8 @@ use syn::{Attribute, FnArg, ItemFn, Pat, PatIdent, parse_macro_input};
 
 /// Attribute macro to convert a single proto-function definition into:
 ///
-/// 1. An async function for advanced users
-/// 2. A user-friendly synchronous function
+/// 1. A user-friendly synchronous function
+/// 2. An async function for advanced users
 ///
 /// Synchroneity is achieved by wrapping the core async function inside `smol::block_on`.
 ///
