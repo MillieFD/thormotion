@@ -20,7 +20,7 @@ where
     A: ThorlabsDevice<CH>,
 {
     log::debug!("{device} CHANNEL {channel} HOME (requested)");
-    // Subscribe to the GET broadcast channel
+    // Subscribe to the HOMED broadcast channel
     let rx = device.inner().receiver(&HOMED, channel).await;
     if rx.is_new() {
         // No HOMED response pending from the device. Send new HOME command.
