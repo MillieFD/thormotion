@@ -20,6 +20,7 @@ use crate::messages::Dispatcher;
 /// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
 ///
 /// Open the device by calling [`open`][`UsbPrimitive::open`]
+#[derive(Debug)]
 pub(super) enum Status<const CH: usize> {
     /// The [`Interface`][nusb::Interface] is [`open`][`nusb::DeviceInfo::open`] and communicating.
     ///
@@ -53,6 +54,6 @@ impl<const CH: usize> Status<CH> {
 
 impl<const CH: usize> Display for Status<CH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "STATUS {}", self.as_str())
+        write!(f, "STATUS ({})", self.as_str())
     }
 }
