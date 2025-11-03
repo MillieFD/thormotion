@@ -136,21 +136,21 @@ mod tests {
     //     let serial_number = String::from("27xxxxxx");
     //     debug!("Using serial number: {}", serial_number);
     //     
+    //     info!("Step 1: Creating new KDC101 device instance");
+    //     let mut device = match KDC101::new(serial_number.clone()) {
+    //         Ok(dev) => {
+    //             info!("✓ Device created successfully");
+    //             dev
+    //         }
+    //         Err(e) => {
+    //             error!("✗ Failed to create device: {:?}", e);
+    //             panic!("Cannot proceed without device");
+    //         }
+    //     };
+    //     
     //     smol::block_on(async {
-    //         info!("Step 1: Creating new KDC101 device instance");
-    //         let mut device = match KDC101::new(serial_number.clone()) {
-    //             Ok(dev) => {
-    //                 info!("✓ Device created successfully");
-    //                 dev
-    //             }
-    //             Err(e) => {
-    //                 error!("✗ Failed to create device: {:?}", e);
-    //                 panic!("Cannot proceed without device");
-    //             }
-    //         };
-    //         
     //         info!("Step 2: Opening device connection");
-    //         match device.open().await {
+    //         match device.open_async().await {
     //             Ok(_) => {
     //                 info!("✓ Device opened successfully");
     //                 debug!("Device is now ready for communication");
@@ -162,11 +162,11 @@ mod tests {
     //         }
     //         
     //         info!("Step 3: Sending identify command to device");
-    //         device.identify().await;
+    //         device.identify_async().await;
     //         info!("✓ Identify command sent successfully");
     //         trace!("Device should now be blinking/identifying itself");
-    //         
-    //         info!("=== Completed identify_kdc101 ===");
-    //     })
+    //     });
+    //     
+    //     info!("=== Completed identify_kdc101 ===");
     // }
 }
