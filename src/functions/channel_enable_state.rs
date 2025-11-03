@@ -22,7 +22,7 @@ where
     A: ThorlabsDevice<CH>,
 {
     log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (requested)");
-    // Subscribe to the GET broadcast channel
+    // Subscribe to GET_ENABLE_STATE broadcast channel
     let rx = device.inner().receiver(&GET, channel).await;
     if rx.is_new() {
         // No GET response pending from the device. Send new REQ command.
@@ -56,7 +56,7 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
     // Convert the boolean "enable" into a byte (Thorlabs APT Protocol)
     let enable_byte: u8 = if enable { 0x01 } else { 0x02 };
     loop {
-        // Subscribe to the GET broadcast channel
+        // Subscribe to GET_ENABLE_STATE broadcast channel
         let rx = device.inner().receiver(&GET, channel).await;
         if rx.is_new() {
             // No GET response pending from the device. Send new SET & REQ commands.
