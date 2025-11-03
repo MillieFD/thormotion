@@ -20,18 +20,18 @@ use crate::messages::Dispatcher;
 /// - [`Closed`][`Status::Closed`] → Contains an idle [`Dispatcher`]
 ///
 /// Open the device by calling [`open`][`UsbPrimitive::open`]
-pub(super) enum Status {
+pub(super) enum Status<const CH: usize> {
     /// The [`Interface`][nusb::Interface] is [`open`][`nusb::DeviceInfo::open`] and communicating.
     ///
     /// This enum variant contains an active [`Communicator`].
-    Open(Communicator),
+    Open(Communicator<CH>),
     /// The [`Interface`][nusb::Interface] is [`closed`][`nusb::DeviceInfo::close`].
     ///
     /// This enum variant contains an idle [`Dispatcher`].
-    Closed(Dispatcher),
+    Closed(Dispatcher<CH>),
 }
 
-impl Status {
+impl<const CH: usize> Status<CH> {
     /// Returns a string representation of the current status.
     ///
     /// Returns "Open" if the device is open, or "Closed" if the device is closed.
@@ -43,7 +43,7 @@ impl Status {
     }
 
     /// Returns the [`Dispatcher`] wrapped in an [`Arc`][std::sync::Arc].
-    pub(super) fn dispatcher(&self) -> Dispatcher {
+    pub(super) fn dispatcher(&self) -> Dispatcher<CH> {
         match self {
             Status::Open(communicator) => communicator.get_dispatcher(),
             Status::Closed(dispatcher) => dispatcher.clone(), // Inexpensive Arc Clone
@@ -51,7 +51,7 @@ impl Status {
     }
 }
 
-impl Display for Status {
+impl<const CH: usize> Display for Status<CH> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(self.as_str())
     }
