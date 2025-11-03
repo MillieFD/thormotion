@@ -28,7 +28,7 @@ where
         let command = {
             let mut data: Vec<u8> = Vec::with_capacity(6);
             data.extend((channel as u16).to_le_bytes());
-            data.extend(Units::distance_from_f64::<A>(distance));
+            data.extend(A::distance_from_f64(distance));
             long(MOVE_RELATIVE, &data)
         };
         device.inner().send(command).await;

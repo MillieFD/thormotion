@@ -121,7 +121,7 @@ pub(crate) trait UnitConversion {
     /// using the appropriate [`scale factor`][1].
     ///
     /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
-    fn distance_from_f64(&self, distance: f64) -> Units {
+    fn distance_from_f64(distance: f64) -> Units {
         let bytes = Units::encode(distance, Self::DISTANCE_ANGLE_SCALE_FACTOR);
         Units::Distance(bytes)
     }
@@ -130,7 +130,7 @@ pub(crate) trait UnitConversion {
     /// [`scale factor`][1].
     ///
     /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
-    fn velocity_from_f64(&self, velocity: f64) -> Units {
+    fn velocity_from_f64(velocity: f64) -> Units {
         let bytes = Units::encode(velocity, Self::VELOCITY_SCALE_FACTOR);
         Units::Distance(bytes)
     }
@@ -139,7 +139,7 @@ pub(crate) trait UnitConversion {
     /// [`scale factor`][1].
     ///
     /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
-    fn acceleration_from_f64(&self, acceleration: f64) -> Units {
+    fn acceleration_from_f64(acceleration: f64) -> Units {
         let bytes = Units::encode(acceleration, Self::ACCELERATION_SCALE_FACTOR);
         Units::Distance(bytes)
     }
