@@ -21,21 +21,25 @@ pub(crate) async fn get_channel_enable_state<A, const CH: usize>(device: &A, cha
 where
     A: ThorlabsDevice<CH>,
 {
+    log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (requested)");
     // Subscribe to the GET broadcast channel
     let rx = device.inner().receiver(&GET, channel).await;
     if rx.is_new() {
         // No GET response pending from the device. Send new REQ command.
+        log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (is new)");
         let command = short(REQ, channel as u8, 0);
         device.inner().send(command).await;
     }
-    // Parse the GET response
+    // Wait for GET_ENABLE_STATE response
     let response = rx.receive().await;
+    log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (responded)");
+    // Parse the GET_ENABLE_STATE response
     match response[3] {
         0x01 => true,
         0x02 => false,
         _ => abort(format!(
-            "{} GET_CHANENABLESTATE contained invalid channel enable state : {:02X?}",
-            device, response[3]
+            "{device} CHANNEL {channel} GET_ENABLE_STATE (invalid response {:02X?})",
+            response[3]
         )),
     }
 }
@@ -48,6 +52,7 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
 ) where
     A: ThorlabsDevice<CH>,
 {
+    log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (requested)");
     // Convert the boolean "enable" into a byte (Thorlabs APT Protocol)
     let enable_byte: u8 = if enable { 0x01 } else { 0x02 };
     loop {
@@ -55,14 +60,18 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
         let rx = device.inner().receiver(&GET, channel).await;
         if rx.is_new() {
             // No GET response pending from the device. Send new SET & REQ commands.
+            log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (is new)");
             let set = short(SET, channel as u8, enable_byte);
             device.inner().send(set).await;
             let req = short(REQ, channel as u8, 0);
             device.inner().send(req).await;
         };
-        // Parse the GET response
+        // Wait for GET_ENABLE_STATE response
         let response = rx.receive().await;
+        log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (responded)");
+        // Parse the GET_ENABLE_STATE response
         if response[3] == enable_byte {
+            log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (success)");
             break;
         }
     }
