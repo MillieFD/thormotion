@@ -27,6 +27,7 @@ use crate::devices::{abort, abort_device, get_device, remove_device};
 use crate::error::{cmd, sn};
 use crate::messages::{Dispatcher, Metadata, Provenance};
 
+#[derive(Debug)]
 pub(crate) struct UsbPrimitive<const CHANNELS: usize> {
     /// A unique eight-digit serial number that is printed on the Thorlabs device.
     serial_number: String,
@@ -62,7 +63,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
         let device = Self {
             serial_number: serial_number.clone(),
             device_info,
-            status: RwLock::new(Status::Closed(Dispatcher::new(ids))),
+            status: RwLock::new(Status::Closed(Dispatcher::new(ids, serial_number))),
         };
         log::debug!("USB Primitive {serial_number} NEW (success)");
         Ok(device)
@@ -225,13 +226,13 @@ impl<const CHANNELS: usize> PartialEq<UsbPrimitive<CHANNELS>> for UsbPrimitive<C
 ///
 /// This trait is required in addition to `PartialEq` to use `UsbPrimitive` in collections
 /// that require equality comparison, such as `HashSet` or as keys in `HashMap`.
-impl<const CHANNELS: usize> Eq for UsbPrimitive<CHANNELS> {}
+impl<const CH: usize> Eq for UsbPrimitive<CH> {}
 
 /// Implements the `Hash` trait for `UsbPrimitive`.
 ///
 /// This allows `UsbPrimitive` to be used as a key in hash-based collections like `HashMap`.
 /// The hash is computed based on the device's vendor ID, product ID, and serial number.
-impl<const CHANNELS: usize> Hash for UsbPrimitive<CHANNELS> {
+impl<const CH: usize> Hash for UsbPrimitive<CH> {
     /// Computes a hash value for the `UsbPrimitive` device.
     ///
     /// The hash is based on the device's vendor ID, product ID, and serial number.
@@ -242,13 +243,13 @@ impl<const CHANNELS: usize> Hash for UsbPrimitive<CHANNELS> {
     }
 }
 
-impl<const CHANNELS: usize> Display for UsbPrimitive<CHANNELS> {
+impl<const CH: usize> Display for UsbPrimitive<CH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("USB Primitive {}", self.serial_number))
+        write!(f, "USB Primitive {}", self.serial_number)
     }
 }
 
-impl<const CHANNELS: usize> Drop for UsbPrimitive<CHANNELS> {
+impl<const CH: usize> Drop for UsbPrimitive<CH> {
     /// Removes the `UsbPrimitive` instance from the global registry to prevent resource leaks.
     fn drop(&mut self) {
         smol::block_on(async {
