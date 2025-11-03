@@ -41,12 +41,12 @@ pub(super) struct Communicator<const CH: usize> {
 impl<const CH: usize> Communicator<CH> {
     /// Creates a new [`Communicator`] instance for the specified USB [`Interface`].
     pub(super) async fn new(interface: Interface, dispatcher: Dispatcher<CH>) -> Self {
-        log::debug!("COMMUNICATOR NEW (requested)");
+        log::debug!("{dispatcher} NEW COMMUNICATOR (requested)");
         serial_port::init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
         let outgoing = Mutex::new(interface.bulk_out_queue(OUT_ENDPOINT));
         let incoming = Self::spawn(interface, dsp);
-        log::debug!("COMMUNICATOR NEW (success)");
+        log::debug!("{dispatcher} NEW COMMUNICATOR (success)");
         Self {
             dispatcher,
             incoming,
@@ -73,7 +73,7 @@ impl<const CH: usize> Communicator<CH> {
     /// 2. The [`Communicator`] is dropped
     /// 3. A [`TransferError`] occurs. See [`Self::handle_error`].
     fn spawn(interface: Interface, dispatcher: Dispatcher<CH>) -> Task<()> {
-        log::debug!("COMMUNICATOR SPAWN (requested)");
+        log::debug!("{dispatcher} SPAWN (requested)");
         let mut endpoint = interface.bulk_in_queue(IN_ENDPOINT);
         while endpoint.pending() < N_TRANSFERS {
             endpoint.submit(RequestBuffer::new(CMD_LEN_MAX));
@@ -81,46 +81,59 @@ impl<const CH: usize> Communicator<CH> {
         let mut queue: VecDeque<u8> = VecDeque::with_capacity(N_TRANSFERS * CMD_LEN_MAX);
         let mut id = [0u8; 2]; // Reusable ID buffer
         let mut listen = async move || -> Result<(), TransferError> {
-            log::debug!("COMMUNICATOR SPAWN (starting background task)");
+            log::debug!("{dispatcher} SPAWN (starting background task)");
             loop {
                 let completion = endpoint.next_complete().await;
                 if completion.data.len() > 2 {
                     completion.status?;
-                    log::trace!("BACKGROUND RECEIVED {:02X?}", &completion.data[2..],);
+                    log::trace!(
+                        "BACKGROUND {} RECEIVED {:02X?}",
+                        dispatcher.serial_number(),
+                        &completion.data[2..],
+                    );
                     queue.extend(&completion.data[2..]); // Drop prefix bytes
                     while queue.get(5).is_some() {
                         id[0] = queue[0]; // Copying is more efficient than borrowing for u8
                         id[1] = queue[1]; // Copied bytes remain in queue
-                        log::trace!("BACKGROUND MESSAGE ID {id:02X?}");
+                        log::trace!(
+                            "BACKGROUND {} MESSAGE ID {:02X?}",
+                            dispatcher.serial_number(),
+                            id
+                        );
                         let len = dispatcher.length(&id).await;
                         if queue.len() < len {
                             log::trace!(
-                                "BACKGROUND INCOMPLETE (waiting) QUEUE {} REQUIRE {}",
+                                "BACKGROUND {} INCOMPLETE (waiting) QUEUE {} REQUIRE {}",
+                                dispatcher.serial_number(),
                                 queue.len(),
                                 len,
                             );
                             break;
                         }
                         let msg = queue.drain(..len).collect();
-                        log::trace!("BACKGROUND DISPATCH {msg:02X?}");
+                        log::trace!(
+                            "BACKGROUND {} DISPATCH {:02X?}",
+                            dispatcher.serial_number(),
+                            msg
+                        );
                         dispatcher.dispatch(msg, CH).await;
                     }
                 }
                 endpoint.submit(RequestBuffer::reuse(completion.data, CMD_LEN_MAX));
             }
         };
-        let task = smol::spawn(async move {
+        smol::spawn(async move {
             if let Err(error) = listen().await {
                 Self::handle_error(error);
             }
-        });
-        log::debug!("COMMUNICATOR SPAWN (success)");
-        task
+        })
     }
 
     /// Send a command to the device [`Interface`].
     pub(super) async fn send(&self, command: Vec<u8>) {
+        log::trace!("{self} SEND (requested) {command:02X?}");
         self.outgoing.lock().await.submit(command);
+        log::trace!("{self} SEND (success)");
     }
 
     /// Returns the [`Dispatcher`] wrapped in an [`Arc`][std::sync::Arc].
