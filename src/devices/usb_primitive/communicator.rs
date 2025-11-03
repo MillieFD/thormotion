@@ -9,7 +9,7 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 */
 
 use std::collections::VecDeque;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 use nusb::Interface;
 use nusb::transfer::{Queue, RequestBuffer, TransferError};
@@ -28,9 +28,9 @@ const N_TRANSFERS: usize = 3;
 const OUT_ENDPOINT: u8 = 0x02;
 
 /// Handles all incoming and outgoing commands between the host and a specific USB [`Interface`].
-pub(super) struct Communicator<const CHANNELS: usize> {
+pub(super) struct Communicator<const CH: usize> {
     /// A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
-    dispatcher: Dispatcher<CHANNELS>,
+    dispatcher: Dispatcher<CH>,
     /// An async background task that handles a stream of incoming commands from the [`Interface`].
     #[allow(unused)]
     incoming: Task<()>,
@@ -126,6 +126,12 @@ impl<const CH: usize> Communicator<CH> {
     /// Returns the [`Dispatcher`] wrapped in an [`Arc`][std::sync::Arc].
     pub(super) fn get_dispatcher(&self) -> Dispatcher<CH> {
         self.dispatcher.clone() // Inexpensive Arc Clone
+    }
+}
+
+impl<const CH: usize> Debug for Communicator<CH> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "COMMUNICATOR {{ {} }}", self.dispatcher)
     }
 }
 
