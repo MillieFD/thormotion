@@ -25,7 +25,7 @@ where
     // Subscribe to GET_ENABLE_STATE broadcast channel
     let rx = device.inner().receiver(&GET_ENABLE_STATE, channel).await;
     if rx.is_new() {
-        // No GET response pending from the device. Send new REQ command.
+        // No GET_ENABLE_STATE response pending from the device. Send new REQ command.
         log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (is new)");
         let command = short(REQ_ENABLE_STATE, channel as u8, 0);
         device.inner().send(command).await;
