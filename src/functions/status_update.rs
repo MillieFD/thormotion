@@ -38,5 +38,6 @@ where
     let position = device.decode(Units::distance_from_slice(&response[8..12]));
     let velocity = device.decode(Units::velocity_from_slice(&response[12..14]));
     let bits = u32::from_le_bytes([response[16], response[17], response[18], response[19]]);
+    log::debug!("{device} CHANNEL {channel} U_STATUS_UPDATE (success)");
     (position, velocity, bits)
 }
