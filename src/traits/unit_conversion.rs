@@ -70,65 +70,9 @@ impl Units {
         i32::to_le_bytes(rounded)
     }
 
-    /// Converts a distance (millimeters) or angle (degrees) from real-world units to device units
-    /// using the appropriate [`scale factor`][1].
-    ///
-    /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
-    pub(crate) fn distance_from_f64<A>(distance: f64) -> Units
-    where
-        A: UnitConversion,
-    {
-        let bytes = Units::encode(distance, A::DISTANCE_ANGLE_SCALE_FACTOR);
-        Units::Distance(bytes)
-    }
-
-    /// Converts a velocity from real-world units (mm/s) to device units using the appropriate
-    /// [`scale factor`][1].
-    ///
-    /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
-    pub(crate) fn velocity_from_f64<A>(velocity: f64) -> Units
-    where
-        A: UnitConversion,
-    {
-        let bytes = Units::encode(velocity, A::VELOCITY_SCALE_FACTOR);
-        Units::Distance(bytes)
-    }
-
-    /// Converts an acceleration from real-world units (mm/s²) to device units using the appropriate
-    /// [`scale factor`][1].
-    ///
-    /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
-    pub(crate) fn acceleration_from_f64<A>(acceleration: f64) -> Units
-    where
-        A: UnitConversion,
-    {
-        let bytes = Units::encode(acceleration, A::ACCELERATION_SCALE_FACTOR);
-        Units::Distance(bytes)
-    }
-
-    /// Consumes the [`Units`] enum, returning real-world units (millimeters and seconds) using the
-    /// appropriate [`scale factor`][1].
-    ///
-    /// [1]: UnitConversion
-    pub(crate) const fn decode<A>(&self) -> f64
-    where
-        A: UnitConversion,
-    {
-        match self {
-            Units::Distance(d) => i32::from_le_bytes(*d) as f64 / A::DISTANCE_ANGLE_SCALE_FACTOR,
-            Units::Velocity(v) => i32::from_le_bytes(*v) as f64 / A::VELOCITY_SCALE_FACTOR,
-            Units::Acceleration(a) => i32::from_le_bytes(*a) as f64 / A::ACCELERATION_SCALE_FACTOR,
-        }
-    }
-
-    /// Returns `True` if [`self`][1] and [`other`][1] are equivalent within three decimal places.
-    ///
-    /// [1]: Units
-    pub(crate) const fn approx<A>(&self, other: f64) -> bool
-    where
-        A: UnitConversion,
-    {
-        (self.decode::<A>() - other).abs() < 0.001
+    /// Returns `True` if both inputs are approximately equal.
+    pub(crate) const fn approx(n1: f64, n2: f64) -> bool {
+        (n1 - n2).abs() < 1E-6
     }
 }
 
@@ -172,4 +116,45 @@ pub(crate) trait UnitConversion {
     const ACCELERATION_SCALE_FACTOR: f64;
     const DISTANCE_ANGLE_SCALE_FACTOR: f64;
     const VELOCITY_SCALE_FACTOR: f64;
+
+    /// Converts a distance (millimeters) or angle (degrees) from real-world units to device units
+    /// using the appropriate [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::DISTANCE_ANGLE_SCALE_FACTOR
+    fn distance_from_f64(&self, distance: f64) -> Units {
+        let bytes = Units::encode(distance, Self::DISTANCE_ANGLE_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Converts a velocity from real-world units (mm/s) to device units using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::VELOCITY_SCALE_FACTOR
+    fn velocity_from_f64(&self, velocity: f64) -> Units {
+        let bytes = Units::encode(velocity, Self::VELOCITY_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Converts an acceleration from real-world units (mm/s²) to device units using the appropriate
+    /// [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion::ACCELERATION_SCALE_FACTOR
+    fn acceleration_from_f64(&self, acceleration: f64) -> Units {
+        let bytes = Units::encode(acceleration, Self::ACCELERATION_SCALE_FACTOR);
+        Units::Distance(bytes)
+    }
+
+    /// Consumes the [`Units`] enum, returning real-world units (millimeters and seconds) using the
+    /// appropriate [`scale factor`][1].
+    ///
+    /// [1]: UnitConversion
+    fn decode(&self, units: Units) -> f64 {
+        match units {
+            Units::Distance(d) => i32::from_le_bytes(d) as f64 / Self::DISTANCE_ANGLE_SCALE_FACTOR,
+            Units::Velocity(v) => i32::from_le_bytes(v) as f64 / Self::VELOCITY_SCALE_FACTOR,
+            Units::Acceleration(a) => {
+                i32::from_le_bytes(a) as f64 / Self::ACCELERATION_SCALE_FACTOR
+            }
+        }
+    }
 }
