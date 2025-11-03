@@ -8,49 +8,65 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the conditions of the LICENSE are met.
 */
 
+use crate::functions;
 use crate::messages::utils::{long, short};
 use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
-const MOVE: [u8; 2] = [0x53, 0x04];
-const MOVED: [u8; 2] = [0x64, 0x04];
+const MOVE_ABSOLUTE: [u8; 2] = [0x53, 0x04];
+const MOVE_COMPLETED: [u8; 2] = [0x64, 0x04];
 
 #[doc = include_str!("../documentation/move_absolute.md")]
-pub(crate) async fn move_absolute<A>(device: &A, channel: u8, position: f64)
+pub(crate) async fn move_absolute<A, const CH: usize>(device: &A, channel: usize, position: f64)
 where
-    A: ThorlabsDevice + UnitConversion,
+    A: ThorlabsDevice<CH> + UnitConversion,
 {
-    device.check_channel(channel);
-    let rx = device.inner().receiver(&MOVED).await;
-    if rx.is_new() {
-        let mut data: Vec<u8> = Vec::with_capacity(6);
-        data.extend((channel as u16).to_le_bytes());
-        data.extend(Units::distance_from_f64::<A>(position));
-        let command = long(MOVE, &data);
-        device.inner().send(command).await;
+    log::debug!("{device} CHANNEL {channel} MOVE_ABSOLUTE {position} (requested)");
+    loop {
+        // Subscribe to MOVE_COMPLETED broadcast channel
+        let rx = device.inner().receiver(&MOVE_COMPLETED, channel).await;
+        if rx.is_new() {
+            // No MOVE_COMPLETED response pending from the device. Send MOVE_ABSOLUTE command.
+            log::debug!("{device} CHANNEL {channel} MOVE_ABSOLUTE {position} (is new)");
+            let command = {
+                let mut data: Vec<u8> = Vec::with_capacity(6);
+                data.extend((channel as u16).to_le_bytes());
+                data.extend(device.distance_from_f64(position));
+                long(MOVE_ABSOLUTE, &data)
+            };
+            device.inner().send(command).await;
+        }
+        // Wait for MOVE_COMPLETED response
+        let response = rx.receive().await;
+        log::debug!("{device} CHANNEL {channel} MOVE_ABSOLUTE {position} (responded)");
+        // Parse the MOVE_COMPLETED response
+        let p = device.decode(Units::distance_from_slice(&response[8..12]));
+        if A::approx(p, position) {
+            // TODO: Is the device already settled when the MOVE_COMPLETED response is sent?
+            functions::until_settled(device, channel).await;
+            break;
+        }
     }
-    let response = rx.receive().await;
-    match response[6] == channel
-        && Units::distance_from_slice(&response[8..12]).approx::<A>(position)
-    {
-        true => {} // No-op: Move was completed successfully
-        false => Box::pin(move_absolute(device, channel, position)).await,
-    }
+    log::debug!("{device} CHANNEL {channel} MOVE_ABSOLUTE {position} (success)");
 }
 
 #[doc = include_str!("../documentation/move_absolute_from_params.md")]
-pub(crate) async fn move_absolute_from_params<A>(device: &A, channel: u8) -> f32
+pub(crate) async fn move_absolute_from_params<A, const CH: usize>(device: &A, channel: usize) -> f64
 where
-    A: ThorlabsDevice,
+    A: ThorlabsDevice<CH> + UnitConversion,
 {
-    device.check_channel(channel);
-    let rx = device.inner().receiver(&MOVED).await;
-    if rx.is_new() {
-        let command = short(MOVE, channel, 0);
+    log::debug!("{device} CHANNEL {channel} MOVE_ABSOLUTE_FROM_PARAMS (requested)");
+    // Subscribe to MOVE_COMPLETED broadcast channel
+    let rx = device.inner().new_receiver(&MOVE_COMPLETED, channel).await;
+    {
+        // No MOVE_COMPLETED response pending from the device. Send MOVE_ABSOLUTE command.
+        log::debug!("{device} CHANNEL {channel} MOVE_ABSOLUTE_FROM_PARAMS (is new)");
+        let command = short(MOVE_ABSOLUTE, channel as u8, 0);
         device.inner().send(command).await;
     }
+    // Wait for MOVE_COMPLETED response
     let response = rx.receive().await;
-    match response[6] == channel {
-        true => f32::from_le_bytes([response[8], response[9], response[10], response[11]]),
-        false => Box::pin(move_absolute_from_params(device, channel)).await,
-    }
+    log::debug!("{device} CHANNEL {channel} MOVE_ABSOLUTE_FROM_PARAMS (responded)");
+    // Parse the MOVE_COMPLETED response
+    functions::until_settled(device, channel).await; // TODO: Is the device already settled when the MOVE_COMPLETED response is sent?
+    device.decode(Units::distance_from_slice(&response[8..12]))
 }
