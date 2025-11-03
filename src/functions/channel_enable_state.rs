@@ -12,9 +12,9 @@ use crate::devices::abort;
 use crate::messages::utils::short;
 use crate::traits::ThorlabsDevice;
 
-const SET: [u8; 2] = [0x10, 0x02];
-const REQ: [u8; 2] = [0x11, 0x02];
-const GET: [u8; 2] = [0x12, 0x02];
+const SET_ENABLE_STATE: [u8; 2] = [0x10, 0x02];
+const REQ_ENABLE_STATE: [u8; 2] = [0x11, 0x02];
+const GET_ENABLE_STATE: [u8; 2] = [0x12, 0x02];
 
 #[doc = include_str!("../documentation/get_channel_enable_state.md")]
 pub(crate) async fn get_channel_enable_state<A, const CH: usize>(device: &A, channel: usize) -> bool
@@ -23,11 +23,11 @@ where
 {
     log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (requested)");
     // Subscribe to GET_ENABLE_STATE broadcast channel
-    let rx = device.inner().receiver(&GET, channel).await;
+    let rx = device.inner().receiver(&GET_ENABLE_STATE, channel).await;
     if rx.is_new() {
         // No GET response pending from the device. Send new REQ command.
         log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (is new)");
-        let command = short(REQ, channel as u8, 0);
+        let command = short(REQ_ENABLE_STATE, channel as u8, 0);
         device.inner().send(command).await;
     }
     // Wait for GET_ENABLE_STATE response
@@ -57,13 +57,13 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
     let enable_byte: u8 = if enable { 0x01 } else { 0x02 };
     loop {
         // Subscribe to GET_ENABLE_STATE broadcast channel
-        let rx = device.inner().receiver(&GET, channel).await;
+        let rx = device.inner().receiver(&GET_ENABLE_STATE, channel).await;
         if rx.is_new() {
             // No GET response pending from the device. Send new SET & REQ commands.
             log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (is new)");
-            let set = short(SET, channel as u8, enable_byte);
+            let set = short(SET_ENABLE_STATE, channel as u8, enable_byte);
             device.inner().send(set).await;
-            let req = short(REQ, channel as u8, 0);
+            let req = short(REQ_ENABLE_STATE, channel as u8, 0);
             device.inner().send(req).await;
         };
         // Wait for GET_ENABLE_STATE response
