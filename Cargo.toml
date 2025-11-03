@@ -32,3 +32,6 @@ thormacros = { path = "thormacros" }
 version = "0.27"
 features = ["experimental-async", "extension-module", "experimental-inspect"]
 optional = true
+
+[dev-dependencies]
+env_logger = "0.11"
