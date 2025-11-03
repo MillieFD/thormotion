@@ -19,10 +19,10 @@ pub(crate) async fn hw_start_update_messages<A, const CH: usize>(device: &A)
 where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} START_UPDATE_MESSAGES (requested)");
+    log::info!("{device} START_UPDATE_MESSAGES (requested)");
     let command = short(START_UPDATE_MESSAGES, 0, 0);
     device.inner().send(command).await;
-    log::debug!("{device} START_UPDATE_MESSAGES (success)");
+    log::info!("{device} START_UPDATE_MESSAGES (success)");
 }
 
 #[doc = include_str!("../documentation/hw_stop_update_messages.md")]
@@ -30,8 +30,8 @@ pub(crate) async fn hw_stop_update_messages<A, const CH: usize>(device: &A)
 where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} STOP_UPDATE_MESSAGES (requested)");
+    log::info!("{device} STOP_UPDATE_MESSAGES (requested)");
     let command = short(STOP_UPDATE_MESSAGES, 0, 0);
     device.inner().send(command).await;
-    log::debug!("{device} STOP_UPDATE_MESSAGES (success)");
+    log::info!("{device} STOP_UPDATE_MESSAGES (success)");
 }

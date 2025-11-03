@@ -21,18 +21,18 @@ pub(crate) async fn get_channel_enable_state<A, const CH: usize>(device: &A, cha
 where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (requested)");
+    log::info!("{device} CHANNEL {channel} GET_ENABLE_STATE (requested)");
     // Subscribe to GET_ENABLE_STATE broadcast channel
     let rx = device.inner().receiver(&GET_ENABLE_STATE, channel).await;
     if rx.is_new() {
         // No GET_ENABLE_STATE response pending from the device. Send new REQ command.
-        log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (is new)");
+        log::info!("{device} CHANNEL {channel} GET_ENABLE_STATE (is new)");
         let command = short(REQ_ENABLE_STATE, channel as u8, 0);
         device.inner().send(command).await;
     }
     // Wait for GET_ENABLE_STATE response
     let response = rx.receive().await;
-    log::debug!("{device} CHANNEL {channel} GET_ENABLE_STATE (responded)");
+    log::info!("{device} CHANNEL {channel} GET_ENABLE_STATE (responded)");
     // Parse the GET_ENABLE_STATE response
     match response[3] {
         0x01 => true,
@@ -52,7 +52,7 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
 ) where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (requested)");
+    log::info!("{device} CHANNEL {channel} SET_ENABLE_STATE (requested)");
     // Convert the boolean "enable" into a byte (Thorlabs APT Protocol)
     let enable_byte: u8 = if enable { 0x01 } else { 0x02 };
     loop {
@@ -60,7 +60,7 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
         let rx = device.inner().receiver(&GET_ENABLE_STATE, channel).await;
         if rx.is_new() {
             // No GET response pending from the device. Send new SET & REQ commands.
-            log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (is new)");
+            log::info!("{device} CHANNEL {channel} SET_ENABLE_STATE (is new)");
             let set = short(SET_ENABLE_STATE, channel as u8, enable_byte);
             device.inner().send(set).await;
             let req = short(REQ_ENABLE_STATE, channel as u8, 0);
@@ -68,10 +68,10 @@ pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
         };
         // Wait for GET_ENABLE_STATE response
         let response = rx.receive().await;
-        log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (responded)");
+        log::info!("{device} CHANNEL {channel} SET_ENABLE_STATE (responded)");
         // Parse the GET_ENABLE_STATE response
         if response[3] == enable_byte {
-            log::debug!("{device} CHANNEL {channel} SET_ENABLE_STATE (success)");
+            log::info!("{device} CHANNEL {channel} SET_ENABLE_STATE (success)");
             break;
         }
     }

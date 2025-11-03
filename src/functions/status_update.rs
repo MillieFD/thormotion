@@ -22,22 +22,22 @@ pub(crate) async fn get_u_status_update<A, const CH: usize>(
 where
     A: ThorlabsDevice<CH> + UnitConversion,
 {
-    log::debug!("{device} CHANNEL {channel} U_STATUS_UPDATE (requested)");
+    log::info!("{device} CHANNEL {channel} U_STATUS_UPDATE (requested)");
     // Subscribe to GET_U_STATUS_UPDATE broadcast channel
     let rx = device.inner().receiver(&GET_U_STATUS_UPDATE, channel).await;
     if rx.is_new() {
         // No GET_U_STATUS_UPDATE response pending from the device. Send REQ_U_STATUS_UPDATE.
-        log::debug!("{device} CHANNEL {channel} U_STATUS_UPDATE (is new)");
+        log::info!("{device} CHANNEL {channel} U_STATUS_UPDATE (is new)");
         let command = short(REQ_U_STATUS_UPDATE, channel as u8, 0);
         device.inner().send(command).await;
     }
     // Wait for GET_U_STATUS_UPDATE response
     let response = rx.receive().await;
-    log::debug!("{device} CHANNEL {channel} U_STATUS_UPDATE (responded)");
+    log::info!("{device} CHANNEL {channel} U_STATUS_UPDATE (responded)");
     // Parse the GET_U_STATUS_UPDATE response
     let position = device.decode(Units::distance_from_slice(&response[8..12]));
     let velocity = device.decode(Units::velocity_from_slice(&response[12..14]));
     let bits = u32::from_le_bytes([response[16], response[17], response[18], response[19]]);
-    log::debug!("{device} CHANNEL {channel} U_STATUS_UPDATE (success)");
+    log::info!("{device} CHANNEL {channel} U_STATUS_UPDATE (success)");
     (position, velocity, bits)
 }

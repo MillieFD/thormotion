@@ -19,18 +19,18 @@ pub(crate) async fn stop<A, const CH: usize>(device: &A, channel: usize)
 where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} CHANNEL {channel} STOP (requested)");
+    log::info!("{device} CHANNEL {channel} STOP (requested)");
     // Subscribe to STOPPED broadcast channel
     let rx = device.inner().receiver(&STOPPED, channel).await;
     if rx.is_new() {
         // No STOPPED response pending from the device. Send STOP command.
-        log::debug!("{device} CHANNEL {channel} STOP (is new)");
+        log::info!("{device} CHANNEL {channel} STOP (is new)");
         let command = short(STOP, channel as u8, 0x02);
         device.inner().send(command).await;
     }
     // Wait for STOPPED response
     let _ = rx.receive().await; // No need to parse response
-    log::debug!("{device} CHANNEL {channel} STOP (success)");
+    log::info!("{device} CHANNEL {channel} STOP (success)");
 }
 
 #[doc = include_str!("../documentation/estop.md")]
@@ -38,16 +38,16 @@ pub(crate) async fn estop<A, const CH: usize>(device: &A, channel: usize)
 where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} CHANNEL {channel} ESTOP (requested)");
+    log::info!("{device} CHANNEL {channel} ESTOP (requested)");
     // Subscribe to STOPPED broadcast channel
     let rx = device.inner().receiver(&STOPPED, channel).await;
     if rx.is_new() {
         // No STOPPED response pending from the device. Send ESTOP command.
-        log::debug!("{device} CHANNEL {channel} ESTOP (is new)");
+        log::info!("{device} CHANNEL {channel} ESTOP (is new)");
         let command = short(STOP, channel as u8, 0x01);
         device.inner().send(command).await;
     }
     // Wait for STOPPED response
     let _ = rx.receive().await; // No need to parse response
-    log::debug!("{device} CHANNEL {channel} ESTOP (success)");
+    log::info!("{device} CHANNEL {channel} ESTOP (success)");
 }

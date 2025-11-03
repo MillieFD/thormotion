@@ -19,16 +19,16 @@ pub(crate) async fn home<A, const CH: usize>(device: &A, channel: usize)
 where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} CHANNEL {channel} HOME (requested)");
+    log::info!("{device} CHANNEL {channel} HOME (requested)");
     // Subscribe to HOMED broadcast channel
     let rx = device.inner().receiver(&HOMED, channel).await;
     if rx.is_new() {
         // No HOMED response pending from the device. Send new HOME command.
-        log::debug!("{device} CHANNEL {channel} HOME (is new)");
+        log::info!("{device} CHANNEL {channel} HOME (is new)");
         let command = short(HOME, channel as u8, 0);
         device.inner().send(command).await;
     }
     // Wait for HOMED response
     let _ = rx.receive().await; // No need to parse response
-    log::debug!("{device} CHANNEL {channel} HOME (success)");
+    log::info!("{device} CHANNEL {channel} HOME (success)");
 }

@@ -18,8 +18,8 @@ pub(crate) async fn identify<A, const CH: usize>(device: &A, channel: u8)
 where
     A: ThorlabsDevice<CH>,
 {
-    log::debug!("{device} CHANNEL {channel} IDENTIFY (requested)");
+    log::info!("{device} CHANNEL {channel} IDENTIFY (requested)");
     let command = short(IDENTIFY, channel, 0);
     device.inner().send(command).await;
-    log::debug!("{device} CHANNEL {channel} IDENTIFY (success)");
+    log::info!("{device} CHANNEL {channel} IDENTIFY (success)");
 }
