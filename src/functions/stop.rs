@@ -15,29 +15,39 @@ const STOP: [u8; 2] = [0x65, 0x04];
 const STOPPED: [u8; 2] = [0x66, 0x04];
 
 #[doc = include_str!("../documentation/stop.md")]
-pub(crate) async fn stop<A>(device: &A, channel: u8)
+pub(crate) async fn stop<A, const CH: usize>(device: &A, channel: usize)
 where
-    A: ThorlabsDevice,
+    A: ThorlabsDevice<CH>,
 {
-    device.check_channel(channel);
-    let rx = device.inner().receiver(&STOPPED).await;
+    log::debug!("{device} CHANNEL {channel} STOP (requested)");
+    // Subscribe to STOPPED broadcast channel
+    let rx = device.inner().receiver(&STOPPED, channel).await;
     if rx.is_new() {
-        let command = short(STOP, channel, 0x02);
+        // No STOPPED response pending from the device. Send STOP command.
+        log::debug!("{device} CHANNEL {channel} STOP (is new)");
+        let command = short(STOP, channel as u8, 0x02);
         device.inner().send(command).await;
     }
-    let _ = rx.receive().await;
+    // Wait for STOPPED response
+    let _ = rx.receive().await; // No need to parse response
+    log::debug!("{device} CHANNEL {channel} STOP (success)");
 }
 
 #[doc = include_str!("../documentation/estop.md")]
-pub(crate) async fn estop<A>(device: &A, channel: u8)
+pub(crate) async fn estop<A, const CH: usize>(device: &A, channel: usize)
 where
-    A: ThorlabsDevice,
+    A: ThorlabsDevice<CH>,
 {
-    device.check_channel(channel);
-    let rx = device.inner().receiver(&STOPPED).await;
+    log::debug!("{device} CHANNEL {channel} ESTOP (requested)");
+    // Subscribe to STOPPED broadcast channel
+    let rx = device.inner().receiver(&STOPPED, channel).await;
     if rx.is_new() {
-        let command = short(STOP, channel, 0x01);
+        // No STOPPED response pending from the device. Send ESTOP command.
+        log::debug!("{device} CHANNEL {channel} ESTOP (is new)");
+        let command = short(STOP, channel as u8, 0x01);
         device.inner().send(command).await;
     }
-    let _ = rx.receive().await;
+    // Wait for STOPPED response
+    let _ = rx.receive().await; // No need to parse response
+    log::debug!("{device} CHANNEL {channel} ESTOP (success)");
 }
