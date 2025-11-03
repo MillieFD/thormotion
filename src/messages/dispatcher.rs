@@ -8,6 +8,7 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the conditions of the LICENSE are met.
 */
 
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 use ahash::HashMap;
@@ -15,31 +16,36 @@ use async_broadcast::broadcast;
 use smol::lock::MutexGuard;
 
 use crate::devices::{abort, bug_abort};
-use crate::messages::{Command, Provenance, Receiver, Sender};
+use crate::messages::{Command, Metadata, Provenance, Receiver, Sender};
 
 /// A thread-safe message dispatcher for handling async `Req → Get` callback patterns.
 ///
 /// This type includes an internal [`Arc`] to enable inexpensive cloning.
 /// The [`Dispatcher`] is released when all clones are dropped.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Dispatcher {
-    map: Arc<HashMap<[u8; 2], Command>>,
+pub(crate) struct Dispatcher<const CH: usize> {
+    /// A unique eight-digit serial number that is printed on the Thorlabs device.
+    serial_number: String,
+    /// A [`HashMap`] of `Message ID` keys and [`Command`] values.
+    map: Arc<HashMap<[u8; 2], Command<CH>>>,
 }
 
-impl Dispatcher {
+impl<const CH: usize> Dispatcher<CH> {
     /// Constructs a new [`Dispatcher`] from the provided array of command ID bytes.
-    pub(crate) fn new(ids: &[Command]) -> Self {
+    pub(crate) fn new(ids: &[Metadata<CH>], serial_number: &String) -> Self {
         Self {
-            map: Arc::new(HashMap::from_iter(
-                ids.iter()
-                    .map(|cmd| (cmd.id, Command::payload(cmd.id, cmd.length))),
-            )),
+            serial_number: serial_number.clone(),
+            map: Arc::new(HashMap::from_iter(ids.iter().map(Command::new))),
         }
+    }
+
+    pub(crate) fn serial_number(&self) -> &String {
+        &self.serial_number
     }
 
     /// Returns a reference to the [`Command`] corresponding to the ID.
     #[doc(hidden)]
-    async fn get(&self, id: &[u8]) -> &Command {
+    async fn get(&self, id: &[u8]) -> &Command<CH> {
         // SAFETY: Using Dispatcher::get outside this impl block may allow a channel to remain in
         // the Dispatcher::map after sending a message. Use Dispatcher::take instead.
         self.map
@@ -76,32 +82,12 @@ impl Dispatcher {
     /// [2]: Provenance::Existing
     /// [3]: Dispatcher::any_receiver
     /// [4]: Dispatcher::new_receiver
-    pub(crate) async fn receiver(&self, id: &[u8]) -> Provenance {
-        let mut opt = self.get(id).await.sender.lock().await;
+    pub(crate) async fn receiver(&self, id: &[u8], channel: usize) -> Provenance {
+        let mut opt = self.get(id).await.sender(channel).lock().await;
         match &*opt {
             None => Provenance::New(Self::insert(&mut opt)),
             Some(existing) => Provenance::Existing(existing.new_receiver()),
         }
-    }
-
-    /// Returns a receiver for the given command ID.
-    ///
-    /// If the [`HashMap`] already contains a [`Sender`] for the given command ID, a
-    /// [`new_receiver`][1] is created.
-    ///
-    /// If a [`Sender`] does not exist for the given command ID, a new [`broadcast channel`][2] is
-    /// created. The new [`Sender`] is inserted into the [`HashMap`] and the new [`Receiver`] is
-    /// returned.
-    ///
-    /// If you need to guarantee that the device is not currently executing the command for the
-    /// given ID, use [`new_receiver`][3]. If you need pattern matching, see [`receiver`][4].
-    ///
-    /// [1]: Sender::new_receiver
-    /// [2]: broadcast
-    /// [3]: Dispatcher::new_receiver
-    /// [4]: Dispatcher::receiver
-    pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
-        self.receiver(id).await.unpack()
     }
 
     /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not currently
@@ -110,14 +96,18 @@ impl Dispatcher {
     /// See also [`any_receiver`][1].
     ///
     /// [1]: Dispatcher::any_receiver
-    pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
-        match self.receiver(id).await {
-            Provenance::New(rx) => rx,
-            Provenance::Existing(rx) => {
+    pub(crate) async fn new_receiver(&self, id: &[u8], channel: usize) -> Provenance {
+        log::debug!("NEW RECEIVER (requested) ID {id:02X?} CHANNEL {channel}");
+        loop {
+            let rx = self.receiver(id, channel).await;
+            if rx.is_new() {
+                // Break out of the loop and return the new Receiver
+                log::debug!("NEW RECEIVER (success) ID {id:02X?} CHANNEL {channel}");
+                return rx;
+            } else {
                 // Wait for the pending command to complete. No need to read the response
-                let _ = rx.new_receiver().recv().await;
-                // Then call new_receiver recursively to check again.
-                Box::pin(async { self.new_receiver(id).await }).await
+                log::debug!("NEW RECEIVER (waiting) ID {id:02X?} CHANNEL {channel}");
+                let _ = rx.receive().await;
             }
         }
     }
@@ -127,8 +117,8 @@ impl Dispatcher {
     ///
     /// Returns [`None`] if no functions are awaiting the command response.
     #[doc(hidden)]
-    pub(crate) async fn take(&self, id: &[u8]) -> Option<Sender> {
-        self.get(id).await.sender.lock().await.take()
+    pub(crate) async fn take(&self, id: &[u8], channel: usize) -> Option<Sender> {
+        self.get(id).await.sender(channel).lock().await.take()
     }
 
     /// Returns the expected length (number of bytes) for the given command ID.
@@ -139,9 +129,9 @@ impl Dispatcher {
     /// [`Broadcasts`][1] the command response to any waiting receivers.
     ///
     /// [1]: Sender::broadcast_direct
-    pub(crate) async fn dispatch(&self, data: Arc<[u8]>) {
+    pub(crate) async fn dispatch(&self, data: Arc<[u8]>, channel: usize) {
         let id: &[u8] = &data[..2];
-        if let Some(sender) = self.take(id).await {
+        if let Some(sender) = self.take(id, channel).await {
             // Sender::broadcast returns an error if either:
             //  1. The channel is closed
             //  2. The channel has no active receivers & Sender::await_active is False
@@ -153,8 +143,8 @@ impl Dispatcher {
     }
 }
 
-impl From<&[Command]> for Dispatcher {
-    fn from(ids: &[Command]) -> Self {
-        Self::new(ids)
+impl<const CH: usize> Display for Dispatcher<CH> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DISPATCHER {}", self.serial_number)
     }
 }
