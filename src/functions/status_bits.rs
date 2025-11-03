@@ -11,22 +11,26 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 use crate::ThorlabsDevice;
 use crate::messages::utils::short;
 
-const REQ: [u8; 2] = [0x29, 0x04];
-const GET: [u8; 2] = [0x2A, 0x04];
+const REQ_STATUS_BITS: [u8; 2] = [0x29, 0x04];
+const GET_STATUS_BITS: [u8; 2] = [0x2A, 0x04];
 
-#[doc = include_str!("../documentation/get_status_bits.md")]
+// #[doc = include_str!("../documentation/get_status_bits.md")]
 pub(crate) async fn get_status_bits<A, const CH: usize>(device: &A, channel: usize) -> u32
 where
     A: ThorlabsDevice<CH>,
 {
-    // Subscribe to the GET broadcast channel
-    let rx = device.inner().receiver(&GET, channel).await;
+    log::debug!("{device} CHANNEL {channel} GET_STATUS_BITS (requested)");
+    // Subscribe to GET_STATUS_BITS broadcast channel
+    let rx = device.inner().receiver(&GET_STATUS_BITS, channel).await;
     if rx.is_new() {
-        // No GET response pending from the device. Send new REQ command.
-        let command = short(REQ, channel as u8, 0);
+        // No GET_STATUS_BITS response pending from the device. Send REQ_STATUS_BITS command.
+        log::debug!("{device} CHANNEL {channel} GET_STATUS_BITS (is new)");
+        let command = short(REQ_STATUS_BITS, channel as u8, 0);
         device.inner().send(command).await;
     }
-    // Parse the GET response
+    // Wait for GET_STATUS_BITS response
     let response = rx.receive().await;
+    log::debug!("{device} CHANNEL {channel} GET_STATUS_BITS (responded)");
+    // Return little-endian status bits as u32
     u32::from_le_bytes([response[8], response[9], response[10], response[11]])
 }
