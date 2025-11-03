@@ -56,13 +56,7 @@ where
     }
     // Wait for MOVE_COMPLETED response
     let response = rx.receive().await;
-    log::info!("{device} CHANNEL {channel} MOVE_RELATIVE_FROM_PARAMS (responded)");
-    // Parse the MOVE_COMPLETED response
-    // if response[8] != 0x02 {
-    //     // TODO: Is the device already settled when response is sent?
-    //     functions::until_settled(device, channel).await;
-    // }
-    log::info!("{device} CHANNEL {channel} MOVE_RELATIVE (success)");
-    // Return the end position of the movement
+    log::info!("{device} CHANNEL {channel} MOVE_RELATIVE_FROM_PARAMS (success)");
+    // Return the new position
     device.decode(Units::distance_from_slice(&response[8..12]))
 }

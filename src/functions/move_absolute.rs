@@ -8,7 +8,6 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the conditions of the LICENSE are met.
 */
 
-use crate::functions;
 use crate::messages::utils::{long, short};
 use crate::traits::{ThorlabsDevice, UnitConversion, Units};
 
@@ -40,7 +39,7 @@ where
         log::info!("{device} CHANNEL {channel} MOVE_ABSOLUTE {position} (responded)");
         // Parse the MOVE_COMPLETED response
         let p = device.decode(Units::distance_from_slice(&response[8..12]));
-        if A::approx(p, position) {
+        if Units::approx(p, position) {
             log::info!("{device} CHANNEL {channel} MOVE_ABSOLUTE {position} (success)");
             return;
         }
@@ -64,7 +63,6 @@ where
     // Wait for MOVE_COMPLETED response
     let response = rx.receive().await;
     log::info!("{device} CHANNEL {channel} MOVE_ABSOLUTE_FROM_PARAMS (responded)");
-    // Parse the MOVE_COMPLETED response
-    functions::until_settled(device, channel).await; // TODO: Is the device already settled when the MOVE_COMPLETED response is sent?
+    // Return the new position
     device.decode(Units::distance_from_slice(&response[8..12]))
 }
