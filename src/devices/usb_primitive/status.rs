@@ -52,7 +52,7 @@ impl<const CH: usize> Status<CH> {
 }
 
 impl<const CH: usize> Display for Status<CH> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.as_str())
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "STATUS {}", self.as_str())
     }
 }
