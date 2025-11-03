@@ -17,26 +17,33 @@ use smol::block_on;
 use crate::devices::{UsbPrimitive, add_device};
 use crate::error::sn;
 use crate::functions;
-use crate::messages::Command;
+use crate::messages::Metadata;
 use crate::traits::{CheckSerialNumber, ThorlabsDevice, UnitConversion};
 
+/// KDC101 devices have one channel.
+const CH: usize = 1;
+
 #[cfg_attr(feature = "py", pyo3::pyclass)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct KDC101 {
-    inner: Arc<UsbPrimitive>,
+    inner: Arc<UsbPrimitive<CH>>,
 }
 
+impl KDC101 {}
+
+#[cfg_attr(feature = "py", pyo3::pymethods)]
 impl KDC101 {
-    const IDS: [Command; 5] = [
+    const IDS: [Metadata<1>; 5] = [
         // MOD
-        Command::header([0x12, 0x02]), // GET_CHANENABLESTATE
+        Metadata::header([0x12, 0x02]), // GET_CHANENABLESTATE
         // MOT
-        Command::header([0x44, 0x04]), // MOVE_HOMED
-        Command::payload([0x64, 0x04], 20), // MOVE_COMPLETED
-        Command::payload([0x66, 0x04], 20), // MOVE_STOPPED
-        Command::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
+        Metadata::header([0x44, 0x04]), // MOVE_HOMED
+        Metadata::payload([0x64, 0x04], 20), // MOVE_COMPLETED
+        Metadata::payload([0x66, 0x04], 20), // MOVE_STOPPED
+        Metadata::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
     ];
 
+    #[cfg(not(feature = "py"))]
     #[doc = include_str!("../documentation/new.md")]
     pub fn new<A>(serial_number: A) -> Result<Self, sn::Error>
     where
@@ -52,15 +59,19 @@ impl KDC101 {
         add_device(sn, f);
         Ok(device)
     }
-}
 
-#[cfg_attr(feature = "py", pyo3::pymethods)]
-impl KDC101 {
     #[cfg(feature = "py")]
     #[new]
     #[doc = include_str!("../documentation/new.md")]
-    pub fn py_new(serial_number: String) -> Result<Self, sn::Error> {
-        KDC101::new(serial_number)
+    pub fn new(serial_number: String) -> Result<Self, sn::Error> {
+        Self::check_serial_number(&sn)?;
+        let device = Self {
+            inner: Arc::new(UsbPrimitive::new(&sn, &Self::IDS)?),
+        };
+        let d = device.clone(); // Inexpensive Arc Clone
+        let f = move || d.abort();
+        add_device(sn, f);
+        Ok(device)
     }
 
     #[thormacros::sync]
@@ -120,13 +131,6 @@ impl KDC101 {
     }
 
     #[thormacros::sync]
-    #[doc = include_str!("../documentation/is_settled.md")]
-    pub async fn is_settled_async(&self) -> bool {
-        let (_, _, bits) = self.get_status_async().await;
-        (bits & 0x00002000) != 0
-    }
-
-    #[thormacros::sync]
     #[doc = include_str!("../documentation/hw_start_update_messages.md")]
     pub async fn hw_start_update_messages_async(&self) {
         functions::hw_start_update_messages(self).await;
@@ -141,7 +145,7 @@ impl KDC101 {
     #[thormacros::sync]
     #[doc = include_str!("../documentation/get_channel_enable_state.md")]
     pub async fn get_channel_enable_state_async(&self) {
-        functions::req_channel_enable_state(self, 1).await;
+        functions::get_channel_enable_state(self, 1).await;
     }
 
     #[thormacros::sync]
@@ -150,7 +154,7 @@ impl KDC101 {
         functions::set_channel_enable_state(self, 1, enable).await;
     }
 
-    /* -------------------------------------------------------------------------------- Movement */
+    /* ------------------------------------------------------------------------------------ Move */
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/home.md")]
@@ -172,8 +176,20 @@ impl KDC101 {
 
     #[thormacros::sync]
     pub async fn move_relative_async(&self, distance: f64) {
+        let start = self.get_position_async().await;
         functions::move_relative(self, 1, distance).await;
+        let end = self.get_position_async().await;
+        if !Self::approx((end - start).abs(), distance) {
+            log::error!("{self} MOVE_RELATIVE (failed tolerance) START {start:.3} END {end:.3}");
+        }
     }
+
+    #[thormacros::sync]
+    pub async fn move_relative_from_params_async(&self) {
+        functions::move_relative_from_params(self, 1).await;
+    }
+
+    /* ------------------------------------------------------------------------------------ Stop */
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/stop.md")]
@@ -188,13 +204,9 @@ impl KDC101 {
     }
 }
 
-impl ThorlabsDevice for KDC101 {
-    fn inner(&self) -> &UsbPrimitive {
+impl ThorlabsDevice<CH> for KDC101 {
+    fn inner(&self) -> &UsbPrimitive<1> {
         &self.inner
-    }
-
-    fn channels(&self) -> u8 {
-        1
     }
 
     fn abort(&self) {
@@ -215,7 +227,7 @@ impl UnitConversion for KDC101 {
 impl Display for KDC101 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&block_on(async {
-            format!("KDC101 ({:?})", self.inner) // See Debug trait for UsbPrimitive
+            format!("KDC101 {}", self.serial_number())
         }))
     }
 }
