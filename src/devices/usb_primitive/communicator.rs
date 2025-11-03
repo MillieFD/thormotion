@@ -10,7 +10,6 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 
 use std::collections::VecDeque;
 
-use log::{debug, info, trace};
 use nusb::Interface;
 use nusb::transfer::{Queue, RequestBuffer, TransferError};
 use smol::Task;
@@ -28,9 +27,9 @@ const N_TRANSFERS: usize = 3;
 const OUT_ENDPOINT: u8 = 0x02;
 
 /// Handles all incoming and outgoing commands between the host and a specific USB [`Interface`].
-pub(super) struct Communicator {
+pub(super) struct Communicator<const CHANNELS: usize> {
     /// A thread-safe message [`Dispatcher`] for handling async `Req → Get` callback patterns.
-    dispatcher: Dispatcher,
+    dispatcher: Dispatcher<CHANNELS>,
     /// An async background task that handles a stream of incoming commands from the [`Interface`].
     #[allow(unused)]
     incoming: Task<()>,
@@ -38,16 +37,15 @@ pub(super) struct Communicator {
     pub(super) outgoing: Mutex<Queue<Vec<u8>>>,
 }
 
-impl Communicator {
+impl<const CH: usize> Communicator<CH> {
     /// Creates a new [`Communicator`] instance for the specified USB [`Interface`].
-    pub(super) async fn new(interface: Interface, dispatcher: Dispatcher) -> Self {
-        /// The USB endpoint used for outgoing commands to the device
-        const OUT_ENDPOINT: u8 = 0x02;
-        trace!("Initialising communicator");
+    pub(super) async fn new(interface: Interface, dispatcher: Dispatcher<CH>) -> Self {
+        log::debug!("COMMUNICATOR NEW (requested)");
         serial_port::init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
         let outgoing = Mutex::new(interface.bulk_out_queue(OUT_ENDPOINT));
         let incoming = Self::spawn(interface, dsp);
+        log::debug!("COMMUNICATOR NEW (success)");
         Self {
             dispatcher,
             incoming,
@@ -73,12 +71,8 @@ impl Communicator {
     /// 1. It is explicitly [`cancelled`][Task::cancel]
     /// 2. The [`Communicator`] is dropped
     /// 3. A [`TransferError`] occurs. See [`Self::handle_error`].
-    fn spawn(interface: Interface, dispatcher: Dispatcher) -> Task<()> {
-        /// The USB endpoint used for incoming commands from the device
-        const IN_ENDPOINT: u8 = 0x81;
-        /// The number of concurrent transfers to maintain in the queue
-        const N_TRANSFERS: usize = 3;
-        trace!("Initialising incoming USB endpoint");
+    fn spawn(interface: Interface, dispatcher: Dispatcher<CH>) -> Task<()> {
+        log::debug!("COMMUNICATOR SPAWN (requested)");
         let mut endpoint = interface.bulk_in_queue(IN_ENDPOINT);
         while endpoint.pending() < N_TRANSFERS {
             endpoint.submit(RequestBuffer::new(CMD_LEN_MAX));
@@ -86,50 +80,50 @@ impl Communicator {
         let mut queue: VecDeque<u8> = VecDeque::with_capacity(N_TRANSFERS * CMD_LEN_MAX);
         let mut id = [0u8; 2]; // Reusable ID buffer
         let mut listen = async move || -> Result<(), TransferError> {
-            trace!("Starting background 'listen' task");
+            log::debug!("COMMUNICATOR SPAWN (starting background task)");
             loop {
                 let completion = endpoint.next_complete().await;
                 if completion.data.len() > 2 {
                     completion.status?;
-                    debug!("Received command {:02X?}", &completion.data[2..],);
+                    log::trace!("BACKGROUND RECEIVED {:02X?}", &completion.data[2..],);
                     queue.extend(&completion.data[2..]); // Drop prefix bytes
                     while queue.get(5).is_some() {
                         id[0] = queue[0]; // Copying is more efficient than borrowing for u8
                         id[1] = queue[1]; // Copied bytes remain in queue
-                        info!("Message ID : {:02X?}", id);
+                        log::trace!("BACKGROUND MESSAGE ID {id:02X?}");
                         let len = dispatcher.length(&id).await;
                         if queue.len() < len {
-                            info!("Incomplete command. Waiting for more data.");
-                            trace!(
-                                "Queue is {} bytes | Message needs {} bytes",
+                            log::trace!(
+                                "BACKGROUND INCOMPLETE (waiting) QUEUE {} REQUIRE {}",
                                 queue.len(),
-                                len
+                                len,
                             );
                             break;
                         }
                         let msg = queue.drain(..len).collect();
-                        debug!("Dispatching command {:02X?}", msg);
-                        dispatcher.dispatch(msg).await;
+                        log::trace!("BACKGROUND DISPATCH {msg:02X?}");
+                        dispatcher.dispatch(msg, CH).await;
                     }
                 }
                 endpoint.submit(RequestBuffer::reuse(completion.data, CMD_LEN_MAX));
             }
         };
-        smol::spawn(async move {
+        let task = smol::spawn(async move {
             if let Err(error) = listen().await {
                 Self::handle_error(error);
             }
-        })
+        });
+        log::debug!("COMMUNICATOR SPAWN (success)");
+        task
     }
 
     /// Send a command to the device [`Interface`].
     pub(super) async fn send(&self, command: Vec<u8>) {
-        debug!("Sending command {:02X?}", command);
         self.outgoing.lock().await.submit(command);
     }
 
     /// Returns the [`Dispatcher`] wrapped in an [`Arc`][std::sync::Arc].
-    pub(super) fn get_dispatcher(&self) -> Dispatcher {
+    pub(super) fn get_dispatcher(&self) -> Dispatcher<CH> {
         self.dispatcher.clone() // Inexpensive Arc Clone
     }
 }
