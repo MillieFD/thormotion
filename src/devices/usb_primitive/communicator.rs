@@ -10,6 +10,7 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
+use std::time::Duration;
 
 use nusb::Interface;
 use nusb::transfer::{Queue, RequestBuffer, TransferError};
@@ -26,6 +27,8 @@ const IN_ENDPOINT: u8 = 0x81;
 const N_TRANSFERS: usize = 3;
 /// The USB endpoint used for outgoing commands to the device
 const OUT_ENDPOINT: u8 = 0x02;
+/// Background task polling interval
+const TIME: Duration = Duration::from_millis(10);
 
 /// Handles all incoming and outgoing commands between the host and a specific USB [`Interface`].
 pub(super) struct Communicator<const CH: usize> {
@@ -83,6 +86,7 @@ impl<const CH: usize> Communicator<CH> {
         let mut listen = async move || -> Result<(), TransferError> {
             log::debug!("{dispatcher} SPAWN (starting background task)");
             loop {
+                smol::Timer::after(TIME).await;
                 let completion = endpoint.next_complete().await;
                 if completion.data.len() > 2 {
                     completion.status?;
