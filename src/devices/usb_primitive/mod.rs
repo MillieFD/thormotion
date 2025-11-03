@@ -12,24 +12,23 @@ mod communicator;
 mod serial_port;
 mod status;
 
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::io;
 use std::ops::Deref;
 
 use communicator::Communicator;
-use log::{debug, info, trace, warn};
+use log;
 use nusb::DeviceInfo;
-use smol::block_on;
 use smol::lock::RwLock;
 use status::Status;
 
 use crate::devices::{abort, abort_device, get_device, remove_device};
 use crate::error::{cmd, sn};
-use crate::messages::{Command, Dispatcher, Provenance, Receiver};
+use crate::messages::{Dispatcher, Metadata, Provenance};
 
-pub(crate) struct UsbPrimitive {
-    /// A unique eight-digit serial number which is printed on the Thorlabs device.
+pub(crate) struct UsbPrimitive<const CHANNELS: usize> {
+    /// A unique eight-digit serial number that is printed on the Thorlabs device.
     serial_number: String,
     /// Information about a device that can be obtained without calling [`DeviceInfo::open`].
     device_info: DeviceInfo,
@@ -43,24 +42,30 @@ pub(crate) struct UsbPrimitive {
     /// [1]: Status::Open
     /// [2]: Status::Closed
     /// [3]: UsbPrimitive::open
-    status: RwLock<Status>,
+    status: RwLock<Status<CHANNELS>>,
 }
 
-impl UsbPrimitive {
+impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
     /// Constructs a new [`UsbPrimitive`] for a Thorlabs device with the specified serial number.
     ///
     /// Returns [`Error::NotFound`] if the specified device is not connected.
     ///
     /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
     /// found.
-    pub(super) fn new(serial_number: &String, ids: &[Command]) -> Result<Self, sn::Error> {
-        trace!("Initialising Thormotion USB Primitive (Serial number : {serial_number})");
+    pub(super) fn new(
+        serial_number: &String,
+        ids: &[Metadata<CHANNELS>],
+    ) -> Result<Self, sn::Error> {
+        log::debug!("USB Primitive {serial_number} NEW (requested)");
         let device_info = get_device(serial_number)?;
-        Ok(Self {
+        log::debug!("USB Primitive {serial_number} NEW (found)");
+        let device = Self {
             serial_number: serial_number.clone(),
             device_info,
             status: RwLock::new(Status::Closed(Dispatcher::new(ids))),
-        })
+        };
+        log::debug!("{device} NEW (success)");
+        Ok(device)
     }
 
     /// Returns the serial number of the device as a `&str`.
@@ -84,15 +89,16 @@ impl UsbPrimitive {
     /// [2]: UsbPrimitive
     /// [3]: Status::Open
     pub(super) async fn open(&self) -> Result<(), io::Error> {
-        info!("Opening {self}");
+        log::debug!("{self} OPEN (requested)");
         let mut guard = self.status.write().await;
         if let Status::Closed(dsp) = guard.deref() {
-            trace!("Claiming interface");
+            log::debug!("{self} OPEN (is closed)");
             let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
             let dispatcher = dsp.clone(); // Inexpensive Arc Clone
             let communicator = Communicator::new(interface, dispatcher).await;
             *guard = Status::Open(communicator);
         }
+        log::debug!("{self} OPEN (success)");
         Ok(())
     }
 
@@ -104,13 +110,14 @@ impl UsbPrimitive {
     /// [2]: UsbPrimitive
     /// [3]: Status::Closed
     pub(super) async fn close(&self) -> Result<(), io::Error> {
-        info!("Closing {self}");
+        log::debug!("{self} CLOSE (requested)");
         let mut guard = self.status.write().await;
         if let Status::Open(communicator) = guard.deref() {
-            trace!("Closing communicator. Extracting dispatcher.");
+            log::debug!("{self} CLOSE (is open)");
             let dispatcher = communicator.get_dispatcher();
             *guard = Status::Closed(dispatcher);
         }
+        log::debug!("{self} CLOSE (success)");
         Ok(())
     }
 
@@ -134,8 +141,9 @@ impl UsbPrimitive {
     /// [6]: ahash::HashMap
     /// [7]: UsbPrimitive::close
     async fn abort(&self) {
-        warn!("Aborting {self}");
+        log::warn!("{self} ABORT (requested)");
         abort_device(self.serial_number());
+        log::warn!("{self} ABORT (success)");
     }
 
     /// Returns a receiver for the given command ID, wrapped in the [`Provenance`] enum. This is
@@ -154,42 +162,34 @@ impl UsbPrimitive {
     /// [2]: Provenance::Existing
     /// [3]: Dispatcher::any_receiver
     /// [4]: Dispatcher::new_receiver
-    pub(crate) async fn receiver(&self, id: &[u8]) -> Provenance {
-        self.status.read().await.dispatcher().receiver(id).await
-    }
-
-    /// Returns a receiver for the given command ID.
-    ///
-    /// If the [`HashMap`][1] already contains a [`Sender`][2] for the given command ID, a new
-    /// [`Receiver`] is created using [`Sender::new_receiver`][3] and returned.
-    ///
-    /// If a [`Sender`][Sender] does not exist for the given command ID, a new broadcast channel
-    /// is [created][4]. The new [`Sender`][2] is inserted into the [`HashMap`][1] and the new
-    /// [`Receiver`] is returned.
-    ///
-    /// If you need to guarantee that the device is not currently executing the command for the
-    /// given ID, use [`UsbPrimitive::new_receiver`].
-    ///
-    /// [1]: rustc_hash::FxHashMap
-    /// [2]: crate::messages::Sender
-    /// [3]: async_broadcast::Sender::new_receiver
-    /// [4]: async_broadcast::broadcast
-    pub(crate) async fn any_receiver(&self, id: &[u8]) -> Receiver {
-        self.status.read().await.dispatcher().any_receiver(id).await
+    pub(crate) async fn receiver(&self, id: &[u8], channel: usize) -> Provenance {
+        log::debug!("{self} CHANNEL {channel} RECEIVER (requested)");
+        self.status
+            .read()
+            .await
+            .dispatcher()
+            .receiver(id, channel)
+            .await
     }
 
     /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not
     /// currently executing the command for the given ID.
-    pub(crate) async fn new_receiver(&self, id: &[u8]) -> Receiver {
-        self.status.read().await.dispatcher().new_receiver(id).await
+    pub(crate) async fn new_receiver(&self, id: &[u8], channel: usize) -> Provenance {
+        log::debug!("{self} CHANNEL {channel} NEW_RECEIVER (requested)");
+        self.status
+            .read()
+            .await
+            .dispatcher()
+            .new_receiver(id, channel)
+            .await
     }
 
     /// Sends a command to the device.
     pub(crate) async fn send(&self, command: Vec<u8>) {
-        debug!("Sending command to {} : {:02X?}", self, command);
+        log::trace!("{self} SEND (requested) {command:02X?}");
         self.try_send(command)
             .await
-            .unwrap_or_else(|e| abort(format!("Failed to send command to {} : {}", self, e)));
+            .unwrap_or_else(|e| abort(format!("{self} SEND (failed) {e}")));
     }
 
     /// Sends a command to the device.
@@ -198,7 +198,6 @@ impl UsbPrimitive {
     ///
     /// [1]: cmd::Error
     pub(crate) async fn try_send(&self, command: Vec<u8>) -> Result<(), cmd::Error> {
-        debug!("Try sending command to {} : {:02X?}", self, command);
         let guard = self.status.read().await;
         match &*guard {
             Status::Open(communicator) => {
@@ -210,7 +209,7 @@ impl UsbPrimitive {
     }
 }
 
-impl PartialEq<UsbPrimitive> for UsbPrimitive {
+impl<const CHANNELS: usize> PartialEq<UsbPrimitive<CHANNELS>> for UsbPrimitive<CHANNELS> {
     /// Compares two `UsbPrimitive` devices for equality.
     ///
     /// Returns `true` if both devices have the same vendor ID, product ID, and serial number.
@@ -226,13 +225,13 @@ impl PartialEq<UsbPrimitive> for UsbPrimitive {
 ///
 /// This trait is required in addition to `PartialEq` to use `UsbPrimitive` in collections
 /// that require equality comparison, such as `HashSet` or as keys in `HashMap`.
-impl Eq for UsbPrimitive {}
+impl<const CHANNELS: usize> Eq for UsbPrimitive<CHANNELS> {}
 
 /// Implements the `Hash` trait for `UsbPrimitive`.
 ///
 /// This allows `UsbPrimitive` to be used as a key in hash-based collections like `HashMap`.
 /// The hash is computed based on the device's vendor ID, product ID, and serial number.
-impl Hash for UsbPrimitive {
+impl<const CHANNELS: usize> Hash for UsbPrimitive<CHANNELS> {
     /// Computes a hash value for the `UsbPrimitive` device.
     ///
     /// The hash is based on the device's vendor ID, product ID, and serial number.
@@ -243,30 +242,16 @@ impl Hash for UsbPrimitive {
     }
 }
 
-impl Debug for UsbPrimitive {
+impl<const CHANNELS: usize> Display for UsbPrimitive<CHANNELS> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&block_on(async {
-            format!(
-                "Serial number : {} | Status : {}",
-                self.serial_number(),
-                self.status.read().await.as_str()
-            )
-        }))
+        f.write_str(&format!("USB Primitive {}", self.serial_number))
     }
 }
 
-impl Display for UsbPrimitive {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&block_on(async {
-            format!("Thormotion USB Primitive ({:?})", self)
-        }))
-    }
-}
-
-impl Drop for UsbPrimitive {
+impl<const CHANNELS: usize> Drop for UsbPrimitive<CHANNELS> {
     /// Removes the `UsbPrimitive` instance from the global registry to prevent resource leaks.
     fn drop(&mut self) {
-        block_on(async {
+        smol::block_on(async {
             remove_device(self.serial_number());
         });
     }
