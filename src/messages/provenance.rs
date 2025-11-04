@@ -31,13 +31,13 @@ pub(crate) enum Provenance {
     /// [4]: ahash::HashMap
     New(Receiver),
     /// If the [`Dispatcher`][1] [`HashMap`][2] already contains a [`Sender`][3] for the given
-    /// command ID, a [`new_receiver`][4] is created and returned wrapped in
-    /// [`Provenance::Existing`].
+    /// command ID, a [`new_receiver`][4] is subscribed to the existing channel and returned wrapped
+    /// in [`Provenance::Existing`].
     ///
     /// [1]: crate::messages::Dispatcher
     /// [2]: ahash::HashMap
     /// [3]: crate::messages::Sender
-    /// [4]: Sender::new_receiver
+    /// [4]: async_broadcast::Sender::new_receiver
     Existing(Receiver),
 }
 
