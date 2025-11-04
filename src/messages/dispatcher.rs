@@ -75,12 +75,11 @@ impl<const CH: usize> Dispatcher<CH> {
     /// - [`Existing`][2] → The system is already waiting for a response from the Thorlabs device
     ///   for this command
     ///
-    /// If pattern matching is not required, see [`any_receiver`][3] and [`new_receiver`][4] for
-    /// simpler alternatives.
+    /// If pattern matching is not required, see [`new_receiver`][4] for a simpler alternative.
+    /// This guarantees that the device is not currently executing the command for the given ID.
     ///
     /// [1]: Provenance::New
     /// [2]: Provenance::Existing
-    /// [3]: Dispatcher::any_receiver
     /// [4]: Dispatcher::new_receiver
     pub(crate) async fn receiver(&self, id: &[u8], channel: usize) -> Provenance {
         let mut opt = self.get(id).await.sender(channel).lock().await;
@@ -92,10 +91,6 @@ impl<const CH: usize> Dispatcher<CH> {
 
     /// Returns a [`Receiver`] for the given command ID. Guarantees that the device is not currently
     /// executing the command for the given ID.
-    ///
-    /// See also [`any_receiver`][1].
-    ///
-    /// [1]: Dispatcher::any_receiver
     pub(crate) async fn new_receiver(&self, id: &[u8], channel: usize) -> Provenance {
         log::debug!("NEW RECEIVER (requested) ID {id:02X?} CHANNEL {channel}");
         loop {
