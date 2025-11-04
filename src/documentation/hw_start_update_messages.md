@@ -4,5 +4,5 @@ Automatic updates will continue until the [`hw_stop_update_messages`][1] functio
 
 A 'one-off' status update can be requested using [`get_status`][2].
 
-[1]: KDC101::hw_stop_update_messages
-[2]: KDC101::get_status
+[1]: crate::devices::KDC101::hw_stop_update_messages
+[2]: crate::devices::KDC101::get_status
