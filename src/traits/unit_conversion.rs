@@ -1,12 +1,12 @@
 /*
-Project: thormotion
-GitHub: https://github.com/MillieFD/thormotion
+ Project: thormotion
+ GitHub: https://github.com/MillieFD/thormotion
 
-BSD 3-Clause License, Copyright (c) 2025, Amelia Fraser-Dale
+ BSD 3-Clause License, Copyright (c) 2025, Amelia Fraser-Dale
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the conditions of the LICENSE are met.
-*/
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the conditions of the LICENSE are met.
+ */
 
 use std::ops::Deref;
 
@@ -61,9 +61,9 @@ impl Units {
     /// the result, see the [`new_distance`][1], [`new_velocity`][2], and [`new_acceleration`][3]
     /// functions.
     ///
-    /// [1]: Units::distance_from_f64
-    /// [2]: Units::velocity_from_f64
-    /// [3]: Units::acceleration_from_f64
+    /// [1]: UnitConversion::distance_from_f64
+    /// [2]: UnitConversion::velocity_from_f64
+    /// [3]: UnitConversion::acceleration_from_f64
     fn encode(value: f64, scale_factor: f64) -> [u8; 4] {
         let scaled = value * scale_factor;
         let rounded = scaled.round() as i32;
