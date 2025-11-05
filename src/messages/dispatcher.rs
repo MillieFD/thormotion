@@ -50,7 +50,7 @@ impl<const CH: usize> Dispatcher<CH> {
         // the Dispatcher::map after sending a message. Use Dispatcher::take instead.
         self.map
             .get(id)
-            .unwrap_or_else(|| abort(format!("Dispatcher does not contain command ID {:02X?}", id)))
+            .unwrap_or_else(|| abort(format!("{self} does not contain command ID {id:02X?}")))
     }
 
     /// Creates a new [`broadcast channel`][1].
