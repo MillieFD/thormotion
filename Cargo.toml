@@ -26,7 +26,10 @@ smol = "2.0"
 async-broadcast = "0.7"
 ahash = "0.8"
 log = "0.4"
-thormacros = { path = "thormacros" }
+
+[dependencies.thormacros]
+path = "thormacros"
+version = "0.1"
 
 [dependencies.pyo3]
 version = "0.27"
