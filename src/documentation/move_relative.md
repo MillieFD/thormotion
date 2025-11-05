@@ -1,0 +1,1 @@
+Moves the specified device channel by a relative distance (mm).
