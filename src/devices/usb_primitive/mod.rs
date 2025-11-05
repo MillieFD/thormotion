@@ -70,7 +70,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
     }
 
     /// Returns the serial number of the device as a `&str`.
-    pub(crate) fn serial_number(&self) -> &str {
+    pub(crate) fn serial_number(&self) -> &String {
         &self.serial_number
     }
 
