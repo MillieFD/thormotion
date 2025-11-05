@@ -36,6 +36,7 @@ mod py {
 
 /* ------------------------------------------------------------------------------ Public Exports */
 
+pub use devices::*;
 pub use traits::ThorlabsDevice;
 
 /* --------------------------------------------------------------------------------------- Tests */
@@ -51,6 +52,12 @@ mod tests {
             .is_test(true)
             .filter_level(level)
             .try_init();
+    }
+
+    #[test]
+    fn show_devices() {
+        logger(log::LevelFilter::Trace);
+        crate::show_devices()
     }
 
     #[test]
