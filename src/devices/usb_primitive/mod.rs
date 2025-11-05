@@ -164,7 +164,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
     /// [3]: Dispatcher::any_receiver
     /// [4]: Dispatcher::new_receiver
     pub(crate) async fn receiver(&self, id: &[u8], channel: usize) -> Provenance {
-        log::debug!("{self} CHANNEL {channel} RECEIVER (requested)");
+        log::debug!("{self} CHANNEL {channel} RECEIVER {id:02X?} (requested)");
         self.status
             .read()
             .await
