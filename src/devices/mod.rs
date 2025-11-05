@@ -23,5 +23,4 @@ pub use utils::{get_devices, show_devices};
 /* ----------------------------------------------------------------------------- Private Exports */
 
 pub(crate) use usb_primitive::UsbPrimitive;
-pub(crate) use utils::{abort, bug_abort};
-use utils::{abort_device, add_device, get_device, remove_device};
+pub(crate) use utils::*;
