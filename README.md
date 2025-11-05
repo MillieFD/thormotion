@@ -1,4 +1,8 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17064172.svg)](https://doi.org/10.5281/zenodo.17064172)
+[![Crates.io](https://img.shields.io/crates/v/thormotion.svg)](https://crates.io/crates/thormotion)
+[![PyPI version](https://img.shields.io/pypi/v/thormotion.svg)](https://pypi.org/project/thormotion/)
+[![Docs.rs](https://docs.rs/thormotion/badge.svg)](https://docs.rs/thormotion)
+![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 
 # Thormotion
 
@@ -71,14 +75,13 @@ Thormotion uses the [log](https://crates.io/crates/log) crate to record informat
 logging API is compatible with a variety of backends, allowing users to select the most appropriate logging
 implementation for their use case.
 
-| Level   | Description                                                           |
-|---------|-----------------------------------------------------------------------|
-| `trace` | The raw bytes sent and received                                       |
-| `debug` | Low-level activity common to all device types                         |
-| `info`  | High-level activity specific to each device                           |
-| `warn`  | Issues that do not preclude the request                               |
-| `error` | Issues that preclude the request but do not terminate the application |
-| `panic` | Issues that terminate the application                                 |
+| Level   | Description                                   |
+|---------|-----------------------------------------------|
+| `trace` | The raw bytes sent and received               |
+| `debug` | Low-level activity common to all device types |
+| `info`  | High-level activity specific to each device   |
+| `warn`  | Issues that do not preclude the request       |
+| `error` | Issues that terminate the application         |
 
 ### 🤝 Contributing
 
