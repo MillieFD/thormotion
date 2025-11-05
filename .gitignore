@@ -1,4 +1,6 @@
+# Build artefacts
 /target
+/thormacros/target/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
