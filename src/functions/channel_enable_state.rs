@@ -16,8 +16,8 @@ const SET_ENABLE_STATE: [u8; 2] = [0x10, 0x02];
 const REQ_ENABLE_STATE: [u8; 2] = [0x11, 0x02];
 const GET_ENABLE_STATE: [u8; 2] = [0x12, 0x02];
 
-#[doc = include_str!("../documentation/get_channel_enable_state.md")]
-pub(crate) async fn get_channel_enable_state<A, const CH: usize>(device: &A, channel: usize) -> bool
+#[doc = include_str!("../documentation/is_channel_enabled.md")]
+pub(crate) async fn is_channel_enabled<A, const CH: usize>(device: &A, channel: usize) -> bool
 where
     A: ThorlabsDevice<CH>,
 {
