@@ -14,7 +14,7 @@ use crate::messages::utils::short;
 const REQ_STATUS_BITS: [u8; 2] = [0x29, 0x04];
 const GET_STATUS_BITS: [u8; 2] = [0x2A, 0x04];
 
-// #[doc = include_str!("../documentation/get_status_bits.md")]
+#[doc = include_str!("../documentation/get_status_bits.md")]
 pub(crate) async fn get_status_bits<A, const CH: usize>(device: &A, channel: usize) -> u32
 where
     A: ThorlabsDevice<CH>,
