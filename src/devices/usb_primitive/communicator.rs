@@ -44,12 +44,12 @@ pub(super) struct Communicator<const CH: usize> {
 impl<const CH: usize> Communicator<CH> {
     /// Creates a new [`Communicator`] instance for the specified USB [`Interface`].
     pub(super) async fn new(interface: Interface, dispatcher: Dispatcher<CH>) -> Self {
-        log::debug!("{dispatcher} NEW COMMUNICATOR (requested)");
+        log::debug!("{dispatcher} COMMUNICATOR::NEW (requested)");
         serial_port::init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
         let outgoing = Mutex::new(interface.bulk_out_queue(OUT_ENDPOINT));
         let incoming = Self::spawn(interface, dsp);
-        log::debug!("{dispatcher} NEW COMMUNICATOR (success)");
+        log::debug!("{dispatcher} COMMUNICATOR::NEW (success)");
         Self {
             dispatcher,
             incoming,
