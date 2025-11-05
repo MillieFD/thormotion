@@ -1,18 +1,18 @@
 /*
-Project: thormotion
-GitHub: https://github.com/MillieFD/thormotion
+ Project: thormotion
+ GitHub: https://github.com/MillieFD/thormotion
 
-BSD 3-Clause License, Copyright (c) 2025, Amelia Fraser-Dale
+ BSD 3-Clause License, Copyright (c) 2025, Amelia Fraser-Dale
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the conditions of the LICENSE are met.
-*/
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the conditions of the LICENSE are met.
+ */
 
 use std::fmt::{Display, Formatter};
 use std::io::Error;
 use std::sync::Arc;
 
-use crate::devices::{UsbPrimitive, add_device};
+use crate::devices::{add_device, UsbPrimitive};
 use crate::error::sn;
 use crate::functions;
 use crate::messages::Metadata;
@@ -72,11 +72,7 @@ impl KDC101 {
         Ok(device)
     }
 
-    #[thormacros::sync]
-    #[doc = include_str!("../documentation/is_open.md")]
-    pub async fn is_open_async(&self) -> bool {
-        self.inner.is_open().await
-    }
+    /* ------------------------------------------------------------------------------------- MOD */
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/open.md")]
@@ -91,12 +87,18 @@ impl KDC101 {
     }
 
     #[thormacros::sync]
+    #[doc = include_str!("../documentation/is_open.md")]
+    pub async fn is_open_async(&self) -> bool {
+        self.inner.is_open().await
+    }
+
+    #[thormacros::sync]
     #[doc = include_str!("../documentation/identify.md")]
     pub async fn identify_async(&self) {
         functions::identify(self, 1).await;
     }
 
-    /* ---------------------------------------------------------------------------------- Status */
+    /* ---------------------------------------------------------------------------------- STATUS */
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/get_status.md")]
@@ -152,7 +154,7 @@ impl KDC101 {
         functions::set_channel_enable_state(self, 1, enable).await;
     }
 
-    /* ------------------------------------------------------------------------------------ Move */
+    /* ------------------------------------------------------------------------------------ MOVE */
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/home.md")]
@@ -187,7 +189,7 @@ impl KDC101 {
         functions::move_relative_from_params(self, 1).await;
     }
 
-    /* ------------------------------------------------------------------------------------ Stop */
+    /* ------------------------------------------------------------------------------------ STOP */
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/stop.md")]
