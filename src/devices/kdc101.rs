@@ -96,12 +96,36 @@ impl KDC101 {
     }
 
     #[thormacros::sync]
+    #[doc = include_str!("../documentation/is_channel_enabled.md")]
+    pub async fn is_channel_enabled_async(&self) -> bool {
+        functions::is_channel_enabled(self, 1).await
+    }
+
+    #[thormacros::sync]
+    #[doc = include_str!("../documentation/set_channel_enable_state.md")]
+    pub async fn set_channel_enabled_async(&self, enable: bool) {
+        functions::set_channel_enabled(self, 1, enable).await
+    }
+
+    #[thormacros::sync]
     #[doc = include_str!("../documentation/identify.md")]
     pub async fn identify_async(&self) {
         functions::identify(self, 1).await;
     }
 
     /* ---------------------------------------------------------------------------------- STATUS */
+
+    #[thormacros::sync]
+    #[doc = include_str!("../documentation/start_update_messages.md")]
+    pub async fn start_update_messages_async(&self) {
+        functions::start_update_messages(self).await
+    }
+
+    #[thormacros::sync]
+    #[doc = include_str!("../documentation/stop_update_messages.md")]
+    pub async fn stop_update_messages_async(&self) {
+        functions::stop_update_messages(self).await
+    }
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/get_status.md")]
@@ -132,30 +156,6 @@ impl KDC101 {
     pub async fn is_homed_async(&self) -> bool {
         let bits = self.get_status_bits_async().await;
         (bits & 0x00000400) != 0
-    }
-
-    #[thormacros::sync]
-    #[doc = include_str!("../documentation/start_update_messages.md")]
-    pub async fn start_update_messages_async(&self) {
-        functions::start_update_messages(self).await
-    }
-
-    #[thormacros::sync]
-    #[doc = include_str!("../documentation/stop_update_messages.md")]
-    pub async fn stop_update_messages_async(&self) {
-        functions::stop_update_messages(self).await
-    }
-
-    #[thormacros::sync]
-    #[doc = include_str!("../documentation/is_channel_enabled.md")]
-    pub async fn is_channel_enabled_async(&self) -> bool {
-        functions::is_channel_enabled(self, 1).await
-    }
-
-    #[thormacros::sync]
-    #[doc = include_str!("../documentation/set_channel_enable_state.md")]
-    pub async fn set_channel_enabled_async(&self, enable: bool) {
-        functions::set_channel_enabled(self, 1, enable).await
     }
 
     /* ------------------------------------------------------------------------------------ MOVE */
