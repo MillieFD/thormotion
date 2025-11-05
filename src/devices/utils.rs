@@ -165,6 +165,7 @@ pub(crate) fn abort<A>(message: A) -> !
 where
     A: Display,
 {
+    log::error!("ABORT → {}", message);
     devices().keys().for_each(abort_device);
     panic!("\nProcess aborted due to error → {}\n", message);
 }

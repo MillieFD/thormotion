@@ -235,7 +235,9 @@ impl ThorlabsDevice<CH> for KDC101 {
     }
 
     fn abort(&self) {
-        self.estop()
+        log::info!("{self} ABORT (requested)");
+        self.estop();
+        log::info!("{self} ABORT (success)");
     }
 }
 
