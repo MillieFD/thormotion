@@ -11,7 +11,6 @@ modification, are permitted provided that the conditions of the LICENSE are met.
 /* ----------------------------------------------------------------------------- Private Modules */
 
 mod kdc101;
-#[doc(hidden)]
 mod usb_primitive;
 mod utils;
 
