@@ -35,7 +35,7 @@ pub fn show_devices() {
 
 /* --------------------------------------------------------------------------- Private Functions */
 
-/// A lazily initialized [`HashMap`] containing the `serial number` (key) and [`abort function`][1]
+/// A lazily initialised [`HashMap`] containing the `serial number` (key) and [`abort function`][1]
 /// (value) for each connected [`Thorlabs Device`][2]. It is protected by an async [`Mutex`] for
 /// thread-safe concurrent access.
 ///
@@ -44,7 +44,7 @@ pub fn show_devices() {
 /// the device. As such, lock contention does not affect device latency.
 ///
 /// If an irrecoverable error occurs anywhere in the program, this triggers the [`abort`]
-/// function which safely [`aborts`][1] each device, bringing the system to a controlled stop.
+/// function that safely [`aborts`][1] each device, bringing the system to a controlled stop.
 ///
 /// [1]: crate::traits::ThorlabsDevice::abort
 /// [2]: crate::traits::ThorlabsDevice
@@ -55,7 +55,7 @@ pub fn show_devices() {
 static DEVICES: OnceLock<Mutex<HashMap<String, Box<dyn Fn() + Send + 'static>>>> = OnceLock::new();
 
 /// Returns a [`MutexGuard`] protecting access to the global [`DEVICES`][1] [`HashMap`]. The map is
-/// lazily initialized when first accessed.
+/// lazily initialised when first accessed.
 ///
 /// ### Panics
 ///
@@ -145,10 +145,13 @@ pub(crate) fn abort<A>(message: A) -> !
 where
     A: Display,
 {
-    devices().drain().for_each(|(_, f)| {
+    log::error!("ABORT → {}", message);
+    devices().drain().for_each(|(serial_number, f)| {
+        log::info!("ABORT DEVICE {serial_number} (requested)");
         f();
+        log::info!("ABORT DEVICE {serial_number} (success)");
     });
-    panic!("\nAbort due to error : {}\n", message);
+    panic!("\nProcess aborted due to error → {}\n", message);
 }
 
 /// Safely stops all [`Thorlabs devices`][1], cleans up resources, and terminates the program with
