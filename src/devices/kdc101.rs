@@ -152,6 +152,24 @@ impl KDC101 {
     }
 
     #[thormacros::sync]
+    pub async fn in_motion_cw_async(&self) -> bool {
+        let bits = self.get_status_bits_async().await;
+        (bits & 0x00000010) != 0
+    }
+
+    #[thormacros::sync]
+    pub async fn in_motion_ccw_async(&self) -> bool {
+        let bits = self.get_status_bits_async().await;
+        (bits & 0x00000020) != 0
+    }
+
+    #[thormacros::sync]
+    pub async fn in_motion_async(&self) -> bool {
+        let bits = self.get_status_bits_async().await;
+        (bits & 0x00000030) != 0
+    }
+
+    #[thormacros::sync]
     #[doc = include_str!("../documentation/is_homed.md")]
     pub async fn is_homed_async(&self) -> bool {
         let bits = self.get_status_bits_async().await;
@@ -204,7 +222,10 @@ impl KDC101 {
     #[thormacros::sync]
     #[doc = include_str!("../documentation/estop.md")]
     pub async fn estop_async(&self) {
-        functions::estop(self, 1).await
+        match self.in_motion_async().await {
+            true => functions::estop(self, 1).await,
+            false => log::info!("{self} ESTOP (not in motion)"),
+        }
     }
 }
 
