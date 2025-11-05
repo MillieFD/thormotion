@@ -8,16 +8,15 @@
 
 A cross-platform motion control library for Thorlabs systems, written in Rust.
 
-> [!INFO]
-> This project is still growing. We are happy to add support for any new devices and functions as needed.
-> Please open a new GitHub issue to make a request.
-
 ### 🚀 Features
 
 - Designed for robotics, automation, and scientific applications.
 - Python and Rust API
 - Fast and efficient, with minimal overhead.
 - Runs on macOS, Linux, and Windows.
+
+This project is still growing. We are happy to add support for any new devices and functions as needed. Please open 
+a new GitHub issue to make a request.
 
 ### 🛠️ Installation
 
