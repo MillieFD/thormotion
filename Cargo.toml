@@ -21,11 +21,14 @@ crate-type = ["lib"]
 py = ["dep:pyo3"]
 
 [dependencies]
-nusb = "0.1.14"
 smol = "2.0"
 async-broadcast = "0.7"
 ahash = "0.8"
 log = "0.4"
+
+[dependencies.nusb]
+version = "0.2"
+features = ["smol"]
 
 [dependencies.thormacros]
 path = "thormacros"
