@@ -119,8 +119,9 @@ impl KDC101 {
     }
 
     #[thormacros::sync]
+    #[doc = include_str!("../documentation/get_status_bits.md")]
     pub async fn get_status_bits_async(&self) -> u32 {
-        self.get_status_async().await.2
+        functions::get_status_bits(self, 1).await
     }
 
     #[thormacros::sync]
