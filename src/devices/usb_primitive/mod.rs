@@ -70,7 +70,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
     }
 
     /// Returns the serial number of the device as a `&str`.
-    pub(crate) fn serial_number(&self) -> &str {
+    pub(crate) fn serial_number(&self) -> &String {
         &self.serial_number
     }
 
@@ -94,7 +94,12 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
         let mut guard = self.status.write().await;
         if let Status::Closed(dsp) = guard.deref() {
             log::debug!("{self} OPEN (is closed)");
-            let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
+            let interface = self
+                .device_info
+                .open()
+                .await?
+                .detach_and_claim_interface(0)
+                .await?;
             let dispatcher = dsp.clone(); // Inexpensive Arc Clone
             let communicator = Communicator::new(interface, dispatcher).await;
             *guard = Status::Open(communicator);
@@ -142,9 +147,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
     /// [6]: ahash::HashMap
     /// [7]: UsbPrimitive::close
     async fn abort(&self) {
-        log::warn!("{self} ABORT (requested)");
         abort_device(self.serial_number());
-        log::warn!("{self} ABORT (success)");
     }
 
     /// Returns a receiver for the given command ID, wrapped in the [`Provenance`] enum. This is

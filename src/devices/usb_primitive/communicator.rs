@@ -12,8 +12,8 @@ use std::collections::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
 use std::time::Duration;
 
-use nusb::Interface;
-use nusb::transfer::{Queue, RequestBuffer, TransferError};
+use nusb::transfer::{Buffer, Bulk, In, Out, TransferError};
+use nusb::{Endpoint, Interface};
 use smol::Task;
 use smol::lock::Mutex;
 
@@ -37,8 +37,13 @@ pub(super) struct Communicator<const CH: usize> {
     /// An async background task that handles a stream of incoming commands from the [`Interface`].
     #[allow(unused)]
     incoming: Task<()>,
-    ///A [`Queue`] that handles a stream of outgoing commands to the USB [`Interface`].
-    pub(super) outgoing: Mutex<Queue<Vec<u8>>>,
+    /// An [`outgoing`][1] [`Bulk`][2] [`Endpoint`][3] for sending commands to the USB
+    /// [`Interface`]. Protected by a [`Mutex`] for async access.
+    ///
+    /// [1]: Out
+    /// [2]: Bulk
+    /// [3]: Endpoint
+    pub(super) outgoing: Mutex<Endpoint<Bulk, Out>>,
 }
 
 impl<const CH: usize> Communicator<CH> {
@@ -47,7 +52,10 @@ impl<const CH: usize> Communicator<CH> {
         log::debug!("{dispatcher} COMMUNICATOR::NEW (requested)");
         serial_port::init(&interface).await;
         let dsp = dispatcher.clone(); // Inexpensive Arc Clone
-        let outgoing = Mutex::new(interface.bulk_out_queue(OUT_ENDPOINT));
+        let endpoint = interface
+            .endpoint(OUT_ENDPOINT)
+            .unwrap_or_else(|e| abort(format!("Failed to open OUT endpoint : {e}")));
+        let outgoing = Mutex::new(endpoint);
         let incoming = Self::spawn(interface, dsp);
         log::debug!("{dispatcher} COMMUNICATOR::NEW (success)");
         Self {
@@ -77,9 +85,14 @@ impl<const CH: usize> Communicator<CH> {
     /// 3. A [`TransferError`] occurs. See [`Self::handle_error`].
     fn spawn(interface: Interface, dispatcher: Dispatcher<CH>) -> Task<()> {
         log::debug!("{dispatcher} SPAWN (requested)");
-        let mut endpoint = interface.bulk_in_queue(IN_ENDPOINT);
+        let mut endpoint: Endpoint<Bulk, In> = interface
+            .endpoint(IN_ENDPOINT)
+            .unwrap_or_else(|e| abort(format!("Failed to open IN endpoint : {e}")));
+        // Buffer size must be a nonzero multiple of the endpoint's maximum packet size
+        let pkt_size = endpoint.max_packet_size();
+        let buf_size = CMD_LEN_MAX.div_ceil(pkt_size) * pkt_size;
         while endpoint.pending() < N_TRANSFERS {
-            endpoint.submit(RequestBuffer::new(CMD_LEN_MAX));
+            endpoint.submit(Buffer::new(buf_size));
         }
         let mut queue: VecDeque<u8> = VecDeque::with_capacity(N_TRANSFERS * CMD_LEN_MAX);
         let mut id = [0u8; 2]; // Reusable ID buffer
@@ -87,15 +100,16 @@ impl<const CH: usize> Communicator<CH> {
             log::debug!("{dispatcher} SPAWN (starting background task)");
             loop {
                 smol::Timer::after(TIME).await;
-                let completion = endpoint.next_complete().await;
-                if completion.data.len() > 2 {
+                let mut completion = endpoint.next_complete().await;
+                if completion.actual_len > 2 {
                     completion.status?;
                     log::trace!(
                         "BACKGROUND {} RECEIVED {:02X?}",
                         dispatcher.serial_number(),
-                        &completion.data[2..],
+                        &completion.buffer[2..],
                     );
-                    queue.extend(&completion.data[2..]); // Drop prefix bytes
+                    let iter = completion.buffer.iter().skip(2); // Skip prefix bytes
+                    queue.extend(iter); // Copy u8 bytes into queue ring buffer
                     while queue.get(5).is_some() {
                         id[0] = queue[0]; // Copying is more efficient than borrowing for u8
                         id[1] = queue[1]; // Copied bytes remain in queue
@@ -123,7 +137,8 @@ impl<const CH: usize> Communicator<CH> {
                         dispatcher.dispatch(msg, CH).await;
                     }
                 }
-                endpoint.submit(RequestBuffer::reuse(completion.data, CMD_LEN_MAX));
+                completion.buffer.clear(); // Clear the buffer for reuse
+                endpoint.submit(completion.buffer); // Resubmit buffer to endpoint
             }
         };
         smol::spawn(async move {
@@ -136,7 +151,8 @@ impl<const CH: usize> Communicator<CH> {
     /// Send a command to the device [`Interface`].
     pub(super) async fn send(&self, command: Vec<u8>) {
         log::trace!("{self} SEND (requested) {command:02X?}");
-        self.outgoing.lock().await.submit(command);
+        let buf = Buffer::from(command);
+        self.outgoing.lock().await.submit(buf);
         log::trace!("{self} SEND (success)");
     }
 

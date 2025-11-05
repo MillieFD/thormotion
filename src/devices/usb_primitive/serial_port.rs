@@ -103,9 +103,8 @@ const RTS: ControlOut = ControlOut {
 pub(super) async fn init(interface: &Interface) {
     let control_out = async |control_out: ControlOut| {
         interface
-            .control_out(control_out)
+            .control_out(control_out, Duration::from_millis(100))
             .await
-            .status
             .unwrap_or_else(|e| abort(format!("Control transfer failed : {}", e)))
     };
     control_out(RESET_CONTROLLER).await;
