@@ -123,9 +123,12 @@ pub(super) fn remove_device(serial_number: &str) {
 /// [2]: DEVICES
 /// [3]: crate::devices::UsbPrimitive::open
 #[doc(hidden)]
-pub(super) fn abort_device(serial_number: &str) {
+pub(super) fn abort_device(serial_number: &String) {
+    log::info!("ABORT DEVICE {serial_number} (requested)");
     if let Some(f) = devices().get(serial_number) {
-        f()
+        log::info!("ABORT DEVICE {serial_number} (found)");
+        f();
+        log::info!("ABORT DEVICE {serial_number} (success)");
     }
 }
 
@@ -162,12 +165,7 @@ pub(crate) fn abort<A>(message: A) -> !
 where
     A: Display,
 {
-    log::error!("ABORT → {}", message);
-    devices().drain().for_each(|(serial_number, f)| {
-        log::info!("ABORT DEVICE {serial_number} (requested)");
-        f();
-        log::info!("ABORT DEVICE {serial_number} (success)");
-    });
+    devices().keys().for_each(abort_device);
     panic!("\nProcess aborted due to error → {}\n", message);
 }
 
