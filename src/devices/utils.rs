@@ -18,18 +18,21 @@ use crate::error::sn::Error;
 
 /* ---------------------------------------------------------------------------- Public Functions */
 
+#[thormacros::sync]
 /// Returns an iterator over all connected Thorlabs USB devices.
-pub fn get_devices() -> impl Iterator<Item = DeviceInfo> {
+pub async fn get_devices_async() -> impl Iterator<Item = DeviceInfo> {
     list_devices()
+        .await
         .expect("Failed to list devices due to OS error")
         .filter(|dev| dev.vendor_id() == 0x0403)
 }
 
+#[thormacros::sync]
 /// For convenience, this function prints a list of connected Thorlabs USB devices to stdout.
-pub fn show_devices() {
-    let devices = get_devices();
+pub async fn show_devices_async() {
+    let devices = get_devices_async().await;
     for device in devices {
-        println!("{:?}\n", device);
+        println!("{device:?}\n");
     }
 }
 
