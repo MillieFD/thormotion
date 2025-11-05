@@ -31,14 +31,17 @@ impl KDC101 {}
 
 #[cfg_attr(feature = "py", pyo3::pymethods)]
 impl KDC101 {
-    const IDS: [Metadata<1>; 5] = [
+    const IDS: [Metadata<1>; 6] = [
         // MOD
         Metadata::header([0x12, 0x02]), // GET_CHANENABLESTATE
-        // MOT
+        // STATUS
+        Metadata::payload([0x91, 0x04], 20), // GET_U_STATUS_UPDATE
+        Metadata::payload([0x2A, 0x04], 12), // GET_STATUS_BITS
+        // MOVE
         Metadata::header([0x44, 0x04]), // MOVE_HOMED
         Metadata::payload([0x64, 0x04], 20), // MOVE_COMPLETED
+        // STOP
         Metadata::payload([0x66, 0x04], 20), // MOVE_STOPPED
-        Metadata::payload([0x91, 0x04], 20), // GET_USTATUSUPDATE
     ];
 
     #[cfg(not(feature = "py"))]
