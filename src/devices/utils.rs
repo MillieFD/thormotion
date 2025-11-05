@@ -23,20 +23,34 @@ use crate::error::sn::Error;
 pub async fn get_devices_async() -> impl Iterator<Item = DeviceInfo> {
     list_devices()
         .await
-        .expect("Failed to list devices due to OS error")
-        .filter(|dev| dev.vendor_id() == 0x0403)
+        .unwrap_or_else(|e| abort(format!("Failed to list devices due to OS error: {e}")))
+        .filter(is_thorlabs_vid)
 }
 
 #[thormacros::sync]
 /// For convenience, this function prints a list of connected Thorlabs USB devices to stdout.
 pub async fn show_devices_async() {
     let devices = get_devices_async().await;
-    for device in devices {
-        println!("{device:?}\n");
+    for (index, device) in devices.enumerate() {
+        println!();
+        println!("┌─ Thorlabs Device {index}");
+        println!("│");
+        println!("│  Description: {}", device.product_string().unwrap_or("?"));
+        println!("│  Serial No:   {}", device.serial_number().unwrap_or("?"));
+        println!("│  Product ID:  0x{:04X}", device.product_id());
+        println!("│  Bus ID:      {}", device.bus_id());
+        println!("│  Device Addr: {}", device.device_address());
+        println!("│");
+        println!("└─");
     }
 }
 
 /* --------------------------------------------------------------------------- Private Functions */
+
+/// Returns `True` if the specified [`DeviceInfo`] includes the Thorlabs vendor ID
+fn is_thorlabs_vid(device: &DeviceInfo) -> bool {
+    device.vendor_id() == 0x0403
+}
 
 /// A lazily initialised [`HashMap`] containing the `serial number` (key) and [`abort function`][1]
 /// (value) for each connected [`Thorlabs Device`][2]. It is protected by an async [`Mutex`] for
@@ -175,9 +189,8 @@ where
 #[doc(hidden)]
 pub(crate) fn bug_abort(message: String) -> ! {
     abort(format!(
-        "{} : This is a bug. If you are able to reproduce the error, please open a new GitHub \
-         issue and report the relevant details",
-        message
+        "{message} → This is a bug. If you are able to reproduce the error, please open a new \
+         GitHub issue and report the relevant details."
     ));
 }
 
