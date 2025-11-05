@@ -2,10 +2,13 @@
 
 [package]
 name = "thormacros"
-version = "0.1.0"
+authors = ["Amelia Fraser-Dale"]
+description = "Procedural macros sub-crate for the thormotion library"
 edition = "2024"
 license = "BSD-3-Clause"
-description = "Procedural macros sub-crate for the thormotion library"
+readme = "../README.md"
+repository = "https://github.com/MillieFD/thormotion"
+version = "0.1.0"
 
 [lib]
 proc-macro = true
