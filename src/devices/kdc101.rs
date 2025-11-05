@@ -132,15 +132,15 @@ impl KDC101 {
     }
 
     #[thormacros::sync]
-    #[doc = include_str!("../documentation/hw_start_update_messages.md")]
-    pub async fn hw_start_update_messages_async(&self) {
-        functions::hw_start_update_messages(self).await
+    #[doc = include_str!("../documentation/start_update_messages.md")]
+    pub async fn start_update_messages_async(&self) {
+        functions::start_update_messages(self).await
     }
 
     #[thormacros::sync]
-    #[doc = include_str!("../documentation/hw_stop_update_messages.md")]
-    pub async fn hw_stop_update_messages_async(&self) {
-        functions::hw_stop_update_messages(self).await
+    #[doc = include_str!("../documentation/stop_update_messages.md")]
+    pub async fn stop_update_messages_async(&self) {
+        functions::stop_update_messages(self).await
     }
 
     #[thormacros::sync]

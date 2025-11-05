@@ -14,8 +14,8 @@ use crate::traits::ThorlabsDevice;
 const START_UPDATE_MESSAGES: [u8; 2] = [0x11, 0x00];
 const STOP_UPDATE_MESSAGES: [u8; 2] = [0x12, 0x00];
 
-#[doc = include_str!("../documentation/hw_start_update_messages.md")]
-pub(crate) async fn hw_start_update_messages<A, const CH: usize>(device: &A)
+#[doc = include_str!("../documentation/start_update_messages.md")]
+pub(crate) async fn start_update_messages<A, const CH: usize>(device: &A)
 where
     A: ThorlabsDevice<CH>,
 {
@@ -25,8 +25,8 @@ where
     log::info!("{device} START_UPDATE_MESSAGES (success)");
 }
 
-#[doc = include_str!("../documentation/hw_stop_update_messages.md")]
-pub(crate) async fn hw_stop_update_messages<A, const CH: usize>(device: &A)
+#[doc = include_str!("../documentation/stop_update_messages.md")]
+pub(crate) async fn stop_update_messages<A, const CH: usize>(device: &A)
 where
     A: ThorlabsDevice<CH>,
 {
