@@ -94,7 +94,12 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
         let mut guard = self.status.write().await;
         if let Status::Closed(dsp) = guard.deref() {
             log::debug!("{self} OPEN (is closed)");
-            let interface = self.device_info.open()?.detach_and_claim_interface(0)?;
+            let interface = self
+                .device_info
+                .open()
+                .await?
+                .detach_and_claim_interface(0)
+                .await?;
             let dispatcher = dsp.clone(); // Inexpensive Arc Clone
             let communicator = Communicator::new(interface, dispatcher).await;
             *guard = Status::Open(communicator);
