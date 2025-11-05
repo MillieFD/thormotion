@@ -45,7 +45,7 @@ where
 }
 
 #[doc = include_str!("../documentation/set_channel_enable_state.md")]
-pub(crate) async fn set_channel_enable_state<A, const CH: usize>(
+pub(crate) async fn set_channel_enabled<A, const CH: usize>(
     device: &A,
     channel: usize,
     enable: bool,

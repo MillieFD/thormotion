@@ -154,8 +154,8 @@ impl KDC101 {
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/set_channel_enable_state.md")]
-    pub async fn set_channel_enable_state_async(&self, enable: bool) {
-        functions::set_channel_enable_state(self, 1, enable).await
+    pub async fn set_channel_enabled_async(&self, enable: bool) {
+        functions::set_channel_enabled(self, 1, enable).await
     }
 
     /* ------------------------------------------------------------------------------------ MOVE */
