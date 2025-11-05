@@ -1,18 +1,18 @@
 /*
- Project: thormotion
- GitHub: https://github.com/MillieFD/thormotion
+Project: thormotion
+GitHub: https://github.com/MillieFD/thormotion
 
- BSD 3-Clause License, Copyright (c) 2025, Amelia Fraser-Dale
+BSD 3-Clause License, Copyright (c) 2025, Amelia Fraser-Dale
 
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the conditions of the LICENSE are met.
- */
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the conditions of the LICENSE are met.
+*/
 
 use std::fmt::{Display, Formatter};
 use std::io::Error;
 use std::sync::Arc;
 
-use crate::devices::{add_device, UsbPrimitive};
+use crate::devices::{UsbPrimitive, add_device};
 use crate::error::sn;
 use crate::functions;
 use crate::messages::Metadata;
@@ -133,25 +133,25 @@ impl KDC101 {
     #[thormacros::sync]
     #[doc = include_str!("../documentation/hw_start_update_messages.md")]
     pub async fn hw_start_update_messages_async(&self) {
-        functions::hw_start_update_messages(self).await;
+        functions::hw_start_update_messages(self).await
     }
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/hw_stop_update_messages.md")]
     pub async fn hw_stop_update_messages_async(&self) {
-        functions::hw_stop_update_messages(self).await;
+        functions::hw_stop_update_messages(self).await
     }
 
     #[thormacros::sync]
-    #[doc = include_str!("../documentation/get_channel_enable_state.md")]
-    pub async fn get_channel_enable_state_async(&self) {
-        functions::get_channel_enable_state(self, 1).await;
+    #[doc = include_str!("../documentation/is_channel_enabled.md")]
+    pub async fn is_channel_enabled_async(&self) -> bool {
+        functions::is_channel_enabled(self, 1).await
     }
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/set_channel_enable_state.md")]
     pub async fn set_channel_enable_state_async(&self, enable: bool) {
-        functions::set_channel_enable_state(self, 1, enable).await;
+        functions::set_channel_enable_state(self, 1, enable).await
     }
 
     /* ------------------------------------------------------------------------------------ MOVE */
@@ -159,19 +159,19 @@ impl KDC101 {
     #[thormacros::sync]
     #[doc = include_str!("../documentation/home.md")]
     pub async fn home_async(&self) {
-        functions::home(self, 1).await;
+        functions::home(self, 1).await
     }
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/move_absolute.md")]
     pub async fn move_absolute_async(&self, position: f64) {
-        functions::move_absolute(self, 1, position).await;
+        functions::move_absolute(self, 1, position).await
     }
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/move_absolute_from_params.md")]
-    pub async fn move_absolute_from_params_async(&self) {
-        functions::move_absolute_from_params(self, 1).await;
+    pub async fn move_absolute_from_params_async(&self) -> f64 {
+        functions::move_absolute_from_params(self, 1).await
     }
 
     #[thormacros::sync]
@@ -185,8 +185,8 @@ impl KDC101 {
     }
 
     #[thormacros::sync]
-    pub async fn move_relative_from_params_async(&self) {
-        functions::move_relative_from_params(self, 1).await;
+    pub async fn move_relative_from_params_async(&self) -> f64 {
+        functions::move_relative_from_params(self, 1).await
     }
 
     /* ------------------------------------------------------------------------------------ STOP */
@@ -194,13 +194,13 @@ impl KDC101 {
     #[thormacros::sync]
     #[doc = include_str!("../documentation/stop.md")]
     pub async fn stop_async(&self) {
-        functions::stop(self, 1).await;
+        functions::stop(self, 1).await
     }
 
     #[thormacros::sync]
     #[doc = include_str!("../documentation/estop.md")]
     pub async fn estop_async(&self) {
-        functions::estop(self, 1).await;
+        functions::estop(self, 1).await
     }
 }
 
