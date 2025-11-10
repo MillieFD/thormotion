@@ -28,7 +28,7 @@ use crate::error::{cmd, sn};
 use crate::messages::{Dispatcher, Metadata, Provenance};
 
 #[derive(Debug)]
-pub(crate) struct UsbPrimitive<const CHANNELS: usize> {
+pub(crate) struct UsbPrimitive<const CH: usize> {
     /// A unique eight-digit serial number that is printed on the Thorlabs device.
     serial_number: String,
     /// Information about a device that can be obtained without calling [`DeviceInfo::open`].
@@ -43,20 +43,17 @@ pub(crate) struct UsbPrimitive<const CHANNELS: usize> {
     /// [1]: Status::Open
     /// [2]: Status::Closed
     /// [3]: UsbPrimitive::open
-    status: RwLock<Status<CHANNELS>>,
+    status: RwLock<Status<CH>>,
 }
 
-impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
+impl<const CH: usize> UsbPrimitive<CH> {
     /// Constructs a new [`UsbPrimitive`] for a Thorlabs device with the specified serial number.
     ///
     /// Returns [`Error::NotFound`] if the specified device is not connected.
     ///
     /// Returns [`Error::Multiple`] if more than one device with the specified serial number is
     /// found.
-    pub(super) fn new(
-        serial_number: &String,
-        ids: &[Metadata<CHANNELS>],
-    ) -> Result<Self, sn::Error> {
+    pub(super) fn new(serial_number: &String, ids: &[Metadata<CH>]) -> Result<Self, sn::Error> {
         log::debug!("USB Primitive {serial_number} NEW (requested)");
         let device_info = get_device(serial_number)?;
         log::debug!("USB Primitive {serial_number} NEW (found)");
@@ -213,7 +210,7 @@ impl<const CHANNELS: usize> UsbPrimitive<CHANNELS> {
     }
 }
 
-impl<const CHANNELS: usize> PartialEq<UsbPrimitive<CHANNELS>> for UsbPrimitive<CHANNELS> {
+impl<const CH: usize> PartialEq<UsbPrimitive<CH>> for UsbPrimitive<CH> {
     /// Compares two `UsbPrimitive` devices for equality.
     ///
     /// Returns `true` if both devices have the same vendor ID, product ID, and serial number.
