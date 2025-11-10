@@ -130,8 +130,8 @@ impl<const CH: usize> UsbPrimitive<CH> {
     /// If the device [`Status`] is [`Closed`][3], a temporary [`Interface`][2] is [`Opened`][4]
     /// to send the abort command.
     ///
-    /// Does not remove the device from the global [`DEVICES`][5] [`HashMap`][6]. You can use
-    /// [`Open`][4] to resume communication.
+    /// Does not remove the device from the global [`DEVICES`][5] [`HashMap`][6]. Use [`Open`][4]
+    /// to resume communication.
     ///
     /// To release the claimed [`Interface`][2] without bringing the device to a resting state,
     /// use [`close`][7].
