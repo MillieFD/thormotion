@@ -201,9 +201,11 @@ pub(crate) fn bug_abort(message: String) -> ! {
 pub(super) fn get_device(serial_number: &String) -> Result<DeviceInfo, Error> {
     let mut devices =
         get_devices().filter(|dev| dev.serial_number().map_or(false, |sn| sn == serial_number));
-    match (devices.next(), devices.next()) {
-        (None, _) => Err(Error::NotFound(serial_number.clone())),
-        (Some(device), None) => Ok(device),
-        (Some(_), Some(_)) => Err(Error::Multiple(serial_number.clone())),
+    match devices.next() {
+        None => Err(Error::NotFound(serial_number.clone())),
+        Some(d) => match devices.next() {
+            None => Ok(d),
+            Some(_) => Err(Error::Multiple(serial_number.clone())),
+        },
     }
 }
