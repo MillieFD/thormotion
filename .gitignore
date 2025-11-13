@@ -63,9 +63,6 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
-# Work in progress
-/TODO
-
 # JetBrains IDE
 .idea/
 
