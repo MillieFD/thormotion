@@ -35,7 +35,7 @@ path = "thormacros"
 version = "0.1"
 
 [dependencies.pyo3]
-version = "0.27"
+version = "0.28.0"
 features = ["experimental-async", "extension-module", "experimental-inspect"]
 optional = true
 
