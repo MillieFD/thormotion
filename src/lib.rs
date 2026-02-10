@@ -27,7 +27,7 @@ mod py {
 
     use crate::devices::*;
     #[pymodule(name = "thormotion")]
-    ///A cross-platform motion control library for Thorlabs systems, written in Rust.
+    /// A cross-platform motion control library for Thorlabs systems, written in Rust.
     fn initialise_thormotion_pymodule(module: &Bound<'_, PyModule>) -> PyResult<()> {
         module.add_class::<KDC101>()?;
         Ok(())
